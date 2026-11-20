@@ -934,13 +934,16 @@ function viewHome() {
 }
 function embeds() { try { const v = JSON.parse(content('dash_embeds') || '[]'); if (v.length) return v; } catch { }
   return content('dash_sheet') ? [{ t: '📊 ชีตงาน Migration', u: content('dash_sheet') }] : []; }
+function gAcct() { let v = null; try { v = localStorage.getItem('l4u_gacct'); } catch { } return v || (S.session && S.session.user.email) || ''; }
 function embedSrc(u, mode) {
   const m = (u || '').match(/docs\.google\.com\/(spreadsheets|document|presentation)\/d\/([A-Za-z0-9_-]+)/); if (!m) return null;
   const [, kind, id] = m; const gid = ((u || '').match(/[#&?]gid=(\d+)/) || [])[1];
-  if (kind === 'spreadsheets') return mode === 'view' ? `https://docs.google.com/spreadsheets/d/${id}/htmlview?rm=minimal${gid ? '&gid=' + gid : ''}` : `https://docs.google.com/spreadsheets/d/${id}/edit?rm=minimal${gid ? '#gid=' + gid : ''}`;
-  if (kind === 'document') return mode === 'view' ? `https://docs.google.com/document/d/${id}/preview` : `https://docs.google.com/document/d/${id}/edit?rm=minimal`;
-  return `https://docs.google.com/presentation/d/${id}/${mode === 'view' ? 'embed' : 'edit?rm=minimal'}`;
+  const au = gAcct() ? '&authuser=' + encodeURIComponent(gAcct()) : '';
+  if (kind === 'spreadsheets') return mode === 'view' ? `https://docs.google.com/spreadsheets/d/${id}/htmlview?rm=minimal${au}${gid ? '&gid=' + gid : ''}` : `https://docs.google.com/spreadsheets/d/${id}/edit?rm=minimal${au}${gid ? '#gid=' + gid : ''}`;
+  if (kind === 'document') return mode === 'view' ? `https://docs.google.com/document/d/${id}/preview?${au.slice(1)}` : `https://docs.google.com/document/d/${id}/edit?rm=minimal${au}`;
+  return `https://docs.google.com/presentation/d/${id}/${mode === 'view' ? 'embed?' + au.slice(1) : 'edit?rm=minimal' + au}`;
 }
+function gLoginUrl(u) { return 'https://accounts.google.com/AccountChooser?Email=' + encodeURIComponent(gAcct()) + '&continue=' + encodeURIComponent(u || 'https://docs.google.com/'); }
 function sheetCard() {
   const list = embeds(); if (!list.length && !isMgr()) return '';
   S.emb = S.emb || {};
@@ -950,12 +953,17 @@ function sheetCard() {
       <button class="btn s" data-ebig="${i}">${st.big ? '↙️ ย่อ' : '↗️ ขยาย'}</button><a class="btn s" href="${esc(e.u)}" target="_blank" rel="noopener">เปิดในแท็บใหม่</a>` : ''}
       <button class="btn s" data-etg="${i}">${open ? 'ซ่อน' : 'แสดง'}</button></div>
       ${open ? (src ? `<iframe class="sheetframe ${st.big ? 'big' : ''}" src="${esc(src)}" loading="eager" allow="clipboard-read; clipboard-write"></iframe>` : '<p class="muted">ลิงก์นี้ไม่ใช่ Google Sheets / Docs</p>') : ''}</div>`; }).join('')
-    + `<div class="row small muted" style="margin:-8px 0 16px;gap:8px;align-items:center">ถ้าเอกสารไม่ขึ้น: ล็อกอิน Google บัญชีบริษัทในเบราว์เซอร์นี้ หรือกด "เปิดในแท็บใหม่"${isMgr() ? ' · <button class="btn s" id="emanage">⚙️ จัดการเอกสารบน Dashboard</button>' : ''}</div>`;
+    + `<div class="card gacct"><div class="row" style="align-items:center;gap:8px"><span>🔑 เปิดเอกสารด้วยบัญชี Google: <b>${esc(gAcct() || '—')}</b></span>
+      <button class="btn s" id="gchg">เปลี่ยนบัญชี</button><a class="btn s p" id="glogin" href="${esc(gLoginUrl(list[0] && list[0].u))}" target="_blank" rel="noopener">ล็อกอิน Google (ครั้งแรก)</a><button class="btn s" id="grel">🔄 โหลดเอกสารใหม่</button>
+      ${isMgr() ? '<span style="flex:1"></span><button class="btn s" id="emanage">⚙️ จัดการเอกสารบน Dashboard</button>' : ''}</div>
+      <p class="small muted" style="margin:6px 0 0">ขึ้น "You need access" = เบราว์เซอร์ใช้บัญชี Google อื่นอยู่ → กด <b>ล็อกอิน Google (ครั้งแรก)</b> เลือก/ล็อกอินบัญชีด้านบนในแท็บใหม่ แล้วกลับมากด <b>🔄 โหลดเอกสารใหม่</b> · ทำครั้งเดียว เบราว์เซอร์จำไว้</p></div>`;
 }
 function bindSheet() {
   document.querySelectorAll('[data-em]').forEach(x => x.onchange = () => { const i = x.dataset.em; S.emb[i] = Object.assign({}, S.emb[i], { mode: x.value }); render(); });
   document.querySelectorAll('[data-ebig]').forEach(x => x.onclick = () => { const i = x.dataset.ebig; S.emb[i] = Object.assign({}, S.emb[i], { big: !(S.emb[i] || {}).big }); render(); });
   document.querySelectorAll('[data-etg]').forEach(x => x.onclick = () => { const i = x.dataset.etg; const o = (S.emb[i] || {}).open !== false; S.emb[i] = Object.assign({}, S.emb[i], { open: !o }); render(); });
+  if ($('#gchg')) $('#gchg').onclick = () => { const v = prompt('บัญชี Google ที่มีสิทธิ์เปิดเอกสาร (อีเมล):', gAcct()); if (v === null) return; try { localStorage.setItem('l4u_gacct', v.trim()); } catch { } render(); };
+  if ($('#grel')) $('#grel').onclick = () => document.querySelectorAll('.sheetframe').forEach(f => { f.src = f.src; });
   if ($('#emanage')) $('#emanage').onclick = () => {
     const rows = embeds();
     const draw = () => `<h3>เอกสารที่แสดงบน Dashboard</h3><p class="small muted">Google Sheets / Docs / Slides · เรียงจากบนลงล่าง</p>
