@@ -1132,7 +1132,7 @@ async function viewGcal() {
   $('#main').innerHTML = `<div class="card"><h2>📆 เชื่อมนัดหมายเข้า Google Calendar ของคุณ <small>ทุกนัดที่ทีมลง จะขึ้นในปฏิทินของคุณพร้อมเตือน 30 และ 10 นาทีก่อนนัด</small></h2>
     <div>${g.url ? badge('✓ เชื่อมแล้ว', 'good') + ` <span class="small muted">${fmtDT(g.updated_at)}</span>` : badge('ยังไม่ได้เชื่อม', 'warn')}</div>
     <ol class="steps">
-      <li>เปิด <a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener"><b>script.google.com → New project</b></a> (ล็อกอินด้วย Google บัญชีที่ใช้ปฏิทิน)</li>
+      <li>เปิด <a href="https://accounts.google.com/AccountChooser?Email=${encodeURIComponent(S.session.user.email)}&continue=${encodeURIComponent('https://script.google.com/home/projects/create')}" target="_blank" rel="noopener"><b>script.google.com → New project</b></a> (เปิดด้วยบัญชี <b>${esc(S.session.user.email)}</b> ให้อัตโนมัติ — ถ้าขึ้น "You need access" อย่ากด Request access ให้กดลิงก์นี้ใหม่)</li>
       <li>ลบโค้ดเดิมในหน้าจอออกทั้งหมด แล้วกดปุ่ม <b>Copy script</b> ด้านล่าง → วางลงไป → กด 💾 Save (ตั้งชื่อโปรเจกต์ว่า L4U Calendar)</li>
       <li>ที่แถบด้านบน เลือกฟังก์ชัน <b>authorize</b> แล้วกด <b>▶ Run</b> → <b>Review permissions</b> → เลือกบัญชี → <b>Advanced</b> → <b>Go to L4U Calendar (unsafe)</b> → <b>Allow</b> (เป็นโค้ดของคุณเอง ปลอดภัย)</li>
       <li>กด <b>Deploy</b> (มุมขวาบน) → <b>New deployment</b> → รูปเฟือง ⚙️ → เลือก <b>Web app</b></li>
