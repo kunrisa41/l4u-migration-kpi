@@ -1168,18 +1168,38 @@ function flowStorePick() {
   return `<div class="ac"><div class="an">D</div><div><b>เลือกร้านที่ LIVE แล้วบันทึก</b> <span class="small muted">รายชื่อร้านมาจาก Pre-Live Checklist เท่านั้น</span>
     ${list.length ? `<div class="row" style="margin-top:8px;align-items:center"><select id="fsel" style="min-width:260px;flex:1;max-width:420px"><option value="">— เลือกชื่อร้าน —</option>
       ${list.map(x => `<option value="${esc(x.store_name)}" ${x.store_name === sel ? 'selected' : ''}>${esc(x.store_name)}${x.done >= PL_REQ ? ' ✓ Pre-Live ครบ' : ` (Pre-Live ${x.done}/${PL_REQ})`}${isLiveDone(x.store_name) ? ' · 🔴 LIVE แล้ว' : ''}</option>`).join('')}</select>
-      <button class="btn r" id="fgo" ${p ? '' : 'disabled'}>🔴 บันทึก LIVE ร้านนี้</button></div>
+      </div>
+      ${p ? `<div class="row" style="margin-top:10px"><button class="btn ok big" id="fok">✅ LIVE สำเร็จ</button><button class="btn r big" id="fno">❌ ไม่สำเร็จ / ติดปัญหา</button></div>
+        <p class="small muted" style="margin:6px 0 0">✅ สำเร็จ → กรอกฟอร์ม Record LIVE แล้วระบบแจ้งกลุ่ม Google Chat ว่า LIVE สำเร็จ · ❌ ไม่สำเร็จ → ใส่ว่าติดอะไร ระบบส่งไปที่ "ปัญหา / No-show" แจ้ง Google Chat และเตือนทุก 2 วันจนกว่าจะแก้เสร็จ</p>` : ''}
       ${p ? `<div class="small" style="margin-top:6px">${p.done >= PL_REQ ? badge('✓ Pre-Live Checklist ครบ ' + PL_REQ + ' ข้อ', 'good') : badge(`⚠️ Pre-Live ยังไม่ครบ (${p.done}/${PL_REQ})`, 'warn') + ' <a href="#" id="fpl">ไปเช็กต่อ</a>'} · ตรวจโดย ${esc(memberName(p.inspector))} · ${fmtDT(p.updated_at)}${isLiveDone(p.store_name) ? ' · ' + badge('ร้านนี้บันทึก LIVE ไปแล้ว', 'blue') : ''}</div>` : ''}`
     : `<p class="small muted" style="margin:6px 0">ยังไม่มีร้านใน Pre-Live Checklist — ทำ Pre-Live Checklist ของร้านก่อน แล้วชื่อร้านจะขึ้นที่นี่</p>`}</div></div>`;
 }
 function bindFlowPick() {
   if ($('#fsel')) $('#fsel').onchange = e => { S.flowStore = e.target.value; const y = window.scrollY; render(); window.scrollTo(0, y); };
   if ($('#fpl')) $('#fpl').onclick = e => { e.preventDefault(); const p = plStores().find(x => x.store_name === S.flowStore); S.pl = Object.assign({}, p); S.tab = 'prelive'; render(); window.scrollTo(0, 0); };
-  if ($('#fgo')) $('#fgo').onclick = () => {
+  if ($('#fok')) $('#fok').onclick = () => {
     const p = plStores().find(x => x.store_name === S.flowStore); if (!p) return;
     if (p.done < PL_REQ && !confirm(`Pre-Live Checklist ของร้านนี้ยังไม่ครบ (${p.done}/${PL_REQ}) จะบันทึก LIVE ต่อไหม?`)) return;
-    activityModal('live', null, { store_name: p.store_name, rid: p.rid, member_code: S.me.code, checklist: { from_prelive: p.id } });
+    activityModal('live', null, { store_name: p.store_name, rid: p.rid, member_code: S.me.code, checklist: { from_prelive: p.id, m486: 'Completed', chk_install: 'Yes', chk_printer: 'Yes', chk_test: 'Yes', chk_booking: 'Yes', setup_app: 'Yes' } });
     const inp = $('#a_r'); if (inp) { inp.readOnly = true; inp.removeAttribute('list'); inp.classList.add('locked'); }
+  };
+  if ($('#fno')) $('#fno').onclick = () => {
+    const p = plStores().find(x => x.store_name === S.flowStore); if (!p) return;
+    openModal(`<h3>❌ LIVE ไม่สำเร็จ · ${esc(p.store_name)}</h3><p class="small muted">ระบบจะบันทึกไว้ที่ "ปัญหา / No-show" แจ้งกลุ่ม Google Chat ทันที และเตือนทุก 2 วันจนกว่าจะติ๊ก ✓ เสร็จ</p>
+      <div class="fg"><div><label>ติดปัญหาเรื่องอะไร *</label><select id="nf_c">${opts(L.ISSUE, '', true)}</select></div><div><label>ปัญหามาจากใคร</label><select id="nf_p">${opts(L.PARTY, 'Customer', true)}</select></div>
+        <div><label>ต้องตามภายในวันที่</label><input id="nf_d" type="date" value="${C.iso(C.addWorkdays(C.today(), 2, C.holidaySet(S.settings)))}"></div></div>
+      <label>ต้อง follow-up อะไรต่อ *</label><textarea id="nf_t" placeholder="เช่น ร้านไม่มีเครื่องปริ้น รอซื้อใหม่, ร้านไม่สะดวกคุยตอนนี้ ขอนัดใหม่พรุ่งนี้ 10:00, ปริ้นเตอร์เชื่อม Bluetooth ไม่ได้"></textarea>
+      <div class="actions"><button class="btn" id="cx">ยกเลิก</button><button class="btn r" id="sv">ส่งไป Follow-up</button></div>`);
+    $('#cx').onclick = closeModal;
+    $('#sv').onclick = async () => {
+      const cat = $('#nf_c').value, txt = $('#nf_t').value.trim(); if (!cat || !txt) return toast('กรุณาเลือกปัญหา และใส่ว่าต้องตามอะไรต่อ', true);
+      $('#sv').disabled = true; const r = await ensureRest(p.store_name); if (!r) { $('#sv').disabled = false; return; }
+      const ins = await sb.from('blockers').insert({ log_date: C.iso(C.today()), rid: r.rid, employee: S.me.code, category: cat, party: $('#nf_p').value || null,
+        description: 'LIVE ไม่สำเร็จ: ' + txt, fu_due: $('#nf_d').value || null, status: 'Open', review: 'Pending' });
+      if (ins.error) { $('#sv').disabled = false; return toast(ins.error.message, true); }
+      await sb.from('restaurants').update({ mig_status: 'On Hold', blocker: txt, next_fu: $('#nf_d').value || null }).eq('rid', r.rid);
+      closeModal(); toast('ส่งไป Follow-up แล้ว · แจ้ง Google Chat แล้ว 💬'); await loadAll(); render();
+    };
   };
 }
 function flowImgs() { try { return JSON.parse(content('flow_images') || '{}'); } catch { return {}; } }

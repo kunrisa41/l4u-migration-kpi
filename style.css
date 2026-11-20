@@ -193,3 +193,5 @@ input.tick{width:20px;height:20px;cursor:pointer;accent-color:#16A34A}
 table.blk tr.done td{background:#F0FDF4;color:#64748B}
 input.locked{background:#F1F5F9;font-weight:700}
 .gacct{background:#F8FAFC;padding:10px 14px;margin-top:-6px}
+.btn.ok{background:#16A34A;color:#fff;border-color:#16A34A}
+.btn.big{padding:12px 22px;font-size:15px}
