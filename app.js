@@ -334,15 +334,26 @@ function importModal() {
 // ---------------- blockers ----------------
 function viewBlockers() {
   const a = asof();
-  $('#main').innerHTML = `<div class="card"><div class="row"><button class="btn p" id="addb">+ Log blocker / no-show</button><button class="btn" id="expb">Export CSV</button></div>
+  const openN = S.blockers.filter(b => b.status !== 'Resolved').length;
+  $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><button class="btn p" id="addb">+ บันทึกปัญหา / No-show</button><button class="btn" id="expb">Export CSV</button>
+    <div style="flex:1"></div><label class="small" style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="bopen" style="width:auto" ${S.bOpen ? 'checked' : ''}> แสดงเฉพาะที่ยังไม่เสร็จ (${openN})</label></div>
+  <div class="note" style="margin-top:10px">💬 ทุกปัญหาที่บันทึกจะแจ้งเข้า <b>Google Chat</b> ทันที และ<b>เตือนซ้ำทุก 2 วัน</b> จนกว่าจะกด <b>✅ เสร็จแล้ว</b>${isMgr() ? ' · ตั้งค่า Google Chat ที่ 🔒 KPI ➔ 🔔 Calendar & Chat' : ''}</div>
   <p class="small muted">Employee-controlled = Responsible Party Employee / Shared. External blockers reduce the employee's target automatically only when documented (restaurant, description, responsible party, follow-up due date), followed up on time, and not rejected by the Manager.</p>
-  <div class="tw"><table><thead><tr><th>Date</th><th>Restaurant</th><th>Employee</th><th>Category</th><th>Description</th><th>Responsible</th><th>Type</th><th>Follow-up due</th><th>Follow-up</th><th>Status</th><th>Manager review</th><th>Relief</th></tr></thead><tbody>
-  ${S.blockers.map(b => { const i = C.blockerInfo(b, a); const rn = (S.rests.find(r => r.rid === b.rid) || {}).name || '';
+  <div class="tw"><table><thead><tr><th>Date</th><th>Restaurant</th><th>Employee</th><th>Category</th><th>Description</th><th>Responsible</th><th>Type</th><th>Follow-up due</th><th>Follow-up</th><th>Status</th><th>Manager review</th><th>Relief</th><th></th></tr></thead><tbody>
+  ${S.blockers.filter(b => !S.bOpen || b.status !== 'Resolved').map(b => { const i = C.blockerInfo(b, a); const rn = (S.rests.find(r => r.rid === b.rid) || {}).name || '';
     return `<tr><td><a href="#" data-b="${b.id}">${fd(b.log_date)}</a></td><td>${esc(b.rid || '')}<div class="small muted">${esc(rn)}</div></td><td>${esc(memberName(b.employee))}</td><td class="small">${esc(b.category || '')}</td>
     <td class="small">${esc(b.description || '')}${b.evidence ? ` <a href="${esc(b.evidence)}" target="_blank" rel="noopener">evidence</a>` : ''}${!i.docOk ? '<span class="flag">⚠ documentation incomplete</span>' : ''}</td>
     <td class="small">${esc(b.party || '')}</td><td>${i.control === 'External' ? badge('External', 'blue') : i.control === 'Employee-controlled' ? badge('Employee', 'warn') : badge('Not set', 'grey')}</td>
     <td class="small">${fd(b.fu_due)}</td><td>${badge(i.fu, i.fu === 'On time' ? 'good' : i.fu === 'Overdue' || i.fu === 'Late' ? 'bad' : 'grey')}</td><td class="small">${esc(b.status || '')}</td>
-    <td class="small">${esc(b.review || '')}</td><td>${i.relief ? badge('Yes', 'good') : ''}</td></tr>`; }).join('') || '<tr><td colspan="12" class="muted">Nothing logged</td></tr>'}</tbody></table></div></div>`;
+    <td class="small">${esc(b.review || '')}</td><td>${i.relief ? badge('Yes', 'good') : ''}</td>
+    <td style="white-space:nowrap">${b.status === 'Resolved' ? badge('✅ เสร็จแล้ว', 'good') + (b.res_date ? `<div class="small muted">${fd(b.res_date)}</div>` : '') : `<button class="btn s t" data-bdone="${b.id}">✅ เสร็จแล้ว</button>${b.reminded_at ? `<div class="small muted">เตือนล่าสุด ${fmtDT(b.reminded_at)}</div>` : ''}`}</td></tr>`; }).join('') || '<tr><td colspan="13" class="muted">ยังไม่มีปัญหาที่บันทึกไว้</td></tr>'}</tbody></table></div></div>`;
+  $('#bopen').onchange = e => { S.bOpen = e.target.checked; render(); };
+  document.querySelectorAll('[data-bdone]').forEach(x => x.onclick = async () => {
+    const b = S.blockers.find(y => String(y.id) === x.dataset.bdone); const rn = (S.rests.find(r => r.rid === b.rid) || {}).name || b.rid || '';
+    if (!confirm(`ปัญหานี้แก้เสร็จแล้ว?\n${rn} — ${b.category || ''}\n\nระบบจะหยุดเตือน และแจ้ง Google Chat ว่าแก้เรียบร้อย`)) return;
+    const t = C.iso(C.today());
+    await save(sb.from('blockers').update({ status: 'Resolved', res_date: t, fu_done: b.fu_done || t }).eq('id', b.id), 'เรียบร้อย ✅ แจ้ง Google Chat แล้ว');
+  });
   $('#addb').onclick = () => blockerModal(null);
   $('#expb').onclick = () => download('blocker-noshow-log.csv', toCsv([['Date', 'Restaurant ID', 'Restaurant Name', 'Employee', 'Issue Category', 'Issue Description', 'Evidence Link', 'Responsible Party', 'Follow-up Due Date', 'Follow-up Completed Date', 'Resolution Date', 'Status', 'Manager Review']]
     .concat(S.blockers.map(b => [b.log_date, b.rid, (S.rests.find(r => r.rid === b.rid) || {}).name, b.employee, b.category, b.description, b.evidence, b.party, b.fu_due, b.fu_done, b.res_date, b.status, b.review]))));
@@ -352,7 +363,7 @@ function blockerModal(b) {
   const isNew = !b; b = b || { log_date: C.iso(C.today()), employee: S.me.code, status: 'Open', review: 'Pending' };
   const f = (n, l, t = 'text') => `<div><label>${l}</label><input name="${n}" type="${t}" value="${esc(b[n] ?? '')}"></div>`;
   const s = (n, l, list, dis) => `<div><label>${l}</label><select name="${n}" ${dis ? 'disabled' : ''}>${opts(list, b[n], true)}</select></div>`;
-  openModal(`<h3>${isNew ? 'Log blocker / no-show' : 'Edit log entry'}</h3><div id="bf"><div class="fg">
+  openModal(`<h3>${isNew ? '🚨 บันทึกปัญหา / No-show' : 'แก้ไขปัญหา'}</h3>${isNew ? '<p class="small muted">บันทึกแล้วจะแจ้งเข้า Google Chat ทันที และเตือนซ้ำทุก 2 วันจนกว่าจะกด ✅ เสร็จแล้ว</p>' : ''}<div id="bf"><div class="fg">
     ${f('log_date', 'Date', 'date')}<div><label>Restaurant</label><select name="rid"><option value=""></option>${S.rests.map(r => `<option value="${esc(r.rid)}" ${r.rid === b.rid ? 'selected' : ''}>${esc(r.rid)} · ${esc(r.name)}</option>`).join('')}</select></div>
     <div><label>Employee</label><select name="employee">${memberOpts(b.employee)}</select></div>${s('category', 'Issue category', L.ISSUE)}${s('party', 'Responsible party', L.PARTY)}
     ${f('evidence', 'Evidence link', 'url')}${f('fu_due', 'Follow-up due date', 'date')}${f('fu_done', 'Follow-up completed date', 'date')}${f('res_date', 'Resolution date', 'date')}
