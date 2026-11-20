@@ -13,7 +13,7 @@ const L = {
   BOOK: ['Not Booked', 'Booked', 'Rescheduled', 'Attended', 'No-show', 'Cancelled by Customer'],
   MIG: ['Not Ready', 'Ready to Live', 'Live Scheduled', 'Live In Progress', 'Live Completed', 'On Hold', 'Cancelled'],
   CHK: ['', 'Yes', 'No', 'N/A'],
-  ISSUE: ['Pre-Live Incomplete', 'No-show', 'Customer Not Responding', 'Customer Requested Reschedule', 'Missing Menu / Info from Customer', 'Marketing Delay', 'Technical / System Issue', 'Printer / Hardware Issue', 'Payment Setup Issue', 'Employee Error / Delay', 'Other'],
+  ISSUE: ['Pre-Live Incomplete', 'Website Button (External)', 'No-show', 'Customer Not Responding', 'Customer Requested Reschedule', 'Missing Menu / Info from Customer', 'Marketing Delay', 'Technical / System Issue', 'Printer / Hardware Issue', 'Payment Setup Issue', 'Employee Error / Delay', 'Other'],
   PARTY: ['Employee', 'Shared', 'Customer', 'Marketing', 'Technical / Development', 'Third Party', 'Manager'],
   BST: ['Open', 'Follow-up Done', 'Resolved', 'Escalated'],
   REVIEW: ['Pending', 'Confirmed External', 'Rejected - Employee Responsible', 'Needs More Info'],
@@ -467,6 +467,13 @@ function viewBlockers() {
   document.querySelectorAll('[data-tick]').forEach(x => x.onchange = async () => {
     const b = S.blockers.find(y => String(y.id) === x.dataset.tick);
     if (x.checked && b.category === 'Pre-Live Incomplete') { x.checked = false; return toPrelive(b); }
+    if (x.checked && b.category === 'Website Button (External)') {
+      if (!confirm(`ร้าน / เจ้าของเว็บติดปุ่มเสร็จแล้ว?\n${rn(b)}\n\nระบบจะปิด follow-up แล้วพาไปบันทึก LIVE ร้านนี้`)) { x.checked = false; return; }
+      await setBlocker(b, { status: 'Resolved' }, 'ปิด follow-up แล้ว');
+      const n = rn(b).trim().toLowerCase(); const p = plStores().find(z => z.store_name.trim().toLowerCase() === n);
+      S.flowStore = p ? p.store_name : ''; S.tab = 'flow'; render(); setTimeout(() => { const el = $('#fpick'); if (el) el.scrollIntoView(); }, 600);
+      return toast('บันทึก LIVE ร้านนี้ได้แล้ว — กด ✅ LIVE สำเร็จ');
+    }
     if (x.checked) { if (!confirm(`แก้เสร็จแล้ว?\n${rn(b)} — ${b.category || ''}\n\nระบบจะหยุดเตือน และแจ้ง Google Chat ว่าแก้เรียบร้อย`)) { x.checked = false; return; } await setBlocker(b, { status: 'Resolved' }, 'เรียบร้อย ✅ แจ้ง Google Chat แล้ว'); }
     else { if (!confirm('เปิดปัญหานี้ใหม่? (ระบบจะเริ่มเตือนอีกครั้ง)')) { x.checked = true; return; } await setBlocker(b, { status: 'Open' }, 'เปิดใหม่แล้ว'); }
   });
@@ -1360,6 +1367,24 @@ function plStores() { // latest pre-live record per store
   const m = new Map(); (S.prelive || []).forEach(p => { const k = (p.store_name || '').trim().toLowerCase(); if (k && !m.has(k)) m.set(k, p); });
   return [...m.values()].sort((a, b) => a.store_name.localeCompare(b.store_name));
 }
+// Website rule from Pre-Live item 17 (o10): external site/domain -> follow-up must be done before LIVE can be recorded
+const webOpts = p => ((p && p.checks) || {}).o10 || [];
+const webExternal = p => { const o = webOpts(p); return o.includes('Add button with other') || o.includes('Domain not with us'); };
+const webFu = p => { const r = S.rests.find(x => (x.name || '').trim().toLowerCase() === p.store_name.trim().toLowerCase()) || {};
+  return S.blockers.filter(b => b.category === 'Website Button (External)' && (b.rid ? b.rid === r.rid : true) && (b.rid || (b.description || '').includes(p.store_name))); };
+function webGate(p) {
+  const o = webOpts(p), it = content('monday_it'); const out = [];
+  if (webExternal(p)) {
+    const fu = webFu(p), open = fu.find(b => b.status !== 'Resolved'), done = fu.find(b => b.status === 'Resolved');
+    out.push(`<div class="webgate red">🔴 <b>เว็บ / โดเมนไม่ได้อยู่กับเรา</b> (${esc(o.filter(x => /other|not with us/i.test(x)).join(', '))}) — ต้องให้ร้าน / เจ้าของเว็บติดปุ่ม Online Order & Table Reservation ให้ ·
+      ${open ? `<b>มี follow-up ค้างอยู่</b> — ติ๊ก ✓ ที่ "ปัญหา / No-show" เมื่อติดปุ่มเสร็จ แล้วกลับมาบันทึก LIVE ได้ <a href="#" data-gofu="1">ไปที่ follow-up</a>`
+        : done ? '✅ follow-up ติดปุ่มเสร็จแล้ว บันทึก LIVE ได้' : 'กด ✅ LIVE สำเร็จ ระบบจะส่ง follow-up ให้ก่อน (ยังบันทึก LIVE ไม่ได้จนกว่าจะติ๊ก ✓ ที่ follow-up)'}</div>`);
+  }
+  if (o.includes('Add button with us')) out.push(`<div class="webgate yel">🟡 <b>Add button with us</b> — แจ้งร้านเสมอว่า <b>ใช้งานได้วันถัดไป / ภายใน 24 ชม.</b> และแจ้งใน Monday IT board ให้อัปเดตปุ่ม ${it ? `<a class="btn s" href="${esc(it)}" target="_blank" rel="noopener" onclick="window.open(this.href,'itboard','width=1200,height=850');return false;">🔗 เปิด IT board</a>` : ''}</div>`);
+  if (o.includes('GF Web') || o.includes('Domain with us')) out.push(`<div class="webgate blu">🔵 <b>${esc(o.filter(x => /GF Web|Domain with us/.test(x)).join(' / '))}</b> — ผ่านได้ แต่ต้อง <b>แจ้งคุณต้นอัปเดตเว็บ</b> (Cloudflare DNS 35.238.2.132 + Custom Domain + SSL)</div>`);
+  if (!o.length) out.push('<div class="small muted" style="margin-top:6px">ยังไม่ได้เลือกประเภทเว็บใน Pre-Live ข้อ Website — เลือกก่อนจะได้รู้ว่าต้องทำอะไรต่อ</div>');
+  return out.join('');
+}
 function flowStorePick() {
   const list = plStores(); const sel = S.flowStore || '';
   const p = list.find(x => x.store_name === sel);
@@ -1368,6 +1393,7 @@ function flowStorePick() {
     ${list.length ? `<div class="row" style="margin-top:8px;align-items:center"><select id="fsel" style="min-width:260px;flex:1;max-width:420px"><option value="">— เลือกชื่อร้าน —</option>
       ${list.map(x => `<option value="${esc(x.store_name)}" ${x.store_name === sel ? 'selected' : ''}>${esc(x.store_name)}${x.done >= PL_REQ ? ' ✓ Pre-Live ครบ' : ` (Pre-Live ${x.done}/${PL_REQ})`}${isLiveDone(x.store_name) ? ' · 🔴 LIVE แล้ว' : ''}</option>`).join('')}</select>
       </div>
+      ${p ? webGate(p) : ''}
       ${p ? `<div class="row" style="margin-top:10px"><button class="btn ok big" id="fok">✅ LIVE สำเร็จ</button><button class="btn r big" id="fno">❌ ไม่สำเร็จ / ติดปัญหา</button></div>
         <p class="small muted" style="margin:6px 0 0">✅ สำเร็จ → กรอกฟอร์ม Record LIVE แล้วระบบแจ้งกลุ่ม Google Chat ว่า LIVE สำเร็จ · ❌ ไม่สำเร็จ → ใส่ว่าติดอะไร ระบบส่งไปที่ "ปัญหา / No-show" แจ้ง Google Chat และเตือนทุก 2 วันจนกว่าจะแก้เสร็จ</p>` : ''}
       ${p ? `<div class="small" style="margin-top:6px">${p.done >= PL_REQ ? badge('✓ Pre-Live Checklist ครบ ' + PL_REQ + ' ข้อ', 'good') : badge(`⚠️ Pre-Live ยังไม่ครบ (${p.done}/${PL_REQ})`, 'warn') + ' <a href="#" id="fpl">ไปเช็กต่อ</a>'} · ตรวจโดย ${esc(memberName(p.inspector))} · ${fmtDT(p.updated_at)}${isLiveDone(p.store_name) ? ' · ' + badge('ร้านนี้บันทึก LIVE ไปแล้ว', 'blue') : ''}</div>` : ''}`
@@ -1376,8 +1402,23 @@ function flowStorePick() {
 function bindFlowPick() {
   if ($('#fsel')) $('#fsel').onchange = e => { S.flowStore = e.target.value; S.fTk = null; const y = window.scrollY; render(); window.scrollTo(0, y); };
   if ($('#fpl')) $('#fpl').onclick = e => { e.preventDefault(); const p = plStores().find(x => x.store_name === S.flowStore); S.pl = Object.assign({}, p); S.tab = 'prelive'; render(); window.scrollTo(0, 0); };
-  if ($('#fok')) $('#fok').onclick = () => {
+  document.querySelectorAll('[data-gofu]').forEach(a => a.onclick = e => { e.preventDefault(); S.tab = 'blockers'; render(); window.scrollTo(0, 0); });
+  if ($('#fok')) $('#fok').onclick = async () => {
     const p = plStores().find(x => x.store_name === S.flowStore); if (!p) return;
+    if (webExternal(p)) {
+      const fu = webFu(p);
+      if (fu.some(b => b.status !== 'Resolved')) return toast('ยังบันทึก LIVE ไม่ได้ — ต้องติ๊ก ✓ follow-up "ติดปุ่มเว็บ" ที่หน้า ปัญหา / No-show ก่อน', true);
+      if (!fu.length) {
+        if (!confirm(`เว็บ / โดเมนของ ${p.store_name} ไม่ได้อยู่กับเรา\nระบบจะส่ง follow-up ให้ร้าน / เจ้าของเว็บติดปุ่ม Online Order & Table Reservation\nบันทึก LIVE ได้หลังติ๊ก ✓ ที่ follow-up นี้ — ส่งเลยไหม?`)) return;
+        const r = await ensureRest(p.store_name); if (!r) return;
+        const ins = await sb.from('blockers').insert({ log_date: C.iso(C.today()), rid: r.rid, employee: S.me.code, category: 'Website Button (External)', party: 'Customer',
+          description: `${p.store_name}: เว็บ / โดเมนไม่ได้อยู่กับเรา (${webOpts(p).join(', ')}) — ให้ร้าน / เจ้าของเว็บติดปุ่ม Online Order & Table Reservation (ลิงก์ใหม่) แล้วติ๊ก ✓ เพื่อกลับไปบันทึก LIVE`,
+          fu_due: C.iso(C.addWorkdays(C.today(), 2, C.holidaySet(S.settings))), status: 'Open', review: 'Pending' });
+        if (ins.error) return toast(ins.error.message, true);
+        toast('ส่ง follow-up ติดปุ่มเว็บแล้ว · แจ้ง Google Chat แล้ว 💬'); await loadAll(); render(); return;
+      }
+    }
+    if (webOpts(p).some(x => x === 'GF Web' || x === 'Domain with us')) toast('อย่าลืม: แจ้งคุณต้นอัปเดตเว็บ (Cloudflare + Custom Domain)');
     if (p.done < PL_REQ && !confirm(`Pre-Live Checklist ของร้านนี้ยังไม่ครบ (${p.done}/${PL_REQ}) จะบันทึก LIVE ต่อไหม?`)) return;
     const miss = FLOW_KEYS().filter(k => !fT(k)); if (miss.length && !confirm(`ยังไม่ได้ติ๊ก ${miss.length} ข้อในขั้นตอน (1–10, A–E) จะบันทึก LIVE ต่อไหม?`)) return;
     activityModal('live', null, { store_name: p.store_name, rid: p.rid, member_code: S.me.code, checklist: { flow: Object.assign({}, fTicks()), flow_done: FLOW_KEYS().length - miss.length, flow_total: FLOW_KEYS().length, from_prelive: p.id, m486: 'Completed', chk_install: 'Yes', chk_printer: 'Yes', chk_test: 'Yes', chk_booking: 'Yes', setup_app: 'Yes' } });

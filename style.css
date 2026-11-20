@@ -253,3 +253,8 @@ html.noscroll,html.noscroll body{overflow:hidden;overscroll-behavior:none}
 
 .afh{font-weight:700;font-size:13px;color:var(--navy);margin:10px 0 2px;padding-top:6px;border-top:1px dashed var(--line)}
 .afh:first-child{border-top:0;margin-top:0}
+
+.webgate{margin-top:8px;padding:8px 12px;border-radius:8px;font-size:13px;line-height:1.6}
+.webgate.red{background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B}
+.webgate.yel{background:#FFFBEB;border:1px solid #FCD34D;color:#92400E}
+.webgate.blu{background:#EFF6FF;border:1px solid #93C5FD;color:#1E3A8A}
