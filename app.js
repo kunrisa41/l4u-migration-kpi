@@ -1000,8 +1000,7 @@ function viewHome() {
     <select id="calf" style="width:auto">${[['', 'ทั้งหมด'], ['open', '📅 ยังรออยู่'], ['noshow', '❌ มี No-show'], ['problem', '⚠️ มีปัญหา']].map(o => `<option value="${o[0]}" ${o[0] === (S.calF || '') ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>
     <button class="btn s" id="cp">◀</button><b>${first.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</b><button class="btn s" id="cn">▶</button><button class="btn s" id="ct">วันนี้</button></div>
     <div class="cal">${['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map(x => `<div class="ch">${x}</div>`).join('')}${cells}</div></div>
-  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${fd(day)} <small>นัด ${dayAp.length} · LIVE ${dayLv.length}</small></h2>
-    <button class="btn s" data-new="appointment">+ Add Appointment</button><button class="btn s r" data-new="live">🔴 Record LIVE</button></div>
+  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${fd(day)} <small>นัด ${dayAp.length} · LIVE ${dayLv.length}</small></h2></div>
     <div class="tw" style="margin-top:10px"><table><thead><tr><th>เวลา (ไทย)</th><th>ร้าน</th><th>ผู้ดูแล</th><th>สถานะ</th><th>ปัญหา / หมายเหตุ</th><th></th></tr></thead><tbody>
     ${dayAp.map(apRow).join('') || '<tr><td colspan="6" class="muted">ไม่มีนัดในวันนี้</td></tr>'}</tbody></table></div>
     ${dayLv.length ? `<div class="sec">LIVE ที่บันทึกวันนี้</div><div class="tw"><table><tbody>${dayLv.map(lvRow).join('')}</tbody></table></div>` : ''}</div>
