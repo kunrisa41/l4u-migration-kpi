@@ -131,7 +131,7 @@ function renderLogin(msg) {
 
 // ---------------- shell ----------------
 const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
-  ['blockers', 'ปัญหา / No-show'], ['daily', 'บันทึกประจำวัน'], ['perf', 'Team Performance'], ['audit', 'Audit Reports'], ['feedback', 'Feedback & Tools']];
+  ['blockers', 'ปัญหา / No-show'], ['perf', 'Team Performance'], ['audit', 'Audit Reports'], ['feedback', 'Feedback & Tools']];
 const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['tracker', 'รายชื่อร้าน'], ['settings', 'KPI Settings'], ['team', 'Team & Logins'], ['gcal', '🔔 Calendar & Chat']];
 const VIEWS = { home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
   perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), gcal: () => viewGcal(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
@@ -141,6 +141,7 @@ function render() {
     $('#app').innerHTML = `<div class="login"><h1>Account not linked</h1><p>You are signed in as <b>${esc(S.session.user.email)}</b>, but this e-mail is not on the team list yet. Ask the Manager to add you in the Team tab.</p><button class="btn" id="out">Sign out</button></div>`;
     $('#out').onclick = () => sb.auth.signOut(); return;
   }
+  if (S.tab === 'daily') S.tab = 'perf';
   const inKpi = KPI_TABS.some(t => t[0] === S.tab);
   if (inKpi && !isMgr()) S.tab = 'home';
   const kpiOn = inKpi && isMgr();
@@ -433,7 +434,8 @@ function viewDaily() {
   const list = code => byM(code).map((c, i) => `<div class="call"><div class="cn">${i + 1}</div><div style="flex:1"><b>${esc(c.store_name)}</b> <span class="small">${RESULTS[c.result] || c.result}</span>
       ${c.appt_at ? `<div class="small">📅 ${dualTime(c.appt_at, c.tz)}</div>` : ''}${c.phone || c.contact ? `<div class="small">📞 ${esc([c.phone, c.contact].filter(Boolean).join(' - '))}</div>` : ''}${c.notes ? `<div class="small muted">${esc(c.notes)}</div>` : ''}</div>
       ${isMgr() || c.member_code === S.me.code ? `<button class="btn s" data-cedit="${c.id}">แก้ไข</button>` : ''}</div>`).join('') || '<p class="muted small">ยังไม่มีรายการ</p>';
-  $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:flex-end"><div><label>วันที่</label><input type="date" id="dd" value="${esc(day)}"></div>
+  const host = $('#dailybox') || $('#main');
+  host.innerHTML = `<div class="card"><div class="row" style="align-items:flex-end"><div><label>วันที่</label><input type="date" id="dd" value="${esc(day)}"></div>
       <div style="flex:1"><h2 style="margin:0">📞 บันทึกการโทรประจำวัน <small>ร้านที่ติดต่อวันนี้ · ลงนัดตรงนี้ได้เลย (เข้าปฏิทิน + Google Calendar อัตโนมัติ) · กดส่งสรุปเข้า Google Chat</small></h2></div>
       <button class="btn p" id="cadd">+ เพิ่มร้านที่โทร</button></div>
     <div class="tw" style="margin-top:12px"><table><thead><tr><th>พนักงาน</th><th class="num">โทรทั้งหมด</th><th class="num">ได้นัด</th><th class="num">ไม่รับสาย</th><th class="num">โทรกลับ / ฝากข้อความ</th><th class="num">ปฏิเสธ</th><th>Google Chat</th></tr></thead>
@@ -894,14 +896,16 @@ function viewHome() {
     ${fus.map(a => { const dd = Math.round((C.today() - C.parseD(a.act_date)) / C.DAY); return `<tr><td><b>${esc(a.store_name)}</b> <span class="small">${(a.checklist || {}).site === 'IT' ? '🛠️ IT' : '🌐 CW'}</span></td><td>${esc(a.followup)}</td><td>${esc(memberName(a.member_code))}</td>
       <td class="small">${fd(a.act_date)}${dd > 0 ? ` · <b style="color:${dd >= 2 ? 'var(--badT)' : 'var(--warnT)'}">${dd} วัน</b>` : ''}</td>
       <td style="white-space:nowrap">${isMgr() || a.member_code === S.me.code ? `<button class="btn s t" data-fudone="${a.id}">✅ ตามเสร็จแล้ว</button> ` : ''}<button class="btn s" data-act="${a.id}">แก้ไข</button></td></tr>`; }).join('')}</tbody></table></div></div>` : '';
-  $('#main').innerHTML = `${goalCard()}${fuCard}${sheetCard()}
-  <div class="card"><div class="small muted" style="font-weight:700;letter-spacing:.05em">DAILY TARGET PERFORMANCE · REAL-TIME</div>
-    <h2 style="font-size:20px;margin:4px 0">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} <small>(${new Date().toLocaleDateString('th-TH', { dateStyle: 'full' })})</small></h2>
+  $('#main').innerHTML = `${goalCard()}${fuCard}
+  <div class="card"><div class="row" style="align-items:flex-start"><div style="flex:1"><div class="small muted" style="font-weight:700;letter-spacing:.05em">DAILY TARGET PERFORMANCE · REAL-TIME</div>
+    <h2 style="font-size:20px;margin:4px 0">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} <small>(${new Date().toLocaleDateString('th-TH', { dateStyle: 'full' })})</small></h2></div>
+      <div class="callbtn"><button class="btn p" id="hcall">📞 บันทึกการโทรประจำวัน</button><div class="small muted">บันทึกร้านที่โทรติดต่อวันนี้ (ไม่รับสาย / ได้นัด / โทรกลับ)<br>ดูสรุปและส่งเข้า Chat ได้ที่ Team Performance</div></div></div>
     ${isOff(td) ? '<div class="note">วันนี้เป็นวันหยุด — ไม่มีเป้าหมายงาน</div>' : ''}
     <div class="grid">${big('🔴 Team LIVE วันนี้' + (G ? ` (เป้า ${G.dayMin}–${G.dayMax})` : ''), cnt.live, tgt.live, 'k-live')}${big('📅 ลงนัดใหม่วันนี้', cnt.appt, tgt.appt, '')}
       ${big('🗓️ นัดของวันนี้', todayAp.length, 0, '', `รอ ${todayAp.filter(a => a.status === 'Scheduled' || a.status === 'Rescheduled').length} · LIVE ${todayAp.filter(a => a.status === 'LIVE Completed').length}`)}
       ${big('❌ No-show / ⚠️ ติดปัญหา วันนี้', todayAp.filter(a => a.status === 'No-show' || a.status === 'Problem').length, 0, '', `No-show ${todayAp.filter(a => a.status === 'No-show').length} · ปัญหา ${todayAp.filter(a => a.status === 'Problem').length}`)}</div></div>
   <div class="mgrid">${team.map(mcard).join('')}</div>
+  ${sheetCard()}
   <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">ปฏิทินนัดหมาย & LIVE <small>กดชื่อร้านเพื่อเปิดนัด · กดช่องวันเพื่อดูรายการ</small></h2>
     <select id="calf" style="width:auto">${[['', 'ทั้งหมด'], ['open', '📅 ยังรออยู่'], ['noshow', '❌ มี No-show'], ['problem', '⚠️ มีปัญหา']].map(o => `<option value="${o[0]}" ${o[0] === (S.calF || '') ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>
     <button class="btn s" id="cp">◀</button><b>${first.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</b><button class="btn s" id="cn">▶</button><button class="btn s" id="ct">วันนี้</button></div>
@@ -924,6 +928,7 @@ function viewHome() {
   $('#cp').onclick = () => shift(-1); $('#cn').onclick = () => shift(1); $('#ct').onclick = () => { S.calMonth = null; S.selDate = null; render(); };
   document.querySelectorAll('[data-day]').forEach(b => b.onclick = e => { if (e.target.closest('[data-act]')) return; S.selDate = b.dataset.day; render(); });
   bindActButtons(); bindRecorder(); bindSheet();
+  $('#hcall').onclick = () => { S.dailyDate = C.iso(C.today()); callModal(null); };
   document.querySelectorAll('[data-fudone]').forEach(b => b.onclick = async () => {
     const a = S.acts.find(x => String(x.id) === b.dataset.fudone); if (!confirm(`ตามงานร้าน ${a.store_name} เสร็จแล้ว และอัปเดต 486 Monday เป็น Completed แล้ว?`)) return;
     const rec = { followup_done_at: new Date().toISOString(), checklist: Object.assign({}, a.checklist, { m486: 'Completed' }) };
@@ -1271,6 +1276,7 @@ function viewPerf() {
       ${k('🔴 LIVE', lv, 'ร้านที่เปิดแล้ว')}${k('📅 นัดทั้งหมด', ap.length, `รอ ${n('Scheduled') + n('Rescheduled')}`)}${k('❌ No-show', n('No-show'), done ? 'อัตรา ' + pct(n('No-show') / done) : '')}
       ${k('⚠️ ติดปัญหา', n('Problem'), 'LIVE ไม่ได้')}${k('✅ Pre-Live', pl.length, `ครบ 100%: ${pl.filter(p => p.done >= PL_REQ).length}`)}</div></div>`; }).join('')}</div>`;
   $('#pm').onchange = e => { S.perfMonth = e.target.value; render(); };
+  const box = document.createElement('div'); box.id = 'dailybox'; $('#main').appendChild(box); viewDaily();
 }
 
 // --- Google Calendar (Manager) ---
