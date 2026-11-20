@@ -177,12 +177,49 @@ async function lockMgr(msg) {
 ['click', 'keydown'].forEach(ev => document.addEventListener(ev, () => { S.lastAct = Date.now(); }, true));
 setInterval(() => { if (S.mgrOn && Date.now() - (S.lastAct || 0) > MGR_IDLE) lockMgr('ล็อก Manager อัตโนมัติ (ไม่ได้ใช้งาน 30 นาที)'); }, 60000);
 
+// ---------------- change log (manager) ----------------
+const TBL_TH = { activities: 'นัด / LIVE', blockers: 'ปัญหา / No-show', prelive: 'Pre-Live Checklist', restaurants: 'ร้าน', call_log: 'บันทึกการโทร', feedback: 'Feedback',
+  content: 'ข้อความ / ลิงก์ / โน้ต', reports: 'Audit Report', members: 'ทีม', settings: 'KPI Settings', kpi_months: 'KPI รายเดือน' };
+const ACT_TH = { INSERT: ['เพิ่ม', 'good'], UPDATE: ['แก้ไข', 'blue'], DELETE: ['ลบ', 'bad'] };
+async function viewChlog() {
+  $('#main').innerHTML = '<div class="card"><p class="muted">กำลังโหลด...</p></div>';
+  const { data, error } = await sb.from('audit_log').select('*').order('at', { ascending: false }).limit(S.clAll ? 3000 : 400);
+  if (error) { $('#main').innerHTML = `<div class="card"><p>${esc(error.message)}</p></div>`; return; }
+  S.clData = data; drawChlog();
+}
+function drawChlog() {
+  const f = S.clF || {}; const q = (f.q || '').toLowerCase();
+  const short = v => { if (v === null || v === undefined || v === '') return '–'; let t = typeof v === 'string' ? v : JSON.stringify(v); return t.length > 80 ? t.slice(0, 80) + '…' : t; };
+  const rows = S.clData.filter(r => (!f.who || r.member_code === f.who) && (!f.tbl || r.tbl === f.tbl) && (!q || (r.store || '').toLowerCase().includes(q)));
+  const who = [...new Set(S.clData.map(r => r.member_code).filter(Boolean))];
+  const detail = r => {
+    const c = r.changes || {};
+    if (r.action === 'UPDATE') return Object.entries(c).map(([k, v]) => `<div class="small"><b>${esc(k)}</b>: <span class="muted">${esc(short(v.old))}</span> → ${esc(short(v.new))}</div>`).join('');
+    const keys = ['status', 'kind', 'act_date', 'result', 'category', 'mig_status', 'done'].filter(k => c[k] !== undefined && c[k] !== null);
+    return keys.map(k => `<span class="small"><b>${k}</b>: ${esc(short(c[k]))}</span>`).join(' · ');
+  };
+  $('#main').innerHTML = `<div class="card"><h2>📜 Log การแก้ไข <small>ใครเพิ่ม / แก้ / ลบ อะไร เมื่อไหร่ — บันทึกอัตโนมัติจากบัญชีที่ล็อกอิน</small></h2>
+    <div class="row" style="margin:8px 0">
+      <div><label>คน</label><select id="clw"><option value="">ทุกคน</option>${who.map(c => `<option value="${esc(c)}" ${c === f.who ? 'selected' : ''}>${esc(c === 'SYSTEM' ? 'ระบบ / Recorder' : memberName(c))}</option>`).join('')}</select></div>
+      <div><label>หน้า</label><select id="clt"><option value="">ทั้งหมด</option>${Object.entries(TBL_TH).map(([k, v]) => `<option value="${k}" ${k === f.tbl ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+      <div><label>ค้นหาร้าน</label><input id="clq" value="${esc(f.q || '')}" placeholder="ชื่อร้าน"></div>
+      <div style="align-self:flex-end"><button class="btn s" id="clr">🔄 โหลดใหม่</button> ${S.clAll ? '' : '<button class="btn s" id="cla">แสดงย้อนหลังทั้งหมด</button>'}</div></div>
+    <div class="tw"><table><thead><tr><th>เวลา (ไทย)</th><th>ใคร</th><th>ทำอะไร</th><th>หน้า</th><th>ร้าน / รายการ</th><th>รายละเอียด</th></tr></thead><tbody>
+    ${rows.map(r => `<tr><td class="small" style="white-space:nowrap">${new Date(r.at).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}</td>
+      <td>${esc(r.member_name || r.member_code || '–')}</td><td>${badge(ACT_TH[r.action][0], ACT_TH[r.action][1])}</td><td class="small">${esc(TBL_TH[r.tbl] || r.tbl)}</td>
+      <td>${esc(r.store || '')}</td><td>${detail(r)}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">ยังไม่มีรายการ</td></tr>'}</tbody></table></div></div>`;
+  const set = (k, v) => { S.clF = Object.assign({}, S.clF, { [k]: v }); drawChlog(); };
+  $('#clw').onchange = e => set('who', e.target.value); $('#clt').onchange = e => set('tbl', e.target.value);
+  $('#clq').onchange = e => set('q', e.target.value);
+  $('#clr').onclick = () => viewChlog(); if ($('#cla')) $('#cla').onclick = () => { S.clAll = true; viewChlog(); };
+}
+
 // ---------------- shell ----------------
 const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
   ['blockers', 'ปัญหา / No-show'], ['perf', 'Team Performance'], ['audit', 'Audit Reports']];
-const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['tracker', 'รายชื่อร้าน'], ['settings', 'KPI Settings'], ['team', 'Team & Logins'], ['gcal', '🔔 Calendar & Chat']];
+const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['tracker', 'รายชื่อร้าน'], ['settings', 'KPI Settings'], ['team', 'Team & Logins'], ['chlog', '📜 Log การแก้ไข'], ['gcal', '🔔 Calendar & Chat']];
 const VIEWS = { home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
-  perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), gcal: () => viewGcal(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
+  perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), gcal: () => viewGcal(), chlog: () => viewChlog(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
 function render() {
   S.charts.forEach(c => c.destroy()); S.charts = [];
   if (S.needActor) return renderActor();
@@ -199,12 +236,23 @@ function render() {
   const override = kpiOn && S.settings.asof ? `<span class="badge b-warn">As-of override: ${fd(S.settings.asof)}</span>` : '';
   $('#app').innerHTML = `<div class="top"><div><div class="brand">LOCAL FOR YOU</div><h1>Restaurant Migration Tracker</h1></div>${override}<div class="sp"></div>
     <div class="who">${S.me.via_team ? `<button class="btn s" id="actor" title="เปลี่ยนคนที่ใช้งาน">👤 ${esc(S.me.name)} ▾</button>` : `${esc(S.me.name)} · ${esc(S.me.role)}`}${isMgr() ? ' ⭐' : ''}</div>
-    ${S.mgrOn ? '<button class="btn s r" id="mlock">🔒 ล็อก Manager</button>' : '<button class="btn s" id="out">Sign out</button>'}</div>
+    ${S.mgrOn ? '<button class="btn s r" id="mlock">🔒 ล็อก Manager</button>' : `${S.me.via_team ? '' : '<button class="btn s" id="chpw">🔑 เปลี่ยนรหัส</button>'}<button class="btn s" id="out">Sign out</button>`}</div>
     <nav class="tabs">${STAFF_TABS.map(t => `<button data-tab="${t[0]}" class="${S.tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}
       ${isMgr() ? `<button data-tab="${kpiOn ? S.tab : 'dash'}" class="kpitab ${kpiOn ? 'on' : ''}">🔓 KPI (Manager)</button>` : '<button class="kpitab" id="munlock">🔒 KPI (Manager)</button>'}</nav>
     ${kpiOn ? `<nav class="tabs sub">${KPI_TABS.map(t => `<button data-tab="${t[0]}" class="${S.tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</nav>` : ''}<main id="main"></main>`;
   if ($('#out')) $('#out').onclick = () => { if (confirm('Sign out จาก Browser นี้? ครั้งหน้าต้องล็อกอินบัญชีทีมใหม่')) sbMain.auth.signOut(); };
   if ($('#mlock')) $('#mlock').onclick = () => lockMgr();
+  if ($('#chpw')) $('#chpw').onclick = () => {
+    openModal(`<h2>🔑 เปลี่ยนรหัสผ่าน</h2><p class="small muted">บัญชี ${esc(S.session.user.email)}</p><label>รหัสใหม่ (อย่างน้อย 8 ตัว)</label><input id="np1" type="password" autocomplete="new-password">
+      <label>พิมพ์รหัสใหม่อีกครั้ง</label><input id="np2" type="password" autocomplete="new-password"><div class="actions"><button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">บันทึก</button></div>`);
+    $('#cx').onclick = closeModal;
+    $('#sv').onclick = async () => {
+      const a = $('#np1').value, b = $('#np2').value;
+      if (a.length < 8) return toast('รหัสต้องมีอย่างน้อย 8 ตัว', true); if (a !== b) return toast('รหัสสองช่องไม่ตรงกัน', true);
+      const { error } = await sbMain.auth.updateUser({ password: a }); if (error) return toast(error.message, true);
+      closeModal(); toast('เปลี่ยนรหัสผ่านแล้ว');
+    };
+  };
   if ($('#munlock')) $('#munlock').onclick = () => unlockModal();
   if ($('#actor')) $('#actor').onclick = () => { S.needActor = true; render(); };
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; render(); });
@@ -655,8 +703,7 @@ function viewTeam() {
     <td>${isMgr() ? `<button class="btn s p" data-msv="${m.id}">Save</button>` : ''}</td></tr>`).join('')}</tbody></table></div>
   ${isMgr() ? `<div class="row" style="margin-top:12px"><div><label>New member code</label><input id="nc" placeholder="e.g. NEW1" style="width:120px"></div><div><label>Name</label><input id="nn" style="width:200px"></div>
     <div><label>Role</label><select id="nr">${opts(L.ROLE, 'Live Specialist')}</select></div><button class="btn t" id="nadd">+ Add member</button></div>` : ''}
-  <p class="small muted">Create login sets an e-mail and a temporary password (min. 8 characters) for a team member — share it privately; they can sign in immediately. The Manager role is not scored.</p>
-  <div class="note"><b>👥 TEAM = บัญชีใช้ร่วมกัน</b> ใช้ล็อกอินครั้งเดียวใน Browser ของทีม แล้วทุกคนเลือกชื่อตัวเองตอนเปิดเว็บ บัญชีนี้เข้าหน้า Manager KPI ไม่ได้ ต้องใส่รหัส Manager ทุกครั้ง</div></div>`;
+  <p class="small muted">Create login sets an e-mail and a temporary password (min. 8 characters) for a team member — share it privately; they can sign in immediately. The Manager role is not scored.</p></div>`;
   if (!isMgr()) return;
   document.querySelectorAll('[data-msv]').forEach(b => b.onclick = async () => {
     const id = b.dataset.msv; const m = S.members.find(x => x.id === id);
