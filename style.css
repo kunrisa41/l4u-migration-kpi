@@ -221,3 +221,18 @@ table.issues{width:100%;background:#fff;border-collapse:collapse}table.issues td
 .oldgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(460px,1fr));gap:12px;margin-top:10px}
 .oldst{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
 .oldst img{width:100%;max-height:340px;object-fit:contain;object-position:top;background:#F8FAFC;border-radius:8px;border:1px solid var(--line);cursor:zoom-in}
+
+.flowpairs{display:flex;flex-direction:column;gap:16px}
+.flowpairs .card{margin:0}
+.fpair{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:start}
+.fsubs{display:flex;flex-direction:column;gap:6px}
+.fsub{display:grid;grid-template-columns:44px 1fr;gap:12px;padding:8px;border-radius:10px;border:1px solid transparent}
+.fsub+.fsub{border-top:1px dashed var(--line);border-radius:0 0 10px 10px;padding-top:12px}
+.fsub.tkd{background:#F0FDF4;border-color:#BBF7D0}.fsub.tkd .fnum{background:#16A34A}
+.fhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.fhead h3{margin:6px 0}
+.tk.mini{display:inline-flex;margin:0;padding:3px 10px;border-radius:999px;font-size:12px;align-items:center}
+.tk.mini input{width:16px;height:16px}
+.fpics{display:flex;gap:14px}
+.fpics .fpic{position:relative;width:200px}
+.fpicn{position:absolute;top:-8px;left:-8px;z-index:2;width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+@media(max-width:900px){.fpair{grid-template-columns:1fr}.fpics{flex-wrap:wrap}}

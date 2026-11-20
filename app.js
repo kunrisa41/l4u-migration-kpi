@@ -1356,7 +1356,7 @@ const FLOW_KEYS = () => [...FLOW.map(s => s.k), 'a1', 'a2', 'b1', 'b2', 'c1', ..
 const flowRec = () => plStores().find(x => x.store_name === S.flowStore);
 const fTicks = () => { const p = flowRec(); return (S.fTk && S.fTk.store === S.flowStore) ? S.fTk.v : ((p && p.checks && p.checks.flow) || {}); };
 const fT = k => !!fTicks()[k];
-function tk(k, label) { const on = !!flowRec(); return `<label class="tk ${fT(k) ? 'on' : ''}" ${on ? '' : 'title="เลือกร้านที่กำลัง LIVE ด้านบนก่อน"'}><input type="checkbox" data-tk="${k}" ${fT(k) ? 'checked' : ''} ${on ? '' : 'disabled'}><span>${label}</span></label>`; }
+function tk(k, label, mini) { const on = !!flowRec(); return `<label class="tk ${mini ? 'mini' : ''} ${fT(k) ? 'on' : ''}" ${on ? '' : 'title="เลือกร้านที่กำลัง LIVE ด้านบนก่อน"'}><input type="checkbox" data-tk="${k}" ${fT(k) ? 'checked' : ''} ${on ? '' : 'disabled'}><span>${label}</span></label>`; }
 function flowProg() { if (!flowRec()) return ''; const all = FLOW_KEYS(), n = all.filter(fT).length; return badge(`ติ๊กแล้ว ${n}/${all.length}`, n === all.length ? 'good' : 'warn'); }
 function flowTop() {
   const list = plStores(); const sel = S.flowStore || '';
@@ -1392,11 +1392,14 @@ async function viewFlow() {
       <button class="btn r" data-new="live">🔴 Record LIVE</button></div>
     <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">A–C หลังวางสาย</a><a href="#oldsys" class="fchip a">D. ปิดระบบร้านเก่า</a><a href="#fpick" class="fchip a">E. บันทึก LIVE</a><a href="#feedback" class="fchip a">F. Feedback & Tools</a></div>
     ${flowTop()}</div>
-  <div class="flowgrid">${FLOW.map((s, i) => { const p = imgs[s.k]; const up = p && urls[p]; const list = up ? [up] : (REAL[s.k] || []); const u = list[0];
-    return `<div class="card fstep ${fT(s.k) ? 'tkd' : ''}" id="st${i}"><div class="fnum">${fT(s.k) ? '✓' : i + 1}</div><div class="fbody"><h3>${esc(s.t)}</h3>${tk(s.k, 'ทำขั้นนี้แล้ว')}<ul>${s.d.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
-      ${s.link && content(s.link) ? `<a class="btn s" href="${esc(content(s.link))}" target="_blank" rel="noopener">🔗 ${esc(s.linkT)}</a> <button class="btn s" data-cp="${esc(content(s.link))}">📋 Copy ลิงก์ส่งให้ร้าน</button>` : ''}
-      ${isMgr() ? `<div style="margin-top:8px"><label class="btn s" style="margin:0;cursor:pointer">📷 ${u ? 'เปลี่ยนรูป' : 'ใส่รูปจริง'}<input type="file" accept="image/*" data-img="${s.k}" style="display:none"></label>${up ? ` <button class="btn s" data-imgdel="${s.k}">ใช้รูปเดิม</button>` : ''}</div>` : ''}</div>
-      <div class="fpic">${u ? list.map((x, j) => `<img src="${esc(x)}" alt="${esc(s.t)}" class="real ${j ? 'extra' : ''}" data-zoom="${esc(x)}">`).join('') + '<div class="small muted" style="text-align:center">กดรูปเพื่อขยาย</div>' : MOCK[s.k]}</div></div>`; }).join('')}</div>
+  <div class="flowpairs">${[0, 2, 4, 6, 8].map(st => { const pair = FLOW.slice(st, st + 2);
+    const pic = (s) => { const p = imgs[s.k]; const up = p && urls[p]; const list = up ? [up] : (REAL[s.k] || []); return { list, up }; };
+    return `<div class="card fpair"><div class="fsubs">${pair.map((s, x) => { const i = st + x; const { list, up } = pic(s); const u = list[0];
+      return `<div class="fsub ${fT(s.k) ? 'tkd' : ''}" id="st${i}"><div class="fnum">${fT(s.k) ? '✓' : i + 1}</div><div class="fbody">
+        <div class="fhead"><h3>${esc(s.t)}</h3>${tk(s.k, 'ทำแล้ว', true)}</div><ul>${s.d.map(y => `<li>${esc(y)}</li>`).join('')}</ul>
+        ${s.link && content(s.link) ? `<a class="btn s" href="${esc(content(s.link))}" target="_blank" rel="noopener">🔗 ${esc(s.linkT)}</a> <button class="btn s" data-cp="${esc(content(s.link))}">📋 Copy ลิงก์ส่งให้ร้าน</button>` : ''}
+        ${isMgr() ? `<div style="margin-top:6px"><label class="btn s" style="margin:0;cursor:pointer">📷 ${u ? 'เปลี่ยนรูป' : 'ใส่รูปจริง'} (${i + 1})<input type="file" accept="image/*" data-img="${s.k}" style="display:none"></label>${up ? ` <button class="btn s" data-imgdel="${s.k}">ใช้รูปเดิม</button>` : ''}</div>` : ''}</div></div>`; }).join('')}</div>
+      <div class="fpics">${pair.map((s, x) => { const { list } = pic(s); return `<div class="fpic"><div class="fpicn">${st + x + 1}</div>${list.length ? list.map((y, j) => `<img src="${esc(y)}" alt="${esc(s.t)}" class="real ${j ? 'extra' : ''}" data-zoom="${esc(y)}">`).join('') : MOCK[s.k]}</div>`; }).join('')}</div></div>`; }).join('')}</div>
   <div class="card" id="after"><h2>📨 หลังวางสาย (MIG ต้องทำทุกร้าน)</h2>
     <div class="after">
       <div class="ac"><div class="an">A</div><div><b>ส่ง How-to ให้ร้าน</b><div class="tks">${tk('a1', 'ส่ง How-to จาก <b>response.io</b> ที่เกี่ยวข้องกับร้านแล้ว')}${tk('a2', 'ส่ง <b>อีเมลวิธีการใช้งาน</b> แล้ว — ใช้ข้อความสำเร็จรูปด้านล่าง (อังกฤษ + ไทย)')}</div>
