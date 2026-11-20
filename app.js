@@ -727,6 +727,7 @@ function viewHome() {
   const td = C.iso(C.today()); const day = S.selDate || td;
   const team = S.members.filter(m => m.active);
   const tgt = team.reduce((o, m) => { const t = dailyT(m); o.live += +t.live || 0; o.appt += +t.appt || 0; return o; }, { live: 0, appt: 0 });
+  const G = S.settings.goal || null; if (G && G.dayMin) tgt.live = G.dayMin;
   const appts = (S.acts || []).filter(a => a.kind === 'appointment');
   const lives = (S.acts || []).filter(a => a.kind === 'live');
   const cnt = { live: lives.filter(a => a.act_date === td).length, appt: appts.filter(a => a.act_date === td).length };
@@ -735,10 +736,10 @@ function viewHome() {
   const mcard = m => { const t = dailyT(m);
     const lv = lives.filter(a => a.act_date === td && a.member_code === m.code).length, ap = appts.filter(a => a.act_date === td && a.member_code === m.code).length;
     const mine = todayAp.filter(a => a.member_code === m.code);
-    const line = (l, c, k) => `<div class="ml"><span>${l}${k ? ` (Target: ${k})` : ''}</span><b>${c}${k ? ' / ' + k : ''}</b></div><div class="bar thin"><i style="width:${k ? Math.min(1, c / k) * 100 : (c ? 100 : 0)}%"></i></div>`;
+    const line = (l, c, k, rng) => `<div class="ml"><span>${l}${k ? ` (Target: ${k}${rng || ''})` : ''}</span><b>${c}${k ? ' / ' + k : ''}</b></div><div class="bar thin"><i style="width:${k ? Math.min(1, c / k) * 100 : (c ? 100 : 0)}%"></i></div>`;
     const done = t.live > 0 && lv >= t.live;
     return `<div class="card mc"><div class="row" style="align-items:center"><div style="flex:1"><h2 style="margin:0">${esc(m.name)}${m.is_manager ? ' ⭐' : ''}</h2><div class="small muted">${esc(m.role)}</div></div>${badge(done ? 'Target Met 🎉' : 'In Progress', done ? 'good' : 'blue')}</div>
-      ${line('🔴 LIVE วันนี้', lv, t.live)}${line('📅 ลงนัดวันนี้', ap, t.appt)}
+      ${line('🔴 LIVE วันนี้', lv, t.live, G && G.perStaffMin && !m.is_manager ? ` · ${G.perStaffMin}–${G.perStaffMax}` : '')}${line('📅 ลงนัดวันนี้', ap, t.appt)}
       <div class="ml"><span>🗓️ นัดของวันนี้</span><b>${mine.length}${mine.filter(a => a.status === 'No-show').length ? ` · ❌ ${mine.filter(a => a.status === 'No-show').length}` : ''}</b></div></div>`; };
   const [cy, cm] = (S.calMonth || td.slice(0, 7)).split('-').map(Number);
   const first = new Date(cy, cm - 1, 1), days = new Date(cy, cm, 0).getDate();
@@ -759,11 +760,11 @@ function viewHome() {
     <td>${stBadge(a.status)}</td><td class="small">${a.status === 'No-show' || a.status === 'Problem' ? esc([a.issue_category, a.issue_detail].filter(Boolean).join(' — ')) : ''}${a.notes ? `<div class="muted">${esc(a.notes)}</div>` : ''}</td><td><button class="btn s">เปิด</button></td></tr>`;
   const lvRow = a => `<tr class="clk" data-act="${a.id}"><td>🔴</td><td><b>${esc(a.store_name)}</b></td><td>${esc(memberName(a.member_code))}</td><td>${liveTxt(a)}</td><td class="small">${esc(a.notes || '')}</td><td><button class="btn s">เปิด</button></td></tr>`;
   const showGuide = S.guide === true;
-  $('#main').innerHTML = `
+  $('#main').innerHTML = `${goalCard()}
   <div class="card"><div class="small muted" style="font-weight:700;letter-spacing:.05em">DAILY TARGET PERFORMANCE · REAL-TIME</div>
     <h2 style="font-size:20px;margin:4px 0">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} <small>(${new Date().toLocaleDateString('th-TH', { dateStyle: 'full' })})</small></h2>
     ${isOff(td) ? '<div class="note">วันนี้เป็นวันหยุด — ไม่มีเป้าหมายงาน</div>' : ''}
-    <div class="grid">${big('🔴 Team LIVE วันนี้', cnt.live, tgt.live, 'k-live')}${big('📅 ลงนัดใหม่วันนี้', cnt.appt, tgt.appt, '')}
+    <div class="grid">${big('🔴 Team LIVE วันนี้' + (G ? ` (เป้า ${G.dayMin}–${G.dayMax})` : ''), cnt.live, tgt.live, 'k-live')}${big('📅 ลงนัดใหม่วันนี้', cnt.appt, tgt.appt, '')}
       ${big('🗓️ นัดของวันนี้', todayAp.length, 0, '', `รอ ${todayAp.filter(a => a.status === 'Scheduled' || a.status === 'Rescheduled').length} · LIVE ${todayAp.filter(a => a.status === 'LIVE Completed').length}`)}
       ${big('❌ No-show / ⚠️ ติดปัญหา วันนี้', todayAp.filter(a => a.status === 'No-show' || a.status === 'Problem').length, 0, '', `No-show ${todayAp.filter(a => a.status === 'No-show').length} · ปัญหา ${todayAp.filter(a => a.status === 'Problem').length}`)}</div></div>
   <div class="mgrid">${team.map(mcard).join('')}</div>
@@ -789,6 +790,30 @@ function viewHome() {
   $('#cp').onclick = () => shift(-1); $('#cn').onclick = () => shift(1); $('#ct').onclick = () => { S.calMonth = null; S.selDate = null; render(); };
   document.querySelectorAll('[data-day]').forEach(b => b.onclick = e => { if (e.target.closest('[data-act]')) return; S.selDate = b.dataset.day; render(); });
   bindActButtons(); bindRecorder();
+}
+function goalCard() {
+  const st = S.settings, G = st.goal; if (!G) return '';
+  const hol = C.holidaySet(st), today = C.today(), start = C.parseD(st.start), end = C.parseD(st.end);
+  const lds = S.rests.map(C.liveDate).filter(Boolean);
+  const n = (a, b) => lds.filter(d => d >= a && d <= b).length;
+  const total = +st.total || 300, done = n(start, end);
+  const [ms, me] = C.monthRange(C.monthKey(today < start ? start : today > end ? end : today));
+  const wk = (st.weeks || []).find(w => today >= C.parseD(w.start) && today <= new Date(C.parseD(w.end).getTime() + 2 * C.DAY)) || (today < start ? st.weeks[0] : null);
+  const wkDone = wk ? n(C.parseD(wk.start), new Date(C.parseD(wk.end).getTime() + 2 * C.DAY)) : 0;
+  const tdDone = n(today, today);
+  const left = Math.max(0, total - done);
+  const daysLeft = today > end ? 0 : C.workdays(today < start ? start : today, end, hol);
+  const pace = daysLeft ? left / daysLeft : null;
+  const box = (l, v, t, sub, cls) => { const r = t ? Math.min(1, v / t) : 0; return `<div class="kpi ${cls || ''}"><div class="l">${l}</div><div class="v">${v} <span class="small muted">/ ${t}</span></div><div class="bar"><i style="width:${r * 100}%"></i></div><div class="s">${sub}</div></div>`; };
+  return `<div class="card goal"><div class="row" style="align-items:center"><div style="flex:1"><div class="small" style="font-weight:700;letter-spacing:.06em;color:#99F6E4">GOAL · REVISED PLAN</div>
+      <h2 style="margin:2px 0 0;color:#fff;font-size:19px">🎯 ${total} Go-Live ใน 2 เดือน <small style="color:#CBD5E1">${fd(start)} – ${fd(end)} · ทีม ${G.staff} คน + Manager · คนละ ${G.perStaffMin}–${G.perStaffMax} ร้าน/วัน</small></h2></div>
+      <div class="small" style="color:#E2E8F0;text-align:right">${today < start ? `เริ่ม ${fd(start)} · อีก ${C.workdays(today, new Date(start.getTime() - C.DAY), hol)} วันทำการ` : pace !== null ? `ต้องได้เฉลี่ย <b style="font-size:16px;color:#fff">${n1(pace)}</b> ร้าน/วัน<br>อีก ${daysLeft} วันทำการ · เหลือ ${left} ร้าน` : 'จบโปรเจกต์แล้ว'}</div></div>
+    <div class="grid" style="margin-top:12px">
+      ${box('ทั้งโปรเจกต์', done, total, pct(done / total) + ' ของเป้า', 'k-live')}
+      ${box('เดือนนี้ (' + ms.toLocaleDateString('th-TH', { month: 'short' }) + ')', n(ms, me), G.monthly, 'เป้า ' + G.monthly + ' / เดือน')}
+      ${box('สัปดาห์นี้' + (wk ? ' (' + esc(wk.label) + ')' : ''), wkDone, wk ? wk.live : G.weekMin, `ปกติ ${G.weekMin}–${G.weekMax} / สัปดาห์${wk && wk.live < G.weekMin ? ' · สัปดาห์นี้วันทำการน้อย' : ''}`)}
+      ${box('วันนี้ (ทั้งทีม)', tdDone, G.dayMin, `เป้า ${G.dayMin}–${G.dayMax} / วัน${isOff(today) ? ' · วันหยุด' : ''}`)}</div>
+    <p class="small" style="color:#CBD5E1;margin:8px 0 0">นับเฉพาะ LIVE ที่เช็กครบ 4 ข้อ (Yes / N/A) · เป้าสัปดาห์ตามวันทำการจริง (หักวันหยุด Christmas, Boxing Day, New Year, Australia Day)</p></div>`;
 }
 function liveTxt(a) { const c = a.checklist || {}; const ok = LIVE_CHK.every(k => c[k] === 'Yes' || c[k] === 'N/A');
   return (ok ? badge('Checks ✓', 'good') : badge('Checks ไม่ครบ', 'warn')) + ` <span class="small">Handover ${(c.handover || []).length}/${HANDOVER.length}</span>`; }

@@ -116,3 +116,5 @@ a.btn{text-decoration:none;display:inline-block}
 .ev-blue{background:var(--blue);color:var(--blueT)}.ev-warn{background:var(--warn);color:var(--warnT)}.ev-bad{background:var(--bad);color:var(--badT)}.ev-good{background:var(--good);color:var(--goodT)}.ev-grey{background:var(--grey);color:#475569;text-decoration:line-through}
 tr.clk{cursor:pointer}
 pre.code{background:#0F172A;color:#E2E8F0;padding:12px;border-radius:10px;overflow:auto;max-height:360px;font-size:12px;white-space:pre}
+.goal{background:#0F3B4C;border-color:#0F3B4C}
+.goal .kpi{background:rgba(255,255,255,.96)}
