@@ -767,7 +767,7 @@ const PRELIVE = [
   { n: 19, t: 'System Defaults (General · Tipping · Age Verification · Ordering · Checkout)' },
   { n: 9, t: 'Test Orders (3 real orders + print)', opts: ['🛍️ Pickup order', '🛵 Delivery order', '🚗 Uber order'] },
   { n: 10, t: 'Website & Landing Page (Domain, SEO, Nav links, Gallery, Contact, Footer, CSS, Facebook)', opts: ['Add button with us', 'GF Web', 'Add button with other', 'Domain with us', 'Domain not with us'] },
-  { n: 11, t: 'Cloudflare DNS: add 35.238.2.132 to A Record', link: 'cloudflare_url', linkT: 'Cloudflare' }, { n: 12, t: 'Google Search Console Integration', link: 'gsc_url', linkT: 'Search Console' }, { n: 13, t: 'Queue to LIVE (Ready to Launch)' }];
+  { n: 11, t: 'Cloudflare DNS: add 35.238.2.132 to A Record', link: 'cloudflare_url', linkT: 'Cloudflare' }, { n: 12, t: 'Google Search Console Integration', link: 'gsc_url', linkT: 'Search Console' }, { n: 20, t: 'Create & Send Flyers (ใบปลิวใหม่ + ส่งร้านทาง respond.io)', link: 'flyer_url', linkT: 'Create Flyers' }, { n: 13, t: 'Queue to LIVE (Ready to Launch)' }];
 const PL_REQ = PRELIVE.filter(x => !x.optional).length;
 const DAY_PLAN = [['07:00 – 08:00', 'Follow-up Non-responsive Stores', ['โทรตามคิว Priority ร้าน', 'อัปเดต Status ทันทีหลังโทร', 'ไม่รับสาย = ส่ง SMS/Email']],
   ['08:00 – 12:00', 'System Setup (16 Steps)', ['สร้างระบบร้านใหม่ตามคิว', 'ทำ Test Order เสมอ', 'ห้ามขึ้น Ready ถ้ายังไม่ Test']],
@@ -1323,7 +1323,7 @@ function flowStorePick() {
   const list = plStores(); const sel = S.flowStore || '';
   const p = list.find(x => x.store_name === sel);
   const isLiveDone = n => (S.acts || []).some(a => a.kind === 'live' && a.store_name.trim().toLowerCase() === n.trim().toLowerCase());
-  return `<div class="ac" id="fpick"><div class="an">E</div><div><b>บันทึกผล LIVE</b> ${flowProg()} <span class="small muted">รายชื่อร้านมาจาก Pre-Live Checklist เท่านั้น</span>
+  return `<div class="ac" id="fpick"><div class="an">F</div><div><b>บันทึกผล LIVE</b> ${flowProg()} <span class="small muted">รายชื่อร้านมาจาก Pre-Live Checklist เท่านั้น</span>
     ${list.length ? `<div class="row" style="margin-top:8px;align-items:center"><select id="fsel" style="min-width:260px;flex:1;max-width:420px"><option value="">— เลือกชื่อร้าน —</option>
       ${list.map(x => `<option value="${esc(x.store_name)}" ${x.store_name === sel ? 'selected' : ''}>${esc(x.store_name)}${x.done >= PL_REQ ? ' ✓ Pre-Live ครบ' : ` (Pre-Live ${x.done}/${PL_REQ})`}${isLiveDone(x.store_name) ? ' · 🔴 LIVE แล้ว' : ''}</option>`).join('')}</select>
       </div>
@@ -1338,7 +1338,7 @@ function bindFlowPick() {
   if ($('#fok')) $('#fok').onclick = () => {
     const p = plStores().find(x => x.store_name === S.flowStore); if (!p) return;
     if (p.done < PL_REQ && !confirm(`Pre-Live Checklist ของร้านนี้ยังไม่ครบ (${p.done}/${PL_REQ}) จะบันทึก LIVE ต่อไหม?`)) return;
-    const miss = FLOW_KEYS().filter(k => !fT(k)); if (miss.length && !confirm(`ยังไม่ได้ติ๊ก ${miss.length} ข้อในขั้นตอน (1–10, A–D) จะบันทึก LIVE ต่อไหม?`)) return;
+    const miss = FLOW_KEYS().filter(k => !fT(k)); if (miss.length && !confirm(`ยังไม่ได้ติ๊ก ${miss.length} ข้อในขั้นตอน (1–10, A–E) จะบันทึก LIVE ต่อไหม?`)) return;
     activityModal('live', null, { store_name: p.store_name, rid: p.rid, member_code: S.me.code, checklist: { flow: Object.assign({}, fTicks()), flow_done: FLOW_KEYS().length - miss.length, flow_total: FLOW_KEYS().length, from_prelive: p.id, m486: 'Completed', chk_install: 'Yes', chk_printer: 'Yes', chk_test: 'Yes', chk_booking: 'Yes', setup_app: 'Yes' } });
     const inp = $('#a_r'); if (inp) { inp.readOnly = true; inp.removeAttribute('list'); inp.classList.add('locked'); }
   };
@@ -1367,7 +1367,7 @@ const OLD_SYS = [
   { k: 'd2', t: 'PartnerNet › รายชื่อร้าน › กดเปิดร้าน', d: 'กด <b>Cancel</b> ทั้ง 2 อันที่ <b>Sales Optimized Website</b> และ <b>Online Payments</b>', img: 'img/old_partner.jpg' },
   { k: 'd3', t: 'Other (•••) › General › Notifications', d: 'ที่อีเมลร้าน ปิด toggle <b>ทั้งหมด</b> ให้เป็นสีเทา (ไม่ต้องให้ระบบเก่าส่งอีเมลหาร้านอีก)', img: 'img/old_notif.jpg' },
   { k: 'd4', t: 'Setup › Taking orders › Alert call', d: 'ลบ <b>เบอร์โทร</b> ออกจากช่อง Phone number แล้วกด Next / Save (ระบบเก่าจะได้ไม่โทรหาร้าน)', img: 'img/old_alert.jpg' }];
-const FLOW_KEYS = () => [...FLOW.map(s => s.k), 'a1', 'a2', 'b1', 'b2', 'c1', ...OLD_SYS.map(x => x.k)];
+const FLOW_KEYS = () => [...FLOW.map(s => s.k), 'a1', 'a2', 'b1', 'b2', 'c1', ...OLD_SYS.map(x => x.k), 'e1', 'e2', 'e3'];
 const flowRec = () => plStores().find(x => x.store_name === S.flowStore);
 const fTicks = () => { const p = flowRec(); return (S.fTk && S.fTk.store === S.flowStore) ? S.fTk.v : ((p && p.checks && p.checks.flow) || {}); };
 const fT = k => !!fTicks()[k];
@@ -1377,6 +1377,31 @@ function flowTop() {
   const list = plStores(); const sel = S.flowStore || '';
   return `<div class="flowtop"><span>🏪 กำลัง LIVE ร้าน:</span><select id="fsel2"><option value="">— เลือกชื่อร้าน (จาก Pre-Live Checklist) —</option>${list.map(x => `<option value="${esc(x.store_name)}" ${x.store_name === sel ? 'selected' : ''}>${esc(x.store_name)}</option>`).join('')}</select>
     ${flowRec() ? `<span id="fprog">${flowProg()}</span><button class="btn s" id="tkall">✓ ติ๊กทั้งหมด</button>` : '<span class="small" style="color:#CBD5E1">เลือกร้านก่อน แล้วติ๊กแต่ละขั้นได้ ระบบเก็บไว้กับร้านนั้น</span>'}</div>`;
+}
+const flyerPost = () => content('flyer_post').replace('{domain}', S.flyDom || '-----------domain name-----------').replace('{discount}', S.flyPct || '____');
+function flyerBlock() {
+  const u = content('flyer_url');
+  return `<div class="ac" id="flyers"><div class="an">E</div><div><b>Create & Send Flyers</b> <span class="small muted">ทำใบปลิวใหม่ให้ตรงกับระบบสั่งอาหารใหม่ แล้วส่งให้ร้าน</span>
+    <div class="flygrid">
+      <div class="flyc"><div class="spt">1️⃣ สร้างใบปลิว</div><p class="small" style="margin:4px 0 8px">เปิดเครื่องมือสร้าง Flyers ใส่ข้อมูลร้าน / โดเมน / ส่วนลด แล้วดาวน์โหลดรูปใบปลิว</p>
+        ${u ? `<a class="btn p s" href="${esc(u)}" target="_blank" rel="noopener">🎨 เปิด Create Flyers</a>` : ''}${tk('e1', 'สร้างใบปลิวของร้านนี้แล้ว')}</div>
+      <div class="flyc"><div class="spt">2️⃣ ส่งให้ร้านทาง respond.io chat</div><p class="small" style="margin:4px 0 8px">แนบรูปใบปลิว + ส่งข้อความนี้ (ไทย + อังกฤษ)</p>
+        <div class="row"><button class="btn p s" data-cpt="flyer_chat">📋 Copy ข้อความแชต</button>${isMgr() ? '<button class="btn s" data-edt="flyer_chat">แก้ไขข้อความ</button>' : ''}</div>
+        <details class="small"><summary>ดูข้อความ</summary><pre class="msg">${esc(content('flyer_chat'))}</pre></details>${tk('e2', 'ส่งใบปลิว + ข้อความให้ร้านทาง respond.io แล้ว')}</div>
+      <div class="flyc"><div class="spt">3️⃣ ข้อความโพสต์ Flyers (Facebook)</div>
+        <div class="row" style="margin:4px 0"><input id="fly_dom" placeholder="โดเมน เช่น www.hommalibangkok.com.au" value="${esc(S.flyDom || '')}" style="flex:2;min-width:180px"><input id="fly_pct" placeholder="% ส่วนลด" value="${esc(S.flyPct || '')}" style="width:100px"></div>
+        <div class="row"><button class="btn p s" id="fly_cp">📋 Copy ข้อความโพสต์</button>${isMgr() ? '<button class="btn s" data-edt="flyer_post">แก้ไขข้อความ</button>' : ''}</div>
+        <pre class="msg" id="fly_prev">${esc(flyerPost())}</pre>${tk('e3', 'เตรียมข้อความโพสต์ (ใส่โดเมน + % ส่วนลด) แล้ว')}</div>
+    </div></div></div>`;
+}
+function bindFlyers() {
+  const upd = () => { S.flyDom = $('#fly_dom').value.trim(); S.flyPct = $('#fly_pct').value.trim().replace('%', ''); $('#fly_prev').textContent = flyerPost(); };
+  if ($('#fly_dom')) { $('#fly_dom').oninput = upd; $('#fly_pct').oninput = upd; }
+  if ($('#fly_cp')) $('#fly_cp').onclick = () => { upd(); navigator.clipboard.writeText(flyerPost()).then(() => toast('คัดลอกข้อความโพสต์แล้ว')); };
+  document.querySelectorAll('[data-cpt]').forEach(b => b.onclick = () => navigator.clipboard.writeText(content(b.dataset.cpt)).then(() => toast('คัดลอกข้อความแล้ว')));
+  document.querySelectorAll('[data-edt]').forEach(b => b.onclick = () => { const k = b.dataset.edt;
+    openModal(`<h3>แก้ไขข้อความ</h3>${k === 'flyer_post' ? '<p class="small muted">ใช้ {domain} และ {discount} เป็นช่องที่ระบบเติมให้</p>' : ''}<textarea id="hm" style="min-height:380px">${esc(content(k))}</textarea><div class="actions"><button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">Save</button></div>`);
+    $('#cx').onclick = closeModal; $('#sv').onclick = async () => { const v = $('#hm').value; closeModal(); await save(sb.from('content').update({ body: v }).eq('key', k), 'บันทึกข้อความแล้ว'); }; });
 }
 function oldSysBlock() {
   return `<div class="ac" id="oldsys"><div class="an">D</div><div><b>ปิดระบบร้านเก่า (Gloria Food / PartnerNet)</b> <span class="small muted">ทำหลัง LIVE สำเร็จ ให้ร้านไม่ได้รับออเดอร์จากระบบเก่าซ้ำ</span>
@@ -1405,7 +1430,7 @@ async function viewFlow() {
       <h2 style="margin:2px 0;color:#fff;font-size:20px"><img src="img/app-icon.png" alt="" style="width:30px;height:30px;vertical-align:middle;margin-right:6px">LIVE PROJECT FLOW <small style="color:#CBD5E1">ขั้นตอนพาร้านเปิดระบบขณะอยู่ในสาย</small></h2>
       <div style="color:#E2E8F0">🚀 เป้าหมายจบสาย: <b>หน้ารับออเดอร์เปิดค้าง + เครื่องปริ้น Test print สำเร็จ + รับ Test order ได้</b></div></div>
       <button class="btn r" data-new="live">🔴 Record LIVE</button></div>
-    <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">A–C หลังวางสาย</a><a href="#oldsys" class="fchip a">D. ปิดระบบร้านเก่า</a><a href="#fpick" class="fchip a">E. บันทึก LIVE</a><a href="#feedback" class="fchip a">F. Feedback & Tools</a></div>
+    <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">A–C หลังวางสาย</a><a href="#oldsys" class="fchip a">D. ปิดระบบร้านเก่า</a><a href="#flyers" class="fchip a">E. Flyers</a><a href="#fpick" class="fchip a">F. บันทึก LIVE</a><a href="#feedback" class="fchip a">G. Feedback & Tools</a></div>
     ${flowTop()}</div>
   <div class="flowpairs">${[0, 2, 4, 6, 8].map(st => { const pair = FLOW.slice(st, st + 2);
     const pic = (s) => { const p = imgs[s.k]; const up = p && urls[p]; const list = up ? [up] : (REAL[s.k] || []); return { list, up }; };
@@ -1437,11 +1462,12 @@ async function viewFlow() {
           <div class="sp q"><div class="spt">⏳ ยังไม่เรียบร้อย</div><ul><li>คงสถานะ <b>Queue to go live</b></li><li>ตอนกด Record LIVE ให้ใส่ <b>"ต้องตามเรื่องอะไร"</b></li><li>ระบบแจ้งเตือนเข้า <b>Google Chat</b> ให้เอง และขึ้นในกล่อง "ต้องตามงานต่อ" หน้า Dashboard จนกว่าจะกดเสร็จ</li></ul></div></div>
         <div class="tks">${tk('c1', 'อัปเดต 486 Monday แล้ว (Completed หรือ Queue to go live)')}</div></div></div>
       ${oldSysBlock()}
+      ${flyerBlock()}
       ${flowStorePick()}
     </div></div>`;
-  bindActButtons(); bindFlowPick(); bindTicks();
+  bindActButtons(); bindFlowPick(); bindTicks(); bindFlyers();
   const fw = document.createElement('div'); fw.className = 'card fbwrap'; fw.id = 'feedback';
-  fw.innerHTML = '<div class="row" style="align-items:center;gap:12px"><div class="an">F</div><div><b style="font-size:16px">Feedback & Tools</b> <span class="small muted">ข้อเสนอแนะจากร้าน (Online Order) และเครื่องมือที่ทีมอยากได้ — เจอระหว่าง LIVE ก็บันทึกที่นี่</span></div></div><div id="fbbox"></div>';
+  fw.innerHTML = '<div class="row" style="align-items:center;gap:12px"><div class="an">G</div><div><b style="font-size:16px">Feedback & Tools</b> <span class="small muted">ข้อเสนอแนะจากร้าน (Online Order) และเครื่องมือที่ทีมอยากได้ — เจอระหว่าง LIVE ก็บันทึกที่นี่</span></div></div><div id="fbbox"></div>';
   $('#after').after(fw); viewFeedback();
   if (S.scrollFb) { S.scrollFb = false; fw.scrollIntoView(); }
   $('#cpmsg').onclick = () => navigator.clipboard.writeText(content('howto_msg')).then(() => toast('คัดลอกข้อความแล้ว — วางในอีเมล / แชตส่งร้านได้เลย'));
