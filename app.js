@@ -1227,7 +1227,9 @@ function viewPrelive() {
       ${ck.old_system && (ck.old_system.o6 || ck.old_system.o8) ? `<p class="small" style="margin:8px 0 0">🏚️ <b>ระบบเก่า (OLD) มี:</b> ${(ck.old_system.o6 || []).map(x => `<span class="badge b-blue">${esc(x)}</span>`).join(' ')} ${(ck.old_system.o8 || []).map(x => `<span class="badge b-grey">💳 ${esc(x)}</span>`).join(' ')} <span class="muted">— เลือกไว้ให้ในข้อ All Services และ Payment แล้ว</span></p>` : ''}
       <p class="small muted" style="margin:6px 0 0">ข้อที่ Recorder ตรวจแล้วผ่านจะติ๊กให้อัตโนมัติ ข้อที่ไม่ผ่านจะไม่ติ๊ก — แก้ใน NEW แล้วรัน Recorder ใหม่ หรือติ๊กเองได้</p></div>`; })() : '';
   $('#main').innerHTML = `${restList()}<div class="two">
-  <div class="card"><h2>Pre-Live System Checklist <small>ตรวจความพร้อมก่อน LIVE · ${PRELIVE.length} ข้อ</small></h2>
+  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Pre-Live System Checklist <small>ตรวจความพร้อมก่อน LIVE · ${PRELIVE.length} ข้อ</small></h2>
+    <button class="btn t" id="pl_rec" title="เปิด LFY Recorder ในเครื่องนี้ พร้อมใส่ชื่อร้านให้">🧪 ตรวจด้วย LFY Recorder</button><button class="btn s" id="pl_ref" title="ดึงผลตรวจล่าสุด">🔄 ดึงผลล่าสุด</button></div>
+    <p class="small muted" style="margin:4px 0 10px">ใส่ชื่อร้านก่อน แล้วกด 🧪 · Recorder ตรวจเสร็จ ผลจะติ๊กข้อที่ผ่านให้เองในหน้านี้ (ต้องติดตั้ง LFY Recorder บน Mac เครื่องนี้แล้ว)</p>
     <div class="fg"><div style="grid-column:span 2"><label>ชื่อร้าน *</label><input id="pl_r" list="restlist" value="${esc(r0 ? restLabel(r0) : cur.store_name || '')}"></div>
       <div><label>Inspector (ผู้ตรวจ) *</label><select id="pl_i">${memberOpts(cur.inspector, false)}</select></div></div>
     ${runPanel}
@@ -1251,6 +1253,10 @@ function viewPrelive() {
   document.querySelectorAll('[data-pi],[data-po]').forEach(x => x.onchange = () => { const c = collect(); delete c._r; S.pl = c; render(); });
   $('#pl_all').onclick = () => { const c = collect(); delete c._r; PRELIVE.forEach(x => c.checks['i' + x.n] = true); c.done = PL_REQ; S.pl = c; render(); };
   $('#pl_new').onclick = () => { S.pl = null; render(); };
+  $('#pl_rec').onclick = () => { const n = $('#pl_r').value.trim(); if (!n) { toast('ใส่ชื่อร้านก่อน (ชื่อเดียวกับที่จะใส่ใน Recorder)', true); $('#pl_r').focus(); return; }
+    const c = collect(); delete c._r; S.pl = c; window.open('http://localhost:3210/?shop=' + encodeURIComponent(n), '_blank', 'noopener');
+    toast('เปิด LFY Recorder แล้ว · ตรวจเสร็จผลจะขึ้นที่นี่เอง'); };
+  $('#pl_ref').onclick = async () => { const n = ($('#pl_r').value || '').trim().toLowerCase(); await loadAll(); const p = n && (S.prelive || []).find(x => x.store_name.trim().toLowerCase() === n); if (p) S.pl = Object.assign({}, p); render(); toast(p ? 'อัปเดตผลล่าสุดแล้ว' : 'โหลดข้อมูลใหม่แล้ว'); };
   $('#pl_cp').onclick = () => { const c = collect(); const t = `Pre-Live Audit: ${c.store_name}\nInspector: ${memberName(c.inspector)}\n` + PRELIVE.map((x, i) => `${c.checks['i' + x.n] ? '✅' : '⬜'} ${i + 1}. ${x.t}${c.checks['o' + x.n] ? ' — ' + c.checks['o' + x.n].join(', ') : ''}`).join('\n') + (c.notes ? `\nNotes: ${c.notes}` : '');
     navigator.clipboard.writeText(t).then(() => toast('คัดลอกแล้ว'), () => toast('คัดลอกไม่ได้', true)); };
   $('#pl_sv').onclick = async () => {
