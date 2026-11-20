@@ -1074,6 +1074,12 @@ function bindSheet() {
     openModal(draw()); bind();
   };
 }
+const pdfOf = r => (S.reports || []).find(x => x.run_key && x.run_key === r.run_key);
+async function openReport(id) {
+  const r = (S.reports || []).find(x => String(x.id) === String(id)); if (!r) return; const w = window.open('', '_blank');
+  const { data, error } = await sb.storage.from('audit-reports').createSignedUrl(r.file_path, 600);
+  if (error) { if (w) w.close(); return toast(error.message, true); } if (w) w.location = data.signedUrl; else location.href = data.signedUrl;
+}
 function recLog() {
   const runs = S.runs || []; const q = (S.rlQ || '').toLowerCase();
   const list = runs.filter(r => !q || r.store_name.toLowerCase().includes(q)).slice(0, S.rlAll ? 300 : 15);
@@ -1082,18 +1088,19 @@ function recLog() {
     const groups = {}; bad.forEach(c => { (groups[c.area || 'อื่นๆ'] = groups[c.area || 'อื่นๆ'] || []).push(c); });
     return `<tr class="clk" data-rl="${r.id}"><td class="small">${fmtDT(r.created_at)}</td><td><b>${esc(r.store_name)}</b></td><td class="small">${esc(r.mode || '')}</td><td class="small">${esc(r.operator || '')}</td>
       <td class="num">${pctB(r.menu_percent)}${r.items_need_fixing ? `<div class="small">ต้องแก้ ${r.items_need_fixing}</div>` : ''}</td><td class="num">${pctB(r.backend_percent)}${bad.length ? `<div class="small">${bad.length} จุด</div>` : ''}</td><td class="num">${pctB(r.overall_percent)}</td>
-      <td>${bad.length || r.items_need_fixing ? badge('ต้องแก้', 'bad') : badge('✓ ผ่าน', 'good')}</td><td class="small">${open ? '▲' : '▼'}</td></tr>
+      <td>${bad.length || r.items_need_fixing ? badge('ต้องแก้', 'bad') : badge('✓ ผ่าน', 'good')}${pdfOf(r) ? ' <span title="มี PDF">📄</span>' : ''}</td><td class="small">${open ? '▲' : '▼'}</td></tr>
       ${open ? `<tr><td colspan="9" style="background:#F8FAFC">${bad.length ? Object.entries(groups).map(([g, l]) => `<div class="sec" style="margin-top:6px">${esc(g)} (${l.length})</div><table class="small issues"><thead><tr><th></th><th>รายการ</th><th>OLD / ต้องเป็น</th><th>NEW ตอนนี้</th><th>ต้องทำ</th></tr></thead><tbody>
         ${l.slice(0, 80).map(c => `<tr><td>${c.status === 'FAIL' ? '❌' : '❓'}</td><td><b>${esc(c.field)}</b></td><td>${esc(c.old)}</td><td>${esc(c.new)}</td><td>${esc(c.action)}</td></tr>`).join('')}</tbody></table>`).join('')
-        : '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงทุกจุดที่ตรวจ</p>'}${r.items_need_fixing ? `<p class="small">🍽️ เมนู: ต้องแก้ ${r.items_need_fixing} รายการ — ดูรายละเอียดใน Compare Report (PDF) ใน MIG Audit Check</p>` : ''}
-        <div class="row" style="margin-top:6px"><button class="btn s" data-rlpl="${esc(r.store_name)}">เปิด Pre-Live ของร้านนี้</button>${content('mig_drive') ? `<a class="btn s" href="${esc(content('mig_drive'))}" target="_blank" rel="noopener">📁 PDF / วิดีโอใน MIG Audit Check</a>` : ''}</div></td></tr>` : ''}`; };
-  return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🧪 Log การตรวจเช็ค (LFY Recorder) <small>คะแนน + สิ่งที่ต้องแก้ ส่งมาเองทุกครั้งที่ตรวจเสร็จ (V18.28 ขึ้นไป)</small></h2>
+        : '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงทุกจุดที่ตรวจ</p>'}${r.items_need_fixing ? `<p class="small">🍽️ เมนู: ต้องแก้ ${r.items_need_fixing} รายการ — ดูรายละเอียดใน Compare Report (PDF)</p>` : ''}
+        <div class="row" style="margin-top:6px">${pdfOf(r) ? `<button class="btn s p" data-dl="${pdfOf(r).id}">📄 เปิด Compare Report (PDF)</button>` : ''}<button class="btn s" data-rlpl="${esc(r.store_name)}">เปิด Pre-Live ของร้านนี้</button>${content('mig_drive') ? `<a class="btn s" href="${esc(content('mig_drive'))}" target="_blank" rel="noopener">📁 วิดีโอใน MIG Audit Check</a>` : ''}</div></td></tr>` : ''}`; };
+  return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🧪 Log การตรวจเช็ค (LFY Recorder) <small>คะแนน + สิ่งที่ต้องแก้ ส่งมาเองทุกครั้งที่ตรวจเสร็จ (PDF ส่งมาด้วยตั้งแต่ V18.29)</small></h2>
       <input id="rlq" placeholder="ค้นหาชื่อร้าน" value="${esc(S.rlQ || '')}" style="width:220px"></div>
     <div class="tw" style="margin-top:10px"><table><thead><tr><th>วันที่</th><th>ร้าน</th><th>โหมด</th><th>โดย</th><th class="num">เมนู</th><th class="num">หลังบ้าน</th><th class="num">รวม</th><th>ผล</th><th></th></tr></thead><tbody>
-    ${list.map(row).join('') || '<tr><td colspan="9" class="muted">ยังไม่มีผลตรวจ — ใช้ LFY Recorder V18.28 แล้วผลจะขึ้นที่นี่เอง</td></tr>'}</tbody></table></div>
+    ${list.map(row).join('') || '<tr><td colspan="9" class="muted">ยังไม่มีผลตรวจ — ใช้ LFY Recorder V18.29 แล้วผลและ PDF จะขึ้นที่นี่เอง</td></tr>'}</tbody></table></div>
     ${runs.length > 15 && !S.rlAll ? `<div class="actions"><button class="btn s" id="rlall">แสดงทั้งหมด (${runs.length})</button></div>` : ''}</div>`;
 }
 function bindRecLog() {
+  document.querySelectorAll('#main [data-dl]').forEach(b => b.onclick = e => { e.stopPropagation(); openReport(b.dataset.dl); });
   document.querySelectorAll('[data-rl]').forEach(t => t.onclick = () => { const id = +t.dataset.rl; S.rlOpen = S.rlOpen === id ? null : id; const y = window.scrollY; render(); window.scrollTo(0, y); });
   document.querySelectorAll('[data-rlpl]').forEach(b => b.onclick = e => { e.stopPropagation(); const n = b.dataset.rlpl.trim().toLowerCase(); const p = (S.prelive || []).find(x => x.store_name.trim().toLowerCase() === n);
     S.pl = p ? Object.assign({}, p) : { store_name: b.dataset.rlpl, checks: {}, inspector: S.me.code }; S.tab = 'prelive'; render(); window.scrollTo(0, 0); });
@@ -1158,7 +1165,7 @@ function recorderCard(compact) {
       <li>ใส่ชื่อร้าน · เลือกโหมด · ลิงก์ร้าน NEW · ลิงก์เมนู OLD แล้วกด <b>START</b></li>
       <li>ล็อกอินหลังบ้าน / เลือกร้านในหน้าต่างที่เปิดขึ้นถ้าระบบขอ</li>
       <li>โหมด <b>Final Proof</b> อัปโหลดผลเข้า <b>MIG Audit Check</b> ให้อัตโนมัติ</li>
-      <li>ได้ไฟล์ Compare Report (PDF) แล้ว อัปโหลดเก็บในแท็บ <b>Audit Reports</b> ให้ผูกกับร้านได้</li></ol>
+      <li>ตรวจเสร็จ คะแนน + Compare Report (PDF) ขึ้นในแท็บ <b>Audit Reports</b> และ Log การตรวจเช็คบน Dashboard เอง ไม่ต้องอัปโหลด</li></ol>
       <p class="small muted">ถ้าเปิด localhost:3210 ไม่ขึ้น: ดับเบิลคลิก RESTART-LFY-SERVICE.command ในโฟลเดอร์ที่แตกไว้</p></div></div>` : ''}</div>`;
 }
 function bindRecorder() {
@@ -1503,32 +1510,21 @@ async function viewGcal() {
 
 // --- Audit Reports (PDF archive) ---
 function viewAudit() {
-  $('#main').innerHTML = `${recorderCard(false)}<div class="two">
-  <div class="card"><h2>Upload Audit Reports (PDF) <small>อ่านชื่อร้าน + คะแนนจากชื่อไฟล์อัตโนมัติ</small></h2>
-    <input type="file" id="pf" accept="application/pdf,.pdf" multiple><p class="small muted">เช่น <code>Thai Spoon_92%.pdf</code> → ร้าน "Thai Spoon", คะแนน 92%</p></div>
-  <div class="card"><h2>ผลตรวจทั้งหมด <small>วิดีโอ Final Proof และหลักฐานอยู่ใน Google Drive</small></h2><p class="small">ทุกครั้งที่รันโหมด <b>Record Video — Final Proof</b> ระบบอัปโหลดเข้า MIG Audit Check ให้เอง (1 โฟลเดอร์ต่อร้าน)</p>${content('mig_drive') ? `<a class="btn" href="${esc(content('mig_drive'))}" target="_blank" rel="noopener">📁 เปิด MIG Audit Check</a>` : ''}</div></div>
-  <div class="card"><h2>Saved PDF Report Library <small>${(S.reports || []).length} ไฟล์</small></h2><div class="tw"><table><thead><tr><th>ร้าน</th><th>คะแนน</th><th>ไฟล์</th><th>โดย</th><th>วันที่</th><th></th></tr></thead><tbody>
-    ${(S.reports || []).map(r => `<tr><td><b>${esc(r.store_name)}</b></td><td>${esc(r.score || '')}</td><td class="small">${esc(r.file_name)}</td><td>${esc(memberName(r.uploaded_by))}</td><td class="small">${fmtDT(r.created_at)}</td>
-      <td style="white-space:nowrap"><button class="btn s" data-dl="${r.id}">เปิด</button> ${isMgr() || r.uploaded_by === S.me.code ? `<button class="btn s r" data-rd="${r.id}">ลบ</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">ยังไม่มีไฟล์</td></tr>'}</tbody></table></div></div>`;
+  const q = (S.auQ || '').toLowerCase(); const list = (S.reports || []).filter(r => !q || (r.store_name || '').toLowerCase().includes(q));
+  const runOf = r => (S.runs || []).find(x => x.run_key && x.run_key === r.run_key);
+  const pc = v => v === null || v === undefined ? '–' : `<b style="color:${v >= 100 ? 'var(--goodT)' : v >= 90 ? 'var(--warnT)' : 'var(--badT)'}">${v}%</b>`;
+  $('#main').innerHTML = `${recorderCard(false)}
+  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">📄 Compare Report (PDF) ทุกร้าน <small>${list.length} ไฟล์ · LFY Recorder V18.29 ส่ง PDF มาเองทุกครั้งที่ตรวจเสร็จ ไม่ต้องอัปโหลด</small></h2>
+    <input id="auq" placeholder="ค้นหาชื่อร้าน" value="${esc(S.auQ || '')}" style="width:220px">${content('mig_drive') ? `<a class="btn s" href="${esc(content('mig_drive'))}" target="_blank" rel="noopener">📁 วิดีโอ Final Proof (Drive)</a>` : ''}</div>
+    <div class="tw" style="margin-top:10px"><table><thead><tr><th>วันที่</th><th>ร้าน</th><th class="num">เมนู</th><th class="num">หลังบ้าน</th><th class="num">รวม</th><th>ตรวจโดย</th><th>ไฟล์</th><th></th></tr></thead><tbody>
+    ${list.map(r => { const run = runOf(r); return `<tr><td class="small" style="white-space:nowrap">${fmtDT(r.created_at)}</td><td><b>${esc(r.store_name)}</b></td>
+      <td class="num">${run ? pc(run.menu_percent) : '–'}</td><td class="num">${run ? pc(run.backend_percent) : '–'}</td><td class="num">${run ? pc(run.overall_percent) : esc(r.score || '–')}</td>
+      <td class="small">${r.run_key ? '🤖 ' : ''}${esc(memberName(r.uploaded_by))}</td><td class="small">${esc(r.file_name)}</td>
+      <td style="white-space:nowrap"><button class="btn s p" data-dl="${r.id}">📄 เปิด</button> ${isMgr() ? `<button class="btn s r" data-rd="${r.id}">ลบ</button>` : ''}</td></tr>`; }).join('')
+      || '<tr><td colspan="8" class="muted">ยังไม่มี PDF — ติดตั้ง LFY Recorder V18.29 แล้วตรวจร้าน ไฟล์จะขึ้นที่นี่เอง</td></tr>'}</tbody></table></div></div>`;
   bindRecorder();
-  $('#pf').onchange = async e => {
-    const files = [...e.target.files]; let n = 0;
-    for (const f of files) {
-      const base = f.name.replace(/\.pdf$/i, ''); const sc = (base.match(/(\d{1,3}(?:\.\d+)?)\s*%/) || [])[1];
-      const store = base.replace(/[_-]?\(?\d{1,3}(?:\.\d+)?\s*%\)?/g, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim() || base;
-      const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.pdf`;
-      const up = await sb.storage.from('audit-reports').upload(path, f, { contentType: 'application/pdf' });
-      if (up.error) { toast(f.name + ': ' + up.error.message, true); continue; }
-      const ins = await sb.from('reports').insert({ store_name: store, file_path: path, file_name: f.name, score: sc ? sc + '%' : null, uploaded_by: S.me.code });
-      if (ins.error) toast(ins.error.message, true); else n++;
-    }
-    toast(`อัปโหลดแล้ว ${n} ไฟล์`); await loadAll(); render();
-  };
-  document.querySelectorAll('[data-dl]').forEach(b => b.onclick = async () => {
-    const r = S.reports.find(x => String(x.id) === b.dataset.dl); const w = window.open('', '_blank');
-    const { data, error } = await sb.storage.from('audit-reports').createSignedUrl(r.file_path, 600);
-    if (error) { if (w) w.close(); return toast(error.message, true); } if (w) w.location = data.signedUrl; else location.href = data.signedUrl;
-  });
+  $('#auq').onchange = e => { S.auQ = e.target.value; viewAudit(); };
+  document.querySelectorAll('[data-dl]').forEach(b => b.onclick = () => openReport(b.dataset.dl));
   document.querySelectorAll('[data-rd]').forEach(b => b.onclick = async () => {
     const r = S.reports.find(x => String(x.id) === b.dataset.rd); if (!confirm('ลบไฟล์ ' + r.file_name + '?')) return;
     await sb.storage.from('audit-reports').remove([r.file_path]); await save(sb.from('reports').delete().eq('id', r.id), 'ลบแล้ว');
