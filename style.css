@@ -176,3 +176,7 @@ pre.code{background:#0F172A;color:#E2E8F0;padding:12px;border-radius:10px;overfl
 .fpic img.real{width:200px;box-shadow:0 8px 24px rgba(15,23,42,.18);border-radius:18px;border:6px solid #0F172A}
 .fpic img.real.extra{width:200px;border-width:4px;border-radius:10px}
 pre.msg{white-space:pre-wrap;background:#F8FAFC;border:1px solid var(--line);border-radius:10px;padding:10px;font-family:inherit;font-size:12px;max-height:220px;overflow:auto;margin-top:8px}
+.mk-appicon{width:44px;height:44px;border-radius:11px;flex:0 0 auto}.mk-appicon.big{width:64px;height:64px;border-radius:15px}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
+.gal figure{margin:0;text-align:center}.gal img{width:100%;max-height:330px;object-fit:contain;background:#F1F5F9;border-radius:12px;border:1px solid var(--line);cursor:zoom-in;padding:6px}
+.gal figcaption{font-size:12px;margin-top:6px;color:#334155}

@@ -965,9 +965,9 @@ const MOCK = {
   call: P(`<div class="mk-call"><div class="mk-av">🏪</div><b>Restaurant</b><div class="small muted">กำลังโทร… 00:42</div>
     <div class="mk-bubble">"สวัสดีค่ะ จาก Local For You โทรตามนัดเพื่อเปิดระบบรับออเดอร์ใหม่ค่ะ"</div>
     <div class="mk-row"><span class="mk-ci">🔇</span><span class="mk-ci">🔊</span><span class="mk-ci r">📞</span></div></div>`),
-  store: P(`<div class="mk-store"><div class="mk-app"><div class="mk-icon">🖨️</div><div><b>PushPrinter Nitro</b><div class="small muted">Local For You</div><div class="small">★★★★★</div></div></div>
+  store: P(`<div class="mk-store"><div class="mk-app"><img class="mk-appicon" src="img/app-icon.png" alt=""><div><b>PushPrinter Nitro</b><div class="small muted">Local For You</div><div class="small">★★★★★</div></div></div>
     <div class="mk-btn g">Install</div><div class="mk-shots"><i></i><i></i><i></i></div><div class="small muted">ค้นหา "PushPrinter" ใน Play Store / App Store</div></div>`, 'Play Store'),
-  pair: P(`<div class="mk-c"><div class="mk-icon big">🖨️</div><b>Login</b><div class="small muted">Enter pairing code</div>
+  pair: P(`<div class="mk-c"><img class="mk-appicon big" src="img/app-icon.png" alt=""><b>Login</b><div class="small muted">Enter pairing code</div>
     <div class="mk-code"><i>4</i><i>8</i><i>2</i><i>9</i><i>1</i><i>6</i></div><div class="mk-btn">Connect</div>
     <div class="small muted">📞 MIG อ่าน code ให้ร้านฟังในสาย</div></div>`, 'PushPrinter Nitro'),
   theme: P(`<div class="mk-list"><div class="mk-h">Settings › Appearance</div><div class="mk-li">Theme<span class="mk-seg"><b>☀️ Light</b><i>🌙 Dark</i></span></div>
@@ -987,6 +987,9 @@ const MOCK = {
   done: P(`<div class="mk-c"><div class="mk-big">🎉</div><b>LIVE แล้ว!</b><div class="small muted">หน้ารับออเดอร์เปิดค้าง · เครื่องพิมพ์พร้อม</div><div class="mk-btn g">จบสาย</div></div>`),
 };
 const REAL = { pair: ['img/pair.jpg'], theme: ['img/theme.jpg'], audio: ['img/audio.jpg'], addp: ['img/addp.jpg'], order: ['img/order.jpg', 'img/order2.jpg'], booking: ['img/booking.jpg'], done: ['img/done.jpg'] };
+const GALLERY = [['img/app-icon.png', 'ไอคอนแอป PushPrinter Nitro (ให้ร้านหาไอคอนนี้)'], ['img/pair.jpg', 'หน้า Login: Login by QR / Login by Pairing Code'],
+  ['img/done.jpg', 'หน้า Orders + Connected to push server'], ['img/order.jpg', 'Order review: ACCEPT − / + เวลา'], ['img/order2.jpg', 'Decline order? (แท็บเล็ต)'],
+  ['img/booking.jpg', 'Pause Services'], ['img/addp.jpg', 'Printers (กด ＋ เพื่อเพิ่ม)'], ['img/theme.jpg', 'Settings › Appearance (Theme / Text size)'], ['img/audio.jpg', 'Settings › Audio (Test Order / Test Booking)']];
 const FLOW = [
   { k: 'call', t: 'ติดต่อร้าน', d: ['โทรหาร้านตามเวลานัด แนะนำตัวและบอกว่าจะเปิดระบบรับออเดอร์ใหม่ด้วยกันในสาย'] },
   { k: 'store', t: 'ให้ร้านดาวน์โหลด PushPrinter Nitro', d: ['ให้ร้านเปิด Play Store / App Store ค้นหา "PushPrinter" แล้วกด Install'], link: 'pushprinter_url', linkT: 'ลิงก์ Play Store' },
@@ -1006,10 +1009,10 @@ async function viewFlow() {
   if (paths.length) { const { data } = await sb.storage.from('tools').createSignedUrls(paths, 3600); (data || []).forEach(x => { if (x.signedUrl) urls[x.path] = x.signedUrl; }); }
   const it = content('monday_it');
   $('#main').innerHTML = `<div class="card flowhead"><div class="row" style="align-items:center"><div style="flex:1"><div class="small" style="font-weight:700;letter-spacing:.06em;color:#FCA5A5">ON-CALL CLIENT ONBOARDING</div>
-      <h2 style="margin:2px 0;color:#fff;font-size:20px">🔴 LIVE PROJECT FLOW <small style="color:#CBD5E1">ขั้นตอนพาร้านเปิดระบบขณะอยู่ในสาย</small></h2>
+      <h2 style="margin:2px 0;color:#fff;font-size:20px"><img src="img/app-icon.png" alt="" style="width:30px;height:30px;vertical-align:middle;margin-right:6px">LIVE PROJECT FLOW <small style="color:#CBD5E1">ขั้นตอนพาร้านเปิดระบบขณะอยู่ในสาย</small></h2>
       <div style="color:#E2E8F0">🚀 เป้าหมายจบสาย: <b>หน้ารับออเดอร์เปิดค้าง + เครื่องปริ้น Test print สำเร็จ + รับ Test order ได้</b></div></div>
       <button class="btn r" data-new="live">🔴 Record LIVE</button></div>
-    <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">หลังวางสาย</a></div></div>
+    <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">หลังวางสาย</a><a href="#gallery" class="fchip a">🖼️ รูปทั้งหมด</a></div></div>
   <div class="flowgrid">${FLOW.map((s, i) => { const p = imgs[s.k]; const up = p && urls[p]; const list = up ? [up] : (REAL[s.k] || []); const u = list[0];
     return `<div class="card fstep" id="st${i}"><div class="fnum">${i + 1}</div><div class="fbody"><h3>${esc(s.t)}</h3><ul>${s.d.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
       ${s.link && content(s.link) ? `<a class="btn s" href="${esc(content(s.link))}" target="_blank" rel="noopener">🔗 ${esc(s.linkT)}</a> <button class="btn s" data-cp="${esc(content(s.link))}">📋 Copy ลิงก์ส่งให้ร้าน</button>` : ''}
@@ -1026,7 +1029,9 @@ async function viewFlow() {
       <div class="ac"><div class="an">C</div><div><b>อัปเดต 486 Monday</b> ${content('monday_486') ? `<a class="btn s" href="${esc(content('monday_486'))}" target="_blank" rel="noopener">🔗 เปิด 486 board</a>` : ''}
         <div class="split"><div class="sp ok"><div class="spt">✅ เรียบร้อยทุกอย่าง</div><ul><li>เปลี่ยน Status เป็น <b>Completed</b></li></ul></div>
           <div class="sp q"><div class="spt">⏳ ยังไม่เรียบร้อย</div><ul><li>คงสถานะ <b>Queue to go live</b></li><li>ตอนกด Record LIVE ให้ใส่ <b>"ต้องตามเรื่องอะไร"</b></li><li>ระบบแจ้งเตือนเข้า <b>Google Chat</b> ให้เอง และขึ้นในกล่อง "ต้องตามงานต่อ" หน้า Dashboard จนกว่าจะกดเสร็จ</li></ul></div></div></div></div>
-    </div><div class="actions"><button class="btn r" data-new="live">🔴 Record LIVE</button></div></div>`;
+    </div><div class="actions"><button class="btn r" data-new="live">🔴 Record LIVE</button></div></div>
+  <div class="card" id="gallery"><h2>🖼️ รูปหน้าจอแอป PushPrinter Nitro ทั้งหมด <small>กดรูปเพื่อขยาย · ใช้ประกอบการอธิบายร้านหรือส่งให้ร้านดูได้</small></h2>
+    <div class="gal">${GALLERY.map(g => `<figure><img src="${g[0]}" alt="${esc(g[1])}" data-zoom="${g[0]}"><figcaption>${esc(g[1])}<br><a href="${g[0]}" download class="small">⬇️ ดาวน์โหลด</a></figcaption></figure>`).join('')}</div></div>`;
   bindActButtons();
   $('#cpmsg').onclick = () => navigator.clipboard.writeText(content('howto_msg')).then(() => toast('คัดลอกข้อความแล้ว — วางในอีเมล / แชตส่งร้านได้เลย'));
   if ($('#edmsg')) $('#edmsg').onclick = () => { openModal(`<h3>ข้อความแจ้งร้านหลัง LIVE</h3><textarea id="hm" style="min-height:420px">${esc(content('howto_msg'))}</textarea><div class="actions"><button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">Save</button></div>`);
