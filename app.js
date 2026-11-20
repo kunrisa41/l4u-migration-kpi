@@ -1091,6 +1091,9 @@ const MINUTES = 45;           // ความยาวนัด (นาที)
 const REMIND = [30, 10];      // เตือนก่อนนัด (นาที)
 const APP = 'https://l4u-migration-kpi.vercel.app/';
 
+// กด ▶ Run ที่ฟังก์ชันนี้ครั้งแรก เพื่ออนุญาตให้เข้าปฏิทิน
+function authorize() { CalendarApp.getDefaultCalendar(); Logger.log('OK - authorized'); }
+
 function doPost(e) {
   const d = JSON.parse(e.postData.contents || '{}');
   if (d.secret !== SECRET) return out({ ok: false, error: 'bad secret' });
@@ -1121,8 +1124,7 @@ function doPost(e) {
   return out({ ok: true });
 }
 function doGet() { return out({ ok: true, app: 'L4U calendar bridge' }); }
-function out(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
-function authorize() { CalendarApp.getDefaultCalendar(); }`;
+function out(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }`;
 }
 async function viewGcal() {
   $('#main').innerHTML = '<div class="card muted">กำลังโหลด…</div>';
@@ -1134,7 +1136,7 @@ async function viewGcal() {
     <ol class="steps">
       <li>เปิด <a href="https://accounts.google.com/AccountChooser?Email=${encodeURIComponent(S.session.user.email)}&continue=${encodeURIComponent('https://script.google.com/home/projects/create')}" target="_blank" rel="noopener"><b>script.google.com → New project</b></a> (เปิดด้วยบัญชี <b>${esc(S.session.user.email)}</b> ให้อัตโนมัติ — ถ้าขึ้น "You need access" อย่ากด Request access ให้กดลิงก์นี้ใหม่)</li>
       <li>ลบโค้ดเดิมในหน้าจอออกทั้งหมด แล้วกดปุ่ม <b>Copy script</b> ด้านล่าง → วางลงไป → กด 💾 Save (ตั้งชื่อโปรเจกต์ว่า L4U Calendar)</li>
-      <li>ที่แถบด้านบน เลือกฟังก์ชัน <b>authorize</b> แล้วกด <b>▶ Run</b> → <b>Review permissions</b> → เลือกบัญชี → <b>Advanced</b> → <b>Go to L4U Calendar (unsafe)</b> → <b>Allow</b> (เป็นโค้ดของคุณเอง ปลอดภัย)</li>
+      <li>ที่แถบด้านบน (ข้างปุ่ม Debug) ต้องเป็นชื่อ <b>authorize</b> แล้วกด <b>▶ Run</b> (ถ้าขึ้น doPost ให้กดลูกศร ▾ เปลี่ยนเป็น authorize — ถ้า Run doPost จะขึ้น error postData ซึ่งไม่เป็นไร) → <b>Review permissions</b> → เลือกบัญชี → <b>Advanced</b> → <b>Go to L4U Calendar (unsafe)</b> → <b>Allow</b> (เป็นโค้ดของคุณเอง ปลอดภัย)</li>
       <li>กด <b>Deploy</b> (มุมขวาบน) → <b>New deployment</b> → รูปเฟือง ⚙️ → เลือก <b>Web app</b></li>
       <li>ตั้งค่า: <b>Execute as: Me</b> และ <b>Who has access: Anyone</b> → กด <b>Deploy</b></li>
       <li>คัดลอก <b>Web app URL</b> (ขึ้นต้นด้วย https://script.google.com/macros/s/…) มาวางในช่องด้านล่าง แล้วกด <b>Save</b></li>
