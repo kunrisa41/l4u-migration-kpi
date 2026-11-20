@@ -1224,7 +1224,7 @@ function viewPrelive() {
       ${bad.length ? `<details style="margin-top:8px"><summary><b>รายการที่ Recorder พบว่าไม่ตรง / ต้องแก้ (${bad.length})</b> — OLD มีอะไร / NEW เป็นอะไร</summary>
         ${Object.entries(groups).map(([g, list]) => `<div class="sec">${esc(g)}</div><table class="small"><thead><tr><th></th><th>รายการ</th><th>OLD / ค่าที่ต้องเป็น</th><th>NEW ตอนนี้</th><th>ต้องทำ</th></tr></thead><tbody>
           ${list.slice(0, 60).map(c => `<tr><td>${c.status === 'FAIL' ? '❌' : '❓'}</td><td><b>${esc(c.field)}</b></td><td>${esc(c.old)}</td><td>${esc(c.new)}</td><td>${esc(c.action)}</td></tr>`).join('')}</tbody></table>`).join('')}</details>` : '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงตามมาตรฐานทุกจุดที่ Recorder ตรวจ</p>'}
-      ${ck.old_system && (ck.old_system.o6 || ck.old_system.o8) ? `<p class="small" style="margin:8px 0 0">🏚️ <b>ระบบเก่า (OLD) มี:</b> ${(ck.old_system.o6 || []).map(x => `<span class="badge b-blue">${esc(x)}</span>`).join(' ')} ${(ck.old_system.o8 || []).map(x => `<span class="badge b-grey">💳 ${esc(x)}</span>`).join(' ')} <span class="muted">— เลือกไว้ให้ในข้อ All Services และ Payment แล้ว</span></p>` : ''}
+      ${ck.old_system && (ck.old_system.o6 || ck.old_system.o8 || ck.old_system.o10) ? `<p class="small" style="margin:8px 0 0">🏚️ <b>ระบบเก่า (OLD) มี:</b> ${(ck.old_system.o6 || []).map(x => `<span class="badge b-blue">${esc(x)}</span>`).join(' ')} ${(ck.old_system.o8 || []).map(x => `<span class="badge b-grey">💳 ${esc(x)}</span>`).join(' ')} ${(ck.old_system.o10 || []).map(x => `<span class="badge b-warn">🌐 ${esc(x)}${x === 'GF Web' ? ' → คุณต้น LIVE เว็บ' : ''}</span>`).join(' ')} <span class="muted">— เลือกไว้ให้ในข้อ All Services และ Payment แล้ว</span></p>` : ''}
       <p class="small muted" style="margin:6px 0 0">ข้อที่ Recorder ตรวจแล้วผ่านจะติ๊กให้อัตโนมัติ ข้อที่ไม่ผ่านจะไม่ติ๊ก — แก้ใน NEW แล้วรัน Recorder ใหม่ หรือติ๊กเองได้</p></div>`; })() : '';
   $('#main').innerHTML = `${restList()}<div class="two">
   <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Pre-Live System Checklist <small>ตรวจความพร้อมก่อน LIVE · ${PRELIVE.length} ข้อ</small></h2>
@@ -1385,6 +1385,13 @@ function flowTop() {
     ${flowRec() ? `<span id="fprog">${flowProg()}</span><button class="btn s" id="tkall">✓ ติ๊กทั้งหมด</button>` : '<span class="small" style="color:#CBD5E1">เลือกร้านก่อน แล้วติ๊กแต่ละขั้นได้ ระบบเก็บไว้กับร้านนั้น</span>'}</div>`;
 }
 const flyerPost = () => content('flyer_post').replace('{domain}', S.flyDom || '-----------domain name-----------').replace('{discount}', S.flyPct || '____');
+function webHint() {
+  const p = flowRec(); const w = ((p && p.checks && p.checks.old_system) || {}).o10 || [];
+  if (!p) return '';
+  if (w.includes('GF Web')) return badge('🤖 Recorder: เว็บเดิมเป็น Gloria Food (Sales Optimized Website) → แจ้งคุณต้น LIVE เว็บ', 'warn');
+  if (w.includes('Add button with other')) return badge('🤖 Recorder: เว็บของเจ้าอื่น มีปุ่ม GF → แจ้ง Monday IT / เจ้าของเว็บเปลี่ยนปุ่ม', 'blue');
+  return '<span class="small muted">(Recorder V18.30 จะบอกให้เองว่าเว็บเดิมเป็นแบบไหน)</span>';
+}
 function flyerBlock() {
   const u = content('flyer_url');
   return `<div class="ac" id="flyers"><div class="an">B</div><div><b>Create & Send Flyers</b> <span class="small muted">ทำใบปลิวใหม่ให้ตรงกับระบบสั่งอาหารใหม่ แล้วส่งให้ร้าน</span>
@@ -1464,7 +1471,7 @@ async function viewFlow() {
         <div class="row" style="margin-top:6px"><button class="btn p s" id="cpmsg">📋 Copy ข้อความแจ้งร้าน</button>${isMgr() ? '<button class="btn s" id="edmsg">แก้ไขข้อความ</button>' : ''}</div>
         <pre class="msg">${esc(content('howto_msg'))}</pre></details></div></div>
       ${flyerBlock()}
-      <div class="ac"><div class="an">C</div><div><b>เว็บไซต์ร้านเป็นแบบไหน?</b>
+      <div class="ac"><div class="an">C</div><div><b>เว็บไซต์ร้านเป็นแบบไหน?</b> ${webHint()}
         <div class="split"><div class="sp cw"><div class="spt">🌐 เว็บ CW</div><ul><li>แจ้ง <b>คุณต้น</b> ทุกครั้งเพื่อ LIVE website</li><li>บอกร้าน: <b>ใช้ระบบใหม่ได้ทันที</b></li></ul>${tonTasks()}</div>
           <div class="sp it"><div class="spt">🛠️ เว็บ Template สร้างโดย IT</div><ul><li>บอกร้าน: <b>พร้อมใช้พรุ่งนี้ (ภายใน 24 ชม.)</b></li><li>แจ้งใน Monday IT board ให้อัปเดตปุ่ม <b>Online Order</b> และ <b>Table Reservation</b></li></ul>${it ? `<a class="btn s" href="${esc(it)}" target="_blank" rel="noopener">🔗 Monday IT board</a>` : ''}</div></div>
         <div class="tks">${tk('b1', 'แจ้งคุณต้น (เว็บ CW) หรือแจ้ง Monday IT board (เว็บ IT) แล้ว')}${tk('b2', 'บอกร้านแล้วว่าใช้ระบบใหม่ได้เมื่อไหร่ (ทันที / ภายใน 24 ชม.)')}</div></div></div>
