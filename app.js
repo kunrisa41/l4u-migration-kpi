@@ -671,7 +671,7 @@ function activityModal(kind, a, pre) {
       <span class="seg">${(x.opt ? ['Yes', 'No'] : x.na ? ['Yes', 'N/A', 'No'] : ['Yes', 'No']).map(v => `<label><input type="radio" name="ck_${x.k}" data-ck="${x.k}" value="${v}" ${chk[x.k] === v ? 'checked' : ''}><b>${v === 'Yes' ? '✓' : v === 'No' ? '✗' : 'N/A'}</b></label>`).join('')}</span></div>`).join('')}</div>
     <div class="sec">หลังวางสาย</div>
     <div class="cl">
-      <label class="ci"><input type="checkbox" id="af_howto" ${chk.howto ? 'checked' : ''}> <span>ส่ง How-to (response.io) + อีเมลวิธีการใช้งานให้ร้านแล้ว</span></label>
+      <div class="ls"><label class="ci" style="flex:1"><input type="checkbox" id="af_howto" ${chk.howto ? 'checked' : ''}> <span>ส่ง How-to (response.io) + อีเมลวิธีการใช้งานให้ร้านแล้ว</span></label><button type="button" class="btn s" id="af_cpmsg">📋 Copy ข้อความแจ้งร้าน</button></div>
       <div class="ls"><span>เว็บไซต์ร้านเป็นแบบไหน? *</span><span class="seg"><label><input type="radio" name="af_site" value="CW" ${chk.site === 'CW' ? 'checked' : ''}><b>🌐 CW</b></label><label><input type="radio" name="af_site" value="IT" ${chk.site === 'IT' ? 'checked' : ''}><b>🛠️ Template โดย IT</b></label></span></div>
       <div id="af_cw" class="subbox" style="${chk.site === 'CW' ? '' : 'display:none'}">
         <label class="ci"><input type="checkbox" id="af_ton" ${chk.ton ? 'checked' : ''}> <span>แจ้ง <b>คุณต้น</b> ให้ LIVE website แล้ว</span></label>
@@ -680,7 +680,7 @@ function activityModal(kind, a, pre) {
         <label class="ci"><input type="checkbox" id="af_24" ${chk.told_24h ? 'checked' : ''}> <span>บอกร้านแล้วว่า <b>พร้อมใช้พรุ่งนี้ (ภายใน 24 ชม.)</b></span></label>
         <label class="ci"><input type="checkbox" id="af_mit" ${chk.monday_it ? 'checked' : ''}> <span>แจ้งใน <b>Monday IT board</b> ให้อัปเดตปุ่ม Online Order & Table Reservation แล้ว</span></label>
         ${content('monday_it') ? `<a class="btn s" href="${esc(content('monday_it'))}" target="_blank" rel="noopener">🔗 เปิด Monday IT board</a>` : ''}</div>
-      <div class="ls"><span>อัปเดต 486 Monday Status *</span><span class="seg"><label><input type="radio" name="af_486" value="Completed" ${chk.m486 === 'Completed' ? 'checked' : ''}><b>✅ Completed</b></label><label><input type="radio" name="af_486" value="Queue" ${chk.m486 === 'Queue' ? 'checked' : ''}><b>⏳ Queue to go live</b></label></span></div>
+      <div class="ls"><span>อัปเดต 486 Monday Status * ${content('monday_486') ? `<a href="${esc(content('monday_486'))}" target="_blank" rel="noopener" class="small">🔗 เปิด 486 board</a>` : ''}</span><span class="seg"><label><input type="radio" name="af_486" value="Completed" ${chk.m486 === 'Completed' ? 'checked' : ''}><b>✅ Completed</b></label><label><input type="radio" name="af_486" value="Queue" ${chk.m486 === 'Queue' ? 'checked' : ''}><b>⏳ Queue to go live</b></label></span></div>
       <div id="af_fu" style="${chk.m486 === 'Queue' ? '' : 'display:none'}"><label>ต้องตามเรื่องอะไรต่อ? * <span class="small muted">(ระบบจะแจ้งเตือนเข้า Google Chat และขึ้นใน Dashboard จนกว่าจะเสร็จ)</span></label>
         <textarea id="af_fut" placeholder="เช่น รอ IT อัปเดตปุ่ม Online order, ร้านยังไม่เชื่อม Stripe, รอเครื่องปริ้นใหม่">${esc(a.followup || '')}</textarea></div>
     </div>` : ''}
@@ -690,6 +690,7 @@ function activityModal(kind, a, pre) {
     <button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">บันทึก</button></div>`);
   const hvc = () => { const e = $('#hv_c'); if (e) e.textContent = `${document.querySelectorAll('[data-hv]:checked').length} / ${HANDOVER.length} เรียบร้อย`; };
   hvc(); document.querySelectorAll('[data-hv]').forEach(x => x.onchange = hvc);
+  if ($('#af_cpmsg')) $('#af_cpmsg').onclick = () => navigator.clipboard.writeText(content('howto_msg')).then(() => { toast('คัดลอกข้อความแล้ว'); $('#af_howto').checked = true; });
   document.querySelectorAll('[name="af_site"]').forEach(x => x.onchange = () => { $('#af_cw').style.display = x.value === 'CW' ? '' : 'none'; $('#af_it').style.display = x.value === 'IT' ? '' : 'none'; });
   document.querySelectorAll('[name="af_486"]').forEach(x => x.onchange = () => { $('#af_fu').style.display = x.value === 'Queue' ? '' : 'none'; });
   document.querySelectorAll('[name="a_s"]').forEach(x => x.onchange = () => {
@@ -985,17 +986,18 @@ const MOCK = {
     <div class="mk-two"><div class="mk-opt">⏸️<br>Pause service</div><div class="mk-opt">🧾<br>Order history</div></div><div class="mk-tip">ออเดอร์ที่ Completed แล้ว จะไปอยู่ใน Order history</div></div>`, 'Orders'),
   done: P(`<div class="mk-c"><div class="mk-big">🎉</div><b>LIVE แล้ว!</b><div class="small muted">หน้ารับออเดอร์เปิดค้าง · เครื่องพิมพ์พร้อม</div><div class="mk-btn g">จบสาย</div></div>`),
 };
+const REAL = { pair: ['img/pair.jpg'], theme: ['img/theme.jpg'], audio: ['img/audio.jpg'], addp: ['img/addp.jpg'], order: ['img/order.jpg', 'img/order2.jpg'], booking: ['img/booking.jpg'], done: ['img/done.jpg'] };
 const FLOW = [
   { k: 'call', t: 'ติดต่อร้าน', d: ['โทรหาร้านตามเวลานัด แนะนำตัวและบอกว่าจะเปิดระบบรับออเดอร์ใหม่ด้วยกันในสาย'] },
   { k: 'store', t: 'ให้ร้านดาวน์โหลด PushPrinter Nitro', d: ['ให้ร้านเปิด Play Store / App Store ค้นหา "PushPrinter" แล้วกด Install'], link: 'pushprinter_url', linkT: 'ลิงก์ Play Store' },
-  { k: 'pair', t: 'Login ด้วย Pairing code', d: ['ร้านเลือก Login by pairing code', 'MIG อ่าน code ให้ร้านฟังในสาย ร้านพิมพ์ใส่แล้วกด Connect'] },
-  { k: 'theme', t: 'Settings › Appearance › Theme', d: ['เลือก Light mode', 'บอกร้านว่าปรับขนาดตัวหนังสือได้ตามสะดวก'] },
-  { k: 'audio', t: 'Settings › Audio', d: ['ให้ร้านลองฟังและเลือกเสียงแจ้งเตือนที่ต้องการ', '💻 ระหว่างนี้ MIG เปิดเว็บร้าน เตรียมส่ง Test order'] },
-  { k: 'addp', t: 'กลับ › More › Add printer', d: ['ร้านตั้งเสียงเสร็จ ให้กดกลับ แล้วกด More อีกครั้งเพื่อตั้งค่าเครื่องปริ้น', 'Add printer › เลือก printer ตาม template ที่เราสร้างไว้', 'เลือก Bluetooth หรือ Wi-Fi ตามที่ระบบ Gloria Food เชื่อมไว้'] },
-  { k: 'scan', t: 'เลือกเครื่องปริ้น › Test › Save', d: ['ร้านเลือกเครื่องปริ้นที่ scan แล้วปรากฏ', 'กด Test ให้กระดาษออก แล้วกด Save printer'] },
-  { k: 'order', t: 'ส่ง Test order', d: ['ให้ร้านออกมาหน้าออเดอร์ MIG ส่ง Test order เข้าไป', 'ให้ร้านกดรับ และสอนการกด − / + ปรับเวลาตอนกดรับ'] },
-  { k: 'booking', t: 'ส่ง Test booking + แนะนำเมนู', d: ['ส่ง Test booking ให้ร้านกดรับ', 'แนะนำ Pause service และ Order history (ออเดอร์ที่ completed แล้วจะไปอยู่ที่นั่น)'] },
-  { k: 'done', t: 'จบสาย', d: ['หน้ารับออเดอร์เปิดค้างไว้ + เครื่องพิมพ์พร้อมขายจริง'] },
+  { k: 'pair', t: 'Login ด้วย Pairing Code', d: ['เปิดแอปจะเห็น 2 ปุ่ม ให้ร้านกด "Login by Pairing Code" (ปุ่มล่าง ไม่ใช่ Login by QR)', 'MIG อ่าน code ให้ร้านฟังในสาย ร้านพิมพ์ใส่แล้วกดเข้าสู่ระบบ'] },
+  { k: 'theme', t: 'More › Settings › Appearance', d: ['Theme: เลือก "Light"', 'บอกร้านว่าปรับขนาดตัวหนังสือได้ที่ Text size (General / Order headers / Timer / Items) กด Reset เพื่อกลับค่าเดิม'] },
+  { k: 'audio', t: 'Settings › Audio', d: ['ให้ร้านลองเลือกเสียงที่ต้องการ กดปุ่ม "Test Order" / "Test Booking" ด้านล่างเพื่อฟังเสียง', 'Voice: เปิด Read out new orders / bookings ได้ ถ้าร้านอยากให้อ่านออกเสียง', '💻 ระหว่างนี้ MIG เปิดเว็บร้าน เตรียมส่ง Test order'] },
+  { k: 'addp', t: 'กลับ › More › Printers › ＋', d: ['ร้านตั้งเสียงเสร็จ ให้กดลูกศรกลับ แล้วกด More อีกครั้ง › Printers', 'กด ＋ (มุมขวาบน) เพื่อ Add printer › เลือก printer ตาม template ที่เราสร้างไว้ (เช่น Receipt ESCPOS Image / Kitchen ESCPOS Text)', 'เลือก Bluetooth หรือ Network IP / WiFi ตามที่ระบบ Gloria Food เชื่อมไว้'] },
+  { k: 'scan', t: 'เลือกเครื่องปริ้น › Test › Save', d: ['ร้านเลือกเครื่องปริ้นที่ scan แล้วปรากฏ', 'กด Test ให้กระดาษออก แล้วกด Save printer', 'เครื่องที่ Save แล้วจะขึ้นในรายการ Printers'] },
+  { k: 'order', t: 'ส่ง Test order', d: ['ให้ร้านออกมาหน้า Orders · MIG ส่ง Test order เข้าไป จะขึ้นหน้า "Order review" สีส้ม', 'สอนร้าน: กด − / + บนปุ่มเขียวเพื่อปรับเวลา แล้วกด "ACCEPT (15) mins – Tap to confirm"', 'ปุ่ม DECLINE ใช้ปฏิเสธออเดอร์ (ระบบจะถามยืนยัน Yes / No) · ปุ่ม PRINT สั่งพิมพ์ซ้ำ'] },
+  { k: 'booking', t: 'ส่ง Test booking + Pause service', d: ['ส่ง Test booking ให้ร้านกดรับในแท็บ Bookings', 'แนะนำ Pause Services (ปุ่ม ⏸ มุมขวาบน): เลือก Service · Duration (20 / 30 / 60 นาที / Rest of the Day) · Reason แล้วกด Confirm', 'แนะนำ Order history: ออเดอร์ที่ completed แล้วจะไปอยู่ที่นั่น'] },
+  { k: 'done', t: 'จบสาย', d: ['หน้า Orders เปิดค้างไว้ และต้องขึ้น 🟢 "Connected to push server"', 'แถบล่าง: Orders · Bookings · More', 'เครื่องพิมพ์พร้อมขายจริง ✅'] },
 ];
 function flowImgs() { try { return JSON.parse(content('flow_images') || '{}'); } catch { return {}; } }
 async function viewFlow() {
@@ -1008,22 +1010,27 @@ async function viewFlow() {
       <div style="color:#E2E8F0">🚀 เป้าหมายจบสาย: <b>หน้ารับออเดอร์เปิดค้าง + เครื่องปริ้น Test print สำเร็จ + รับ Test order ได้</b></div></div>
       <button class="btn r" data-new="live">🔴 Record LIVE</button></div>
     <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">หลังวางสาย</a></div></div>
-  <div class="flowgrid">${FLOW.map((s, i) => { const p = imgs[s.k]; const u = p && urls[p];
+  <div class="flowgrid">${FLOW.map((s, i) => { const p = imgs[s.k]; const up = p && urls[p]; const list = up ? [up] : (REAL[s.k] || []); const u = list[0];
     return `<div class="card fstep" id="st${i}"><div class="fnum">${i + 1}</div><div class="fbody"><h3>${esc(s.t)}</h3><ul>${s.d.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
       ${s.link && content(s.link) ? `<a class="btn s" href="${esc(content(s.link))}" target="_blank" rel="noopener">🔗 ${esc(s.linkT)}</a> <button class="btn s" data-cp="${esc(content(s.link))}">📋 Copy ลิงก์ส่งให้ร้าน</button>` : ''}
-      ${isMgr() ? `<div style="margin-top:8px"><label class="btn s" style="margin:0;cursor:pointer">📷 ${u ? 'เปลี่ยนรูปจริง' : 'ใส่รูปจริง'}<input type="file" accept="image/*" data-img="${s.k}" style="display:none"></label>${u ? ` <button class="btn s" data-imgdel="${s.k}">ใช้ภาพตัวอย่าง</button>` : ''}</div>` : ''}</div>
-      <div class="fpic">${u ? `<img src="${esc(u)}" alt="${esc(s.t)}" class="real" data-zoom="${esc(u)}">` : MOCK[s.k]}</div></div>`; }).join('')}</div>
+      ${isMgr() ? `<div style="margin-top:8px"><label class="btn s" style="margin:0;cursor:pointer">📷 ${u ? 'เปลี่ยนรูป' : 'ใส่รูปจริง'}<input type="file" accept="image/*" data-img="${s.k}" style="display:none"></label>${up ? ` <button class="btn s" data-imgdel="${s.k}">ใช้รูปเดิม</button>` : ''}</div>` : ''}</div>
+      <div class="fpic">${u ? list.map((x, j) => `<img src="${esc(x)}" alt="${esc(s.t)}" class="real ${j ? 'extra' : ''}" data-zoom="${esc(x)}">`).join('') + '<div class="small muted" style="text-align:center">กดรูปเพื่อขยาย</div>' : MOCK[s.k]}</div></div>`; }).join('')}</div>
   <div class="card" id="after"><h2>📨 หลังวางสาย (MIG ต้องทำทุกร้าน)</h2>
     <div class="after">
-      <div class="ac"><div class="an">A</div><div><b>ส่ง How-to ให้ร้าน</b><ul><li>ส่ง How-to จาก <b>response.io</b> ที่เกี่ยวข้องกับร้าน</li><li>ส่ง <b>อีเมลวิธีการใช้งาน</b></li></ul>${content('howto_url') ? `<a class="btn s" href="${esc(content('howto_url'))}" target="_blank" rel="noopener">🔗 เปิด How-to</a>` : ''}</div></div>
+      <div class="ac"><div class="an">A</div><div><b>ส่ง How-to ให้ร้าน</b><ul><li>ส่ง How-to จาก <b>response.io</b> ที่เกี่ยวข้องกับร้าน</li><li>ส่ง <b>อีเมลวิธีการใช้งาน</b> — ใช้ข้อความสำเร็จรูปด้านล่าง (อังกฤษ + ไทย)</li></ul>
+        <div class="row"><button class="btn p s" id="cpmsg">📋 Copy ข้อความแจ้งร้าน</button>${isMgr() ? '<button class="btn s" id="edmsg">แก้ไขข้อความ</button>' : ''}</div>
+        <pre class="msg">${esc(content('howto_msg'))}</pre></div></div>
       <div class="ac"><div class="an">B</div><div><b>เว็บไซต์ร้านเป็นแบบไหน?</b>
         <div class="split"><div class="sp cw"><div class="spt">🌐 เว็บ CW</div><ul><li>แจ้ง <b>คุณต้น</b> ทุกครั้งเพื่อ LIVE website</li><li>บอกร้าน: <b>ใช้ระบบใหม่ได้ทันที</b></li></ul></div>
           <div class="sp it"><div class="spt">🛠️ เว็บ Template สร้างโดย IT</div><ul><li>บอกร้าน: <b>พร้อมใช้พรุ่งนี้ (ภายใน 24 ชม.)</b></li><li>แจ้งใน Monday IT board ให้อัปเดตปุ่ม <b>Online Order</b> และ <b>Table Reservation</b></li></ul>${it ? `<a class="btn s" href="${esc(it)}" target="_blank" rel="noopener">🔗 Monday IT board</a>` : ''}</div></div></div></div>
-      <div class="ac"><div class="an">C</div><div><b>อัปเดต 486 Monday</b>
+      <div class="ac"><div class="an">C</div><div><b>อัปเดต 486 Monday</b> ${content('monday_486') ? `<a class="btn s" href="${esc(content('monday_486'))}" target="_blank" rel="noopener">🔗 เปิด 486 board</a>` : ''}
         <div class="split"><div class="sp ok"><div class="spt">✅ เรียบร้อยทุกอย่าง</div><ul><li>เปลี่ยน Status เป็น <b>Completed</b></li></ul></div>
           <div class="sp q"><div class="spt">⏳ ยังไม่เรียบร้อย</div><ul><li>คงสถานะ <b>Queue to go live</b></li><li>ตอนกด Record LIVE ให้ใส่ <b>"ต้องตามเรื่องอะไร"</b></li><li>ระบบแจ้งเตือนเข้า <b>Google Chat</b> ให้เอง และขึ้นในกล่อง "ต้องตามงานต่อ" หน้า Dashboard จนกว่าจะกดเสร็จ</li></ul></div></div></div></div>
     </div><div class="actions"><button class="btn r" data-new="live">🔴 Record LIVE</button></div></div>`;
   bindActButtons();
+  $('#cpmsg').onclick = () => navigator.clipboard.writeText(content('howto_msg')).then(() => toast('คัดลอกข้อความแล้ว — วางในอีเมล / แชตส่งร้านได้เลย'));
+  if ($('#edmsg')) $('#edmsg').onclick = () => { openModal(`<h3>ข้อความแจ้งร้านหลัง LIVE</h3><textarea id="hm" style="min-height:420px">${esc(content('howto_msg'))}</textarea><div class="actions"><button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">Save</button></div>`);
+    $('#cx').onclick = closeModal; $('#sv').onclick = async () => { const v = $('#hm').value; closeModal(); await save(sb.from('content').update({ body: v }).eq('key', 'howto_msg'), 'บันทึกข้อความแล้ว'); }; };
   document.querySelectorAll('[data-cp]').forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.cp).then(() => toast('คัดลอกลิงก์แล้ว')));
   document.querySelectorAll('[data-zoom]').forEach(im => im.onclick = () => openModal(`<img src="${esc(im.dataset.zoom)}" style="width:100%;border-radius:10px"><div class="actions"><button class="btn" onclick="document.getElementById('modal').click()">ปิด</button></div>`));
   document.querySelectorAll('[data-img]').forEach(inp => inp.onchange = async e => {
