@@ -79,11 +79,13 @@ async function loadAll() {
     sb.from('members').select('*').order('created_at'), sb.from('settings').select('*').eq('id', 1).maybeSingle(),
     sb.from('restaurants').select('*').order('rid'), sb.from('blockers').select('*').order('log_date', { ascending: false }),
     sb.from('daily').select('*'), sb.from('kpi_months').select('*')]);
-  const [ac, pl, fb, ct, rp, cl] = await Promise.all([sb.from('activities').select('*').order('created_at', { ascending: false }),
+  const [ac, pl, fb, ct, rp, cl, rr] = await Promise.all([sb.from('activities').select('*').order('created_at', { ascending: false }),
     sb.from('prelive').select('*').order('updated_at', { ascending: false }), sb.from('feedback').select('*').order('created_at', { ascending: false }),
     sb.from('content').select('*'), sb.from('reports').select('*').order('created_at', { ascending: false }),
-    sb.from('call_log').select('*').gte('call_date', C.iso(new Date(Date.now() - 120 * C.DAY))).order('created_at')]);
+    sb.from('call_log').select('*').gte('call_date', C.iso(new Date(Date.now() - 120 * C.DAY))).order('created_at'),
+    sb.from('recorder_runs').select('*').order('created_at', { ascending: false }).limit(300)]);
   const err = [m, s, r, b, d, k, ac, pl, fb, ct, rp, cl].find(x => x.error);
+  S.runs = rr.error ? [] : rr.data;
   if (err) throw err.error;
   S.members = m.data; S.settings = s.data ? s.data.data : null; S.rests = r.data; S.blockers = b.data; S.daily = d.data; S.kpi = k.data;
   S.acts = ac.data; S.calls = cl.data; S.prelive = pl.data; S.feedback = fb.data; S.content = ct.data; S.reports = rp.data;
@@ -1063,22 +1065,41 @@ function viewPrelive() {
   const done = PRELIVE.filter((x, i) => ck['i' + i]).length;
   const reqDone = PRELIVE.filter((x, i) => !x.optional && ck['i' + i]).length;
   const r0 = S.rests.find(r => r.rid === cur.rid);
+  const auto = ck.auto || {};
+  const run = cur.store_name ? (S.runs || []).find(x => x.store_name.trim().toLowerCase() === cur.store_name.trim().toLowerCase()) : null;
+  const autoBadge = i => { const a = auto['i' + i]; if (!a) return '';
+    const head = a.status === 'PASS' ? `<span class="auto ok">🤖 Recorder: ผ่าน${a.n ? ' (' + a.n + ' จุด)' : ''}${a.percent !== undefined ? ' · ' + a.percent + '%' : ''}</span>`
+      : a.status === 'FAIL' ? `<span class="auto bad">🤖 Recorder: ต้องแก้ ${a.fail || a.itemsNeedFixing || ''} จุด${a.percent !== undefined ? ' · เมนูถูก ' + a.percent + '%' : ''}</span>` : `<span class="auto rev">🤖 Recorder: ต้องเช็กซ้ำ ${a.review || ''} จุด</span>`;
+    const list = (a.issues || []).slice(0, 12).map(x => `<li>${x.status === 'FAIL' ? '❌' : '❓'} <b>${esc(x.field || x.area)}</b> <span class="muted">${esc(x.area)}</span>${x.old || x.new ? `<br><span class="small">OLD / ต้องเป็น: <b>${esc(x.old || '–')}</b> → NEW: <b>${esc(x.new || '–')}</b></span>` : ''}${x.action ? `<br><span class="small" style="color:var(--blueT)">👉 ${esc(x.action)}</span>` : ''}</li>`).join('');
+    return `<div class="autobox">${head}${list ? `<details><summary class="small">ดูรายละเอียด</summary><ul class="small">${list}</ul></details>` : ''}</div>`; };
+  const runPanel = run ? (() => { const bad = (run.checks || []).filter(c => c.status === 'FAIL' || c.status === 'REVIEW');
+    const groups = {}; bad.forEach(c => { (groups[c.area || 'อื่นๆ'] = groups[c.area || 'อื่นๆ'] || []).push(c); });
+    return `<div class="runpanel"><div class="row" style="align-items:center"><b style="flex:1">🤖 ผลจาก LFY Recorder ${esc(run.version || '')}</b><span class="small muted">${fmtDT(run.created_at)} · ${esc(run.mode || '')}${run.operator ? ' · ' + esc(run.operator) : ''}</span></div>
+      <div class="grid g3" style="margin-top:8px">${[['เมนู (OLD vs NEW)', run.menu_percent, run.items_need_fixing !== null && run.items_need_fixing !== undefined ? `ต้องแก้ ${run.items_need_fixing} รายการ` : (run.menu_status || '')],
+        ['หลังบ้าน (Backend)', run.backend_percent, `${bad.length} จุดต้องดู`], ['รวม (Overall)', run.overall_percent, '']].map(x => `<div class="kpi"><div class="l">${x[0]}</div><div class="v">${x[1] === null || x[1] === undefined ? '–' : x[1] + '%'}</div><div class="s">${esc(x[2])}</div></div>`).join('')}</div>
+      ${bad.length ? `<details style="margin-top:8px"><summary><b>รายการที่ Recorder พบว่าไม่ตรง / ต้องแก้ (${bad.length})</b> — OLD มีอะไร / NEW เป็นอะไร</summary>
+        ${Object.entries(groups).map(([g, list]) => `<div class="sec">${esc(g)}</div><table class="small"><thead><tr><th></th><th>รายการ</th><th>OLD / ค่าที่ต้องเป็น</th><th>NEW ตอนนี้</th><th>ต้องทำ</th></tr></thead><tbody>
+          ${list.slice(0, 60).map(c => `<tr><td>${c.status === 'FAIL' ? '❌' : '❓'}</td><td><b>${esc(c.field)}</b></td><td>${esc(c.old)}</td><td>${esc(c.new)}</td><td>${esc(c.action)}</td></tr>`).join('')}</tbody></table>`).join('')}</details>` : '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงตามมาตรฐานทุกจุดที่ Recorder ตรวจ</p>'}
+      ${ck.old_system && (ck.old_system.o6 || ck.old_system.o8) ? `<p class="small" style="margin:8px 0 0">🏚️ <b>ระบบเก่า (OLD) มี:</b> ${(ck.old_system.o6 || []).map(x => `<span class="badge b-blue">${esc(x)}</span>`).join(' ')} ${(ck.old_system.o8 || []).map(x => `<span class="badge b-grey">💳 ${esc(x)}</span>`).join(' ')} <span class="muted">— เลือกไว้ให้ในข้อ 7 และ 9 แล้ว</span></p>` : ''}
+      <p class="small muted" style="margin:6px 0 0">ข้อที่ Recorder ตรวจแล้วผ่านจะติ๊กให้อัตโนมัติ ข้อที่ไม่ผ่านจะไม่ติ๊ก — แก้ใน NEW แล้วรัน Recorder ใหม่ หรือติ๊กเองได้</p></div>`; })() : '';
   $('#main').innerHTML = `${restList()}<div class="two">
   <div class="card"><h2>Pre-Live System Checklist <small>ตรวจความพร้อมก่อน LIVE · ${PRELIVE.length} ข้อ</small></h2>
     <div class="fg"><div style="grid-column:span 2"><label>ชื่อร้าน *</label><input id="pl_r" list="restlist" value="${esc(r0 ? restLabel(r0) : cur.store_name || '')}"></div>
       <div><label>Inspector (ผู้ตรวจ) *</label><select id="pl_i">${memberOpts(cur.inspector, false)}</select></div></div>
+    ${runPanel}
     <label>Inspection Notes (หมายเหตุ)</label><textarea id="pl_n">${esc(cur.notes || '')}</textarea>
     <div class="row" style="align-items:center;margin:10px 0"><div style="flex:1"><div class="small muted">Progress: ${reqDone} / ${PL_REQ} ข้อบังคับ (${pct(reqDone / PL_REQ)})</div><div class="bar"><i style="width:${reqDone / PL_REQ * 100}%"></i></div></div>
       <button class="btn s" id="pl_all">Select all</button><button class="btn s" id="pl_new">New / Reset</button><button class="btn s" id="pl_cp">Copy summary</button><button class="btn p" id="pl_sv">Save Audit Record</button></div>
     <div class="cl">${PRELIVE.map((x, i) => `<div class="ci2"><label class="ci"><input type="checkbox" data-pi="${i}" ${ck['i' + i] ? 'checked' : ''}> <span><b>${i + 1}.</b> ${esc(x.t)}${x.optional ? '' : ' <span class="req">*</span>'}</span></label>
       ${x.link && content(x.link) ? `<div style="margin:4px 0 0 24px"><a class="btn s" href="${esc(content(x.link))}" target="_blank" rel="noopener">🔗 เปิด ${esc(x.linkT)}</a></div>` : ''}
-      ${x.opts ? `<div class="chips">${x.opts.map(o => `<label class="chip"><input type="${x.one ? 'radio' : 'checkbox'}" name="po${i}" data-po="${i}" value="${esc(o)}" ${(ck['o' + i] || []).includes(o) ? 'checked' : ''}> ${esc(o)}</label>`).join('')}</div>` : ''}</div>`).join('')}</div>
+      ${x.opts ? `<div class="chips">${x.opts.map(o => `<label class="chip"><input type="${x.one ? 'radio' : 'checkbox'}" name="po${i}" data-po="${i}" value="${esc(o)}" ${(ck['o' + i] || []).includes(o) ? 'checked' : ''}> ${esc(o)}</label>`).join('')}</div>` : ''}${autoBadge(i)}</div>`).join('')}</div>
     <p class="small muted">เมื่อติ๊กข้อบังคับครบ และร้านอยู่ใน Tracker ระบบจะเปลี่ยน Migration Status ของร้านเป็น "Ready to Live" ให้อัตโนมัติ</p></div>
   <div class="card"><h2>Saved Pre-Live Audits <small>${(S.prelive || []).length} รายการ</small></h2>
     ${(S.prelive || []).map(p => { const v = p.done / PL_REQ; return `<div class="sv"><div class="pc ${v >= 1 ? 'ok' : ''}">${pct(Math.min(1, v))}</div><div style="flex:1"><b>${esc(p.store_name)}</b>${p.rid ? ` <span class="small muted">${esc(p.rid)}</span>` : ''}
-      <div class="small muted">${v >= 1 ? '✓ Completed' : `⏳ Checked ${p.done}/${PL_REQ}`} · Inspector: ${esc(memberName(p.inspector))} · ${fmtDT(p.updated_at)}</div></div><button class="btn s" data-pl="${p.id}">Edit</button></div>`; }).join('') || '<p class="muted">ยังไม่มีรายการ</p>'}</div></div>`;
+      <div class="small muted">${v >= 1 ? '✓ Completed' : `⏳ Checked ${p.done}/${PL_REQ}`} · ${p.inspector ? 'Inspector: ' + esc(memberName(p.inspector)) : '🤖 LFY Recorder'} · ${fmtDT(p.updated_at)}${(p.checks || {}).auto_run ? ' · <span class="auto ok" style="padding:0 6px">🤖 Recorder</span>' : ''}</div></div><button class="btn s" data-pl="${p.id}">Edit</button></div>`; }).join('') || '<p class="muted">ยังไม่มีรายการ</p>'}</div></div>`;
   const collect = () => {
-    const checks = {}; document.querySelectorAll('[data-pi]').forEach(x => { if (x.checked) checks['i' + x.dataset.pi] = true; });
+    const checks = {}; ['auto', 'auto_run', 'auto_at', 'old_system'].forEach(k => { if (ck[k] !== undefined) checks[k] = ck[k]; });
+    document.querySelectorAll('[data-pi]').forEach(x => { if (x.checked) checks['i' + x.dataset.pi] = true; });
     document.querySelectorAll('[data-po]:checked').forEach(x => { const k = 'o' + x.dataset.po; (checks[k] = checks[k] || []).push(x.value); });
     const rv = $('#pl_r').value.trim(); const r = findRest(rv);
     return { id: cur.id, rid: r ? r.rid : null, store_name: r ? r.name : rv, inspector: $('#pl_i').value, notes: $('#pl_n').value.trim() || null, checks, done: PRELIVE.filter((x, i) => !x.optional && checks['i' + i]).length, _r: r };

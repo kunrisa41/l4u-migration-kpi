@@ -198,3 +198,8 @@ input.locked{background:#F1F5F9;font-weight:700}
 .callbtn{text-align:right}.callbtn .small{margin-top:4px;line-height:1.4}
 #dailybox{margin-top:8px}
 .fbwrap #fbbox{margin-top:12px}.fbwrap #fbbox .card{box-shadow:none}
+.runpanel{border:1px solid #BFDBFE;background:#EFF6FF;border-radius:12px;padding:12px 14px;margin:10px 0}
+.runpanel table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px}.runpanel td,.runpanel th{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.autobox{margin:6px 0 0 24px}.autobox ul{margin:4px 0;padding-left:18px;line-height:1.5}
+.auto{display:inline-block;font-size:12px;font-weight:700;border-radius:99px;padding:2px 10px}
+.auto.ok{background:var(--good);color:var(--goodT)}.auto.bad{background:var(--bad);color:var(--badT)}.auto.rev{background:var(--warn);color:var(--warnT)}
