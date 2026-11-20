@@ -13,7 +13,7 @@ const L = {
   BOOK: ['Not Booked', 'Booked', 'Rescheduled', 'Attended', 'No-show', 'Cancelled by Customer'],
   MIG: ['Not Ready', 'Ready to Live', 'Live Scheduled', 'Live In Progress', 'Live Completed', 'On Hold', 'Cancelled'],
   CHK: ['', 'Yes', 'No', 'N/A'],
-  ISSUE: ['No-show', 'Customer Not Responding', 'Customer Requested Reschedule', 'Missing Menu / Info from Customer', 'Marketing Delay', 'Technical / System Issue', 'Printer / Hardware Issue', 'Payment Setup Issue', 'Employee Error / Delay', 'Other'],
+  ISSUE: ['Pre-Live Incomplete', 'No-show', 'Customer Not Responding', 'Customer Requested Reschedule', 'Missing Menu / Info from Customer', 'Marketing Delay', 'Technical / System Issue', 'Printer / Hardware Issue', 'Payment Setup Issue', 'Employee Error / Delay', 'Other'],
   PARTY: ['Employee', 'Shared', 'Customer', 'Marketing', 'Technical / Development', 'Third Party', 'Manager'],
   BST: ['Open', 'Follow-up Done', 'Resolved', 'Escalated'],
   REVIEW: ['Pending', 'Confirmed External', 'Rejected - Employee Responsible', 'Needs More Info'],
@@ -461,13 +461,18 @@ function viewBlockers() {
   $('#expb').onclick = () => download('blocker-noshow-log.csv', toCsv([['Date', 'Restaurant ID', 'Restaurant Name', 'Employee', 'Issue Category', 'Issue Description', 'Evidence Link', 'Responsible Party', 'Follow-up Due Date', 'Follow-up Completed Date', 'Resolved Date', 'Status', 'Manager Noted']]
     .concat(S.blockers.map(b => [b.log_date, b.rid, rn(b), b.employee, b.category, b.description, b.evidence, b.party, b.fu_due, b.fu_done, b.res_date, b.status, b.review]))));
   document.querySelectorAll('[data-b]').forEach(x => x.onclick = () => blockerModal(S.blockers.find(b => String(b.id) === x.dataset.b)));
+  const toPrelive = b => { const name = rn(b).trim().toLowerCase(); const p = (S.prelive || []).find(x => x.store_name.trim().toLowerCase() === name);
+    S.pl = p ? Object.assign({}, p) : { store_name: rn(b), checks: {}, inspector: S.me.code }; S.tab = 'prelive'; render(); window.scrollTo(0, 0);
+    toast('ติ๊กข้อที่แก้แล้วให้ครบ แล้วกด Save Audit Record — ครบแล้วระบบจะปิด follow-up นี้ให้เอง'); };
   document.querySelectorAll('[data-tick]').forEach(x => x.onchange = async () => {
     const b = S.blockers.find(y => String(y.id) === x.dataset.tick);
+    if (x.checked && b.category === 'Pre-Live Incomplete') { x.checked = false; return toPrelive(b); }
     if (x.checked) { if (!confirm(`แก้เสร็จแล้ว?\n${rn(b)} — ${b.category || ''}\n\nระบบจะหยุดเตือน และแจ้ง Google Chat ว่าแก้เรียบร้อย`)) { x.checked = false; return; } await setBlocker(b, { status: 'Resolved' }, 'เรียบร้อย ✅ แจ้ง Google Chat แล้ว'); }
     else { if (!confirm('เปิดปัญหานี้ใหม่? (ระบบจะเริ่มเตือนอีกครั้ง)')) { x.checked = true; return; } await setBlocker(b, { status: 'Open' }, 'เปิดใหม่แล้ว'); }
   });
   document.querySelectorAll('[data-bst]').forEach(x => x.onchange = async () => {
     const b = S.blockers.find(y => String(y.id) === x.dataset.bst);
+    if (x.value === 'Resolved' && b.category === 'Pre-Live Incomplete') { x.value = b.status || 'Open'; return toPrelive(b); }
     if (x.value === 'Resolved' && !confirm('แก้เสร็จแล้ว? ระบบจะหยุดเตือน')) { x.value = b.status || 'Open'; return; }
     await setBlocker(b, { status: x.value }, 'อัปเดตสถานะแล้ว');
   });
@@ -767,7 +772,7 @@ const PRELIVE = [
   { n: 19, t: 'System Defaults (General · Tipping · Age Verification · Ordering · Checkout)' },
   { n: 9, t: 'Test Orders (3 real orders + print)', opts: ['🛍️ Pickup order', '🛵 Delivery order', '🚗 Uber order'] },
   { n: 10, t: 'Website & Landing Page (Domain, SEO, Nav links, Gallery, Contact, Footer, CSS, Facebook)', opts: ['Add button with us', 'GF Web', 'Add button with other', 'Domain with us', 'Domain not with us'] },
-  { n: 11, t: 'Cloudflare DNS: add 35.238.2.132 to A Record', link: 'cloudflare_url', linkT: 'Cloudflare' }, { n: 12, t: 'Google Search Console Integration', link: 'gsc_url', linkT: 'Search Console' }, { n: 20, t: 'Create & Send Flyers (ใบปลิวใหม่ + ส่งร้านทาง respond.io + เก็บใน Customer File ของร้าน)', link: 'flyer_url', linkT: 'Create Flyers' }, { n: 13, t: 'Queue to LIVE (Ready to Launch)' }];
+  { n: 11, t: 'Cloudflare DNS: add 35.238.2.132 to A Record', link: 'cloudflare_url', linkT: 'Cloudflare' }, { n: 12, t: 'Google Search Console Integration', link: 'gsc_url', linkT: 'Search Console' }, { n: 20, t: 'Create Flyers & Dine-in QR Code + เก็บใน Customer File (ต้องครบทุกช่อง)', link: 'flyer_url', linkT: 'Create Flyers', all: true, opts: ['สร้าง Flyers', 'เก็บ Flyers ใน Customer File', 'สร้าง Dine-in QR Code', 'เก็บ QR Code ใน Customer File'] }, { n: 13, t: 'Queue to LIVE (Ready to Launch)' }];
 const PL_REQ = PRELIVE.filter(x => !x.optional).length;
 const DAY_PLAN = [['07:00 – 08:00', 'Follow-up Non-responsive Stores', ['โทรตามคิว Priority ร้าน', 'อัปเดต Status ทันทีหลังโทร', 'ไม่รับสาย = ส่ง SMS/Email']],
   ['08:00 – 12:00', 'System Setup (16 Steps)', ['สร้างระบบร้านใหม่ตามคิว', 'ทำ Test Order เสมอ', 'ห้ามขึ้น Ready ถ้ายังไม่ Test']],
@@ -842,7 +847,7 @@ async function syncBlocker(a, rid) {
   return ins.error ? null : ins.data.id;
 }
 
-const AF_KEYS = ['howto', 'mail', 'fl1', 'fl2', 'fl3', 'fl4', 'os1', 'os2', 'os3', 'os4'];
+const AF_KEYS = ['howto', 'mail', 'fl1', 'fl5', 'fl2', 'fl3', 'fl4', 'os1', 'os2', 'os3', 'os4'];
 let AFCHK = {};
 const afc = (id, key, label, fk) => { const F = AFCHK.flow || {}; const on = AFCHK[key] !== undefined ? !!AFCHK[key] : !!F[fk];
   return `<div class="ls"><label class="ci" style="flex:1"><input type="checkbox" id="${id}" data-af="${key}" ${on ? 'checked' : ''}> <span>${label}</span></label></div>`; };
@@ -880,7 +885,7 @@ function activityModal(kind, a, pre) {
       <div class="afh">A · ส่ง How-to ให้ร้าน</div>
       ${afc('af_howto', 'howto', 'ส่ง How-to จาก respond.io แล้ว', 'a1')}${afc('af_mail', 'mail', 'ส่งอีเมล Grand Opening (Gmail Layout) แก้ Username / Password เป็นของร้านแล้ว', 'a2')}
       <div class="afh">B · Create & Send Flyers ${content('flyer_url') ? `<a class="small" href="${esc(content('flyer_url'))}" target="_blank" rel="noopener">🎨 เปิด Create Flyers</a>` : ''}</div>
-      ${afc('af_fl1', 'fl1', 'สร้างใบปลิวแล้ว', 'e1')}${afc('af_fl2', 'fl2', 'ส่งใบปลิว + ข้อความให้ร้านทาง respond.io แล้ว', 'e2')}${afc('af_fl3', 'fl3', 'เตรียมข้อความโพสต์ (โดเมน + % ส่วนลด) แล้ว', 'e3')}${afc('af_fl4', 'fl4', 'เก็บใบปลิวใน Customer File ของร้านแล้ว', 'e4')}
+      ${afc('af_fl1', 'fl1', 'สร้างใบปลิวแล้ว', 'e1')}${afc('af_fl5', 'fl5', 'สร้าง Dine-in QR Code แล้ว', 'e5')}${afc('af_fl2', 'fl2', 'ส่งใบปลิว + ข้อความให้ร้านทาง respond.io แล้ว', 'e2')}${afc('af_fl3', 'fl3', 'เตรียมข้อความโพสต์ (โดเมน + % ส่วนลด) แล้ว', 'e3')}${afc('af_fl4', 'fl4', 'เก็บใบปลิว + QR Code ใน Customer File ของร้านแล้ว', 'e4')}
       <div class="afh">C · เว็บไซต์ร้าน</div>
       <div class="ls"><span>เว็บไซต์ร้านเป็นแบบไหน? *</span><span class="seg"><label><input type="radio" name="af_site" value="CW" ${chk.site === 'CW' ? 'checked' : ''}><b>🌐 CW</b></label><label><input type="radio" name="af_site" value="IT" ${chk.site === 'IT' ? 'checked' : ''}><b>🛠️ Template โดย IT</b></label></span></div>
       <div id="af_cw" class="subbox" style="${chk.site === 'CW' ? '' : 'display:none'}">
@@ -1252,7 +1257,7 @@ function viewPrelive() {
     <label>Inspection Notes (หมายเหตุ)</label><textarea id="pl_n">${esc(cur.notes || '')}</textarea>
     <div class="row" style="align-items:center;margin:10px 0"><div style="flex:1"><div class="small muted">Progress: ${reqDone} / ${PL_REQ} ข้อบังคับ (${pct(reqDone / PL_REQ)})</div><div class="bar"><i style="width:${reqDone / PL_REQ * 100}%"></i></div></div>
       <button class="btn s" id="pl_all">Select all</button><button class="btn s" id="pl_new">New / Reset</button><button class="btn s" id="pl_cp">Copy summary</button><button class="btn p" id="pl_sv">Save Audit Record</button></div>
-    <div class="cl">${PRELIVE.map((x, i) => `<div class="ci2"><label class="ci"><input type="checkbox" data-pi="${x.n}" ${ck['i' + x.n] ? 'checked' : ''}> <span><b>${i + 1}.</b> ${esc(x.t)}${x.optional ? '' : ' <span class="req">*</span>'}</span></label>
+    <div class="cl">${PRELIVE.map((x, i) => `<div class="ci2"><label class="ci"><input type="checkbox" data-pi="${x.n}" ${ck['i' + x.n] ? 'checked' : ''} ${x.all ? 'disabled title="ติ๊กครบทุกช่องย่อยแล้วจะติ๊กให้เอง"' : ''}> <span><b>${i + 1}.</b> ${esc(x.t)}${x.optional ? '' : ' <span class="req">*</span>'}</span></label>
       ${x.link && content(x.link) ? `<div style="margin:4px 0 0 24px"><a class="btn s" href="${esc(content(x.link))}" target="_blank" rel="noopener">🔗 เปิด ${esc(x.linkT)}</a></div>` : ''}
       ${x.opts ? `<div class="chips">${x.opts.map(o => `<label class="chip"><input type="${x.one ? 'radio' : 'checkbox'}" name="po${x.n}" data-po="${x.n}" value="${esc(o)}" ${(ck['o' + x.n] || []).includes(o) ? 'checked' : ''}> ${esc(o)}</label>`).join('')}</div>` : ''}${autoBadge(x.n)}</div>`).join('')}</div>
     <p class="small muted">เมื่อติ๊กข้อบังคับครบ และร้านอยู่ใน Tracker ระบบจะเปลี่ยน Migration Status ของร้านเป็น "Ready to Live" ให้อัตโนมัติ</p></div>
@@ -1263,11 +1268,12 @@ function viewPrelive() {
     const checks = {}; ['auto', 'auto_run', 'auto_at', 'old_system', 'flow'].forEach(k => { if (ck[k] !== undefined) checks[k] = ck[k]; });
     document.querySelectorAll('[data-pi]').forEach(x => { if (x.checked) checks['i' + x.dataset.pi] = true; });
     document.querySelectorAll('[data-po]:checked').forEach(x => { const k = 'o' + x.dataset.po; (checks[k] = checks[k] || []).push(x.value); });
+    PRELIVE.filter(x => x.all).forEach(x => { const got = checks['o' + x.n] || []; if (x.opts.every(o => got.includes(o))) checks['i' + x.n] = true; else delete checks['i' + x.n]; });
     const rv = $('#pl_r').value.trim(); const r = findRest(rv);
     return { id: cur.id, rid: r ? r.rid : null, store_name: r ? r.name : rv, inspector: $('#pl_i').value, notes: $('#pl_n').value.trim() || null, checks, done: PRELIVE.filter(x => !x.optional && checks['i' + x.n]).length, _r: r };
   };
   document.querySelectorAll('[data-pi],[data-po]').forEach(x => x.onchange = () => { const c = collect(); delete c._r; S.pl = c; render(); });
-  $('#pl_all').onclick = () => { const c = collect(); delete c._r; PRELIVE.forEach(x => c.checks['i' + x.n] = true); c.done = PL_REQ; S.pl = c; render(); };
+  $('#pl_all').onclick = () => { const c = collect(); delete c._r; PRELIVE.forEach(x => { c.checks['i' + x.n] = true; if (x.all) c.checks['o' + x.n] = x.opts.slice(); }); c.done = PL_REQ; S.pl = c; render(); };
   $('#pl_new').onclick = () => { S.pl = null; render(); };
   $('#pl_rec').onclick = () => { const n = $('#pl_r').value.trim(); if (!n) { toast('ใส่ชื่อร้านก่อน (ชื่อเดียวกับที่จะใส่ใน Recorder)', true); $('#pl_r').focus(); return; }
     const c = collect(); delete c._r; S.pl = c; window.open('http://localhost:3210/?shop=' + encodeURIComponent(n), '_blank', 'noopener');
@@ -1282,9 +1288,22 @@ function viewPrelive() {
     const id = c.id; delete c.id; c.updated_at = new Date().toISOString();
     const res = id ? await sb.from('prelive').update(c).eq('id', id) : await sb.from('prelive').insert(c);
     if (res.error) return toast(res.error.message, true);
-    const ready = r && c.done >= PL_REQ && (!r.mig_status || r.mig_status === 'Not Ready');
-    if (ready) await sb.from('restaurants').update({ mig_status: 'Ready to Live' }).eq('rid', r.rid);
-    S.pl = null; toast(ready ? 'บันทึกแล้ว · ' + r.rid + ' = Ready to Live' : 'บันทึกแล้ว'); await loadAll(); render();
+    const miss = PRELIVE.filter(x => !x.optional && !c.checks['i' + x.n]);
+    const openB = S.blockers.filter(b => b.rid === r.rid && b.category === 'Pre-Live Incomplete' && b.status !== 'Resolved');
+    let msg;
+    if (!miss.length) {
+      if (!r.mig_status || ['Not Ready', 'On Hold'].includes(r.mig_status)) await sb.from('restaurants').update({ mig_status: 'Ready to Live', blocker: null }).eq('rid', r.rid);
+      for (const b of openB) await sb.from('blockers').update({ status: 'Resolved', res_date: C.iso(C.today()), fu_done: b.fu_done || C.iso(C.today()) }).eq('id', b.id);
+      msg = `✅ Pre-Live ครบ · ${r.name} = Ready to Live (รอคิว LIVE Process)` + (openB.length ? ' · ปิด follow-up ให้แล้ว' : '');
+    } else {
+      const txt = 'Pre-Live ยังไม่ครบ ' + miss.length + ' ข้อ: ' + miss.map(x => (PRELIVE.indexOf(x) + 1) + '. ' + x.t.replace(/\s*\(.*$/, '')).join(' · ');
+      const due = C.iso(C.addWorkdays(C.today(), 2, C.holidaySet(S.settings)));
+      if (openB.length) await sb.from('blockers').update({ description: txt, employee: c.inspector || openB[0].employee }).eq('id', openB[0].id);
+      else await sb.from('blockers').insert({ log_date: C.iso(C.today()), rid: r.rid, employee: c.inspector || S.me.code, category: 'Pre-Live Incomplete', party: 'Employee', description: txt, fu_due: due, status: 'Open', review: 'Pending' });
+      await sb.from('restaurants').update({ mig_status: 'Not Ready', blocker: txt.slice(0, 300) }).eq('rid', r.rid);
+      msg = `⚠️ ยังไม่ครบ ${miss.length} ข้อ → ส่งไป "ปัญหา / No-show" (follow-up) และแจ้ง Google Chat แล้ว`;
+    }
+    S.pl = null; toast(msg); await loadAll(); render();
   };
   document.querySelectorAll('[data-pl]').forEach(b => b.onclick = () => { S.pl = Object.assign({}, S.prelive.find(p => String(p.id) === b.dataset.pl)); render(); window.scrollTo(0, 0); });
 }
@@ -1389,7 +1408,7 @@ const OLD_SYS = [
   { k: 'd2', t: 'PartnerNet › รายชื่อร้าน › กดเปิดร้าน', d: 'กด <b>Cancel</b> ทั้ง 2 อันที่ <b>Sales Optimized Website</b> และ <b>Online Payments</b>', img: 'img/old_partner.jpg' },
   { k: 'd3', t: 'Other (•••) › General › Notifications', d: 'ที่อีเมลร้าน ปิด toggle <b>ทั้งหมด</b> ให้เป็นสีเทา (ไม่ต้องให้ระบบเก่าส่งอีเมลหาร้านอีก)', img: 'img/old_notif.jpg' },
   { k: 'd4', t: 'Setup › Taking orders › Alert call', d: 'ลบ <b>เบอร์โทร</b> ออกจากช่อง Phone number แล้วกด Next / Save (ระบบเก่าจะได้ไม่โทรหาร้าน)', img: 'img/old_alert.jpg' }];
-const FLOW_KEYS = () => [...FLOW.map(s => s.k), 'a1', 'a2', 'b1', 'b2', 'c1', ...OLD_SYS.map(x => x.k), 'e1', 'e2', 'e3', 'e4'];
+const FLOW_KEYS = () => [...FLOW.map(s => s.k), 'a1', 'a2', 'b1', 'b2', 'c1', ...OLD_SYS.map(x => x.k), 'e1', 'e5', 'e2', 'e3', 'e4'];
 const flowRec = () => plStores().find(x => x.store_name === S.flowStore);
 const fTicks = () => { const p = flowRec(); return (S.fTk && S.fTk.store === S.flowStore) ? S.fTk.v : ((p && p.checks && p.checks.flow) || {}); };
 const fT = k => !!fTicks()[k];
@@ -1412,8 +1431,8 @@ function flyerBlock() {
   const u = content('flyer_url');
   return `<div class="ac" id="flyers"><div class="an">B</div><div><b>Create & Send Flyers</b> <span class="small muted">ทำใบปลิวใหม่ให้ตรงกับระบบสั่งอาหารใหม่ แล้วส่งให้ร้าน</span>
     <div class="flygrid">
-      <div class="flyc"><div class="spt">1️⃣ สร้างใบปลิว</div><p class="small" style="margin:4px 0 8px">เปิดเครื่องมือสร้าง Flyers ใส่ข้อมูลร้าน / โดเมน / ส่วนลด แล้วดาวน์โหลดรูปใบปลิว</p>
-        ${u ? `<a class="btn p s" href="${esc(u)}" target="_blank" rel="noopener">🎨 เปิด Create Flyers</a>` : ''}${tk('e1', 'สร้างใบปลิวของร้านนี้แล้ว')}</div>
+      <div class="flyc"><div class="spt">1️⃣ สร้างใบปลิว + Dine-in QR Code</div><p class="small" style="margin:4px 0 8px">เปิดเครื่องมือสร้าง Flyers ใส่ข้อมูลร้าน / โดเมน / ส่วนลด แล้วดาวน์โหลดรูปใบปลิว</p>
+        ${u ? `<a class="btn p s" href="${esc(u)}" target="_blank" rel="noopener">🎨 เปิด Create Flyers</a>` : ''}${tk('e1', 'สร้างใบปลิวของร้านนี้แล้ว')}${tk('e5', 'สร้าง Dine-in QR Code ของร้านแล้ว')}</div>
       <div class="flyc"><div class="spt">2️⃣ ส่งให้ร้านทาง respond.io chat</div><p class="small" style="margin:4px 0 8px">แนบรูปใบปลิว + ส่งข้อความนี้ (ไทย + อังกฤษ)</p>
         <div class="row"><button class="btn p s" data-cpt="flyer_chat">📋 Copy ข้อความแชต</button>${isMgr() ? '<button class="btn s" data-edt="flyer_chat">แก้ไขข้อความ</button>' : ''}</div>
         <details class="small"><summary>ดูข้อความ</summary><pre class="msg">${esc(content('flyer_chat'))}</pre></details>${tk('e2', 'ส่งใบปลิว + ข้อความให้ร้านทาง respond.io แล้ว')}</div>
@@ -1421,8 +1440,8 @@ function flyerBlock() {
         <div class="row" style="margin:4px 0"><input id="fly_dom" placeholder="โดเมน เช่น www.hommalibangkok.com.au" value="${esc(S.flyDom || '')}" style="flex:2;min-width:180px"><input id="fly_pct" placeholder="% ส่วนลด" value="${esc(S.flyPct || '')}" style="width:100px"></div>
         <div class="row"><button class="btn p s" id="fly_cp">📋 Copy ข้อความโพสต์</button>${isMgr() ? '<button class="btn s" data-edt="flyer_post">แก้ไขข้อความ</button>' : ''}</div>
         <pre class="msg" id="fly_prev">${esc(flyerPost())}</pre>${tk('e3', 'เตรียมข้อความโพสต์ (ใส่โดเมน + % ส่วนลด) แล้ว')}</div>
-      <div class="flyc"><div class="spt">4️⃣ เก็บใน Customer File ของร้าน</div><p class="small" style="margin:4px 0 8px">อัปโหลดรูปใบปลิว (และข้อความโพสต์) เข้า <b>Customer File</b> ของร้านนี้ ให้ทีมหาเจอทีหลัง</p>
-        ${content('customer_file_url') ? `<a class="btn s" href="${esc(content('customer_file_url'))}" target="_blank" rel="noopener">📁 เปิด Customer File</a>` : ''}${isMgr() ? ' <button class="btn s" id="cf_set">⚙️ ตั้งลิงก์ Customer File</button>' : ''}${tk('e4', 'เก็บใบปลิวใน Customer File ของร้านแล้ว')}</div>
+      <div class="flyc"><div class="spt">4️⃣ เก็บใน Customer File ของร้าน</div><p class="small" style="margin:4px 0 8px">อัปโหลดรูปใบปลิว + Dine-in QR Code (และข้อความโพสต์) เข้า <b>Customer File</b> ของร้านนี้ ให้ทีมหาเจอทีหลัง</p>
+        ${content('customer_file_url') ? `<a class="btn s" href="${esc(content('customer_file_url'))}" target="_blank" rel="noopener">📁 เปิด Customer File</a>` : ''}${isMgr() ? ' <button class="btn s" id="cf_set">⚙️ ตั้งลิงก์ Customer File</button>' : ''}${tk('e4', 'เก็บใบปลิว + Dine-in QR Code ใน Customer File ของร้านแล้ว')}</div>
     </div></div></div>`;
 }
 function bindFlyers() {
