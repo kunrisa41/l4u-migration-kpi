@@ -258,3 +258,11 @@ html.noscroll,html.noscroll body{overflow:hidden;overscroll-behavior:none}
 .webgate.red{background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B}
 .webgate.yel{background:#FFFBEB;border:1px solid #FCD34D;color:#92400E}
 .webgate.blu{background:#EFF6FF;border:1px solid #93C5FD;color:#1E3A8A}
+
+.toolgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.tool{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);text-decoration:none;font-weight:600;font-size:14px;transition:.15s}
+.tool:hover{border-color:#94A3B8;box-shadow:0 2px 8px rgba(15,23,42,.08);transform:translateY(-1px)}
+.tool img{width:22px;height:22px;border-radius:4px;flex:none}
+.tool.off{opacity:.55;justify-content:space-between;cursor:default;border-style:dashed}.tool.off small{font-weight:400;color:#94A3B8}
+.tedit{max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.trow{display:grid;grid-template-columns:150px 1fr 1.6fr auto auto auto;gap:6px;align-items:center}

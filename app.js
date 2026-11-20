@@ -214,11 +214,44 @@ function drawChlog() {
   $('#clr').onclick = () => viewChlog(); if ($('#cla')) $('#cla').onclick = () => { S.clAll = true; viewChlog(); };
 }
 
+// ---------------- Tools (team bookmarks, one place) ----------------
+function toolsList() { try { const v = JSON.parse(content('tools_links') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+function viewTools() {
+  const q = (S.toolQ || '').toLowerCase(); const all = toolsList(); const list = all.filter(t => !q || (t.n + ' ' + t.g).toLowerCase().includes(q));
+  const groups = [...new Set(list.map(t => t.g || 'อื่นๆ'))];
+  const fav = u => { try { return 'https://www.google.com/s2/favicons?sz=64&domain=' + new URL(u).hostname; } catch (e) { return ''; } };
+  $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🧰 Tools <small>ลิงก์ทั้งหมดที่ทีมใช้ — เปิดจากที่นี่ที่เดียว ไม่ต้องใช้ bookmark</small></h2>
+      <input id="tq" placeholder="ค้นหา เช่น Stripe, KML, Monday" value="${esc(S.toolQ || '')}" style="width:260px">${isMgr() ? '<button class="btn p s" id="tedit">✏️ จัดการลิงก์</button>' : ''}</div></div>
+    ${groups.map(g => `<div class="card"><h2>${esc(g)}</h2><div class="toolgrid">${list.filter(t => (t.g || 'อื่นๆ') === g).map(t => t.u
+      ? `<a class="tool" href="${esc(t.u)}" target="_blank" rel="noopener"><img src="${esc(fav(t.u))}" alt="" onerror="this.style.visibility='hidden'"><span>${esc(t.n)}</span></a>`
+      : `<div class="tool off" title="ยังไม่มีลิงก์ — Manager ใส่ได้ที่ ✏️ จัดการลิงก์"><span>${esc(t.n)}</span><small>รอลิงก์</small></div>`).join('')}</div></div>`).join('') || '<div class="card"><p class="muted">ไม่พบลิงก์</p></div>'}`;
+  $('#tq').oninput = e => { S.toolQ = e.target.value; const pos = e.target.selectionStart; viewTools(); const n = $('#tq'); n.focus(); n.setSelectionRange(pos, pos); };
+  if ($('#tedit')) $('#tedit').onclick = () => toolsEditor();
+}
+function toolsEditor() {
+  let rows = toolsList().map(x => Object.assign({}, x));
+  const draw = () => {
+    openModal(`<h2>✏️ จัดการลิงก์ Tools</h2><p class="small muted">กลุ่ม · ชื่อ · ลิงก์ (https://...) — ลบแถวได้ที่ 🗑 · ลากลำดับด้วยปุ่ม ↑ ↓</p>
+      <div class="tedit">${rows.map((r, i) => `<div class="trow"><input data-tg="${i}" value="${esc(r.g || '')}" placeholder="กลุ่ม"><input data-tn="${i}" value="${esc(r.n || '')}" placeholder="ชื่อ"><input data-tu="${i}" value="${esc(r.u || '')}" placeholder="https://...">
+        <button class="btn s" data-up="${i}">↑</button><button class="btn s" data-dn="${i}">↓</button><button class="btn s r" data-del="${i}">🗑</button></div>`).join('')}</div>
+      <div class="actions"><button class="btn" id="tadd">+ เพิ่มลิงก์</button><span style="flex:1"></span><button class="btn" id="tcx">ยกเลิก</button><button class="btn p" id="tsv">บันทึก</button></div>`);
+    const sync = () => document.querySelectorAll('[data-tn]').forEach(x => { const i = +x.dataset.tn; rows[i] = { g: $(`[data-tg="${i}"]`).value.trim(), n: x.value.trim(), u: $(`[data-tu="${i}"]`).value.trim() }; });
+    $('#tadd').onclick = () => { sync(); rows.push({ g: rows.length ? rows[rows.length - 1].g : '🛠️ เครื่องมือ', n: '', u: '' }); draw(); };
+    document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { sync(); rows.splice(+b.dataset.del, 1); draw(); });
+    document.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { sync(); const i = +b.dataset.up; if (i > 0) [rows[i - 1], rows[i]] = [rows[i], rows[i - 1]]; draw(); });
+    document.querySelectorAll('[data-dn]').forEach(b => b.onclick = () => { sync(); const i = +b.dataset.dn; if (i < rows.length - 1) [rows[i + 1], rows[i]] = [rows[i], rows[i + 1]]; draw(); });
+    $('#tcx').onclick = closeModal;
+    $('#tsv').onclick = async () => { sync(); const bad = rows.find(r => r.u && !/^https?:\/\//i.test(r.u)); if (bad) return toast('ลิงก์ต้องขึ้นต้นด้วย https:// — ' + bad.n, true);
+      closeModal(); await save(sb.from('content').upsert({ key: 'tools_links', body: JSON.stringify(rows.filter(r => r.n)) }, { onConflict: 'key' }), 'บันทึกลิงก์แล้ว'); };
+  };
+  draw();
+}
+
 // ---------------- shell ----------------
-const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
+const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['tools', '🧰 Tools'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
   ['blockers', 'ปัญหา / No-show'], ['perf', 'Team Performance'], ['audit', 'Audit Reports']];
 const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['tracker', 'รายชื่อร้าน'], ['settings', 'KPI Settings'], ['team', 'Team & Logins'], ['chlog', '📜 Log การแก้ไข'], ['gcal', '🔔 Calendar & Chat']];
-const VIEWS = { home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
+const VIEWS = { tools: () => viewTools(), home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
   perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), gcal: () => viewGcal(), chlog: () => viewChlog(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
 function render() {
   S.charts.forEach(c => c.destroy()); S.charts = [];
@@ -1079,7 +1112,7 @@ function gLoginUrl(u) { return 'https://accounts.google.com/AccountChooser?Email
 function sheetCard() {
   const list = embeds(); if (!list.length && !isMgr()) return '';
   S.emb = S.emb || {};
-  return list.map((e, i) => { const st = S.emb[i] || {}; const mode = st.mode || 'edit'; const open = st.open !== false; const src = embedSrc(e.u, mode);
+  return list.map((e, i) => { const st = S.emb[i] || {}; const mode = st.mode || 'view'; const open = st.open !== false; const src = embedSrc(e.u, mode);
     return `<div class="card sheetcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${esc(e.t)} <small>แก้ไขตรงนี้ได้เลย · อัปเดต real-time กับ Google</small></h2>
       ${src ? `<span class="seg"><label><input type="radio" name="em${i}" data-em="${i}" value="edit" ${mode === 'edit' ? 'checked' : ''}><b>✏️ แก้ไข</b></label><label><input type="radio" name="em${i}" data-em="${i}" value="view" ${mode === 'view' ? 'checked' : ''}><b>👁️ ดูอย่างเดียว</b></label></span>
       <button class="btn s" data-ebig="${i}">${st.big ? '↙️ ย่อ' : '↗️ ขยาย'}</button><a class="btn s" href="${esc(e.u)}" target="_blank" rel="noopener">เปิดในแท็บใหม่</a>` : ''}
