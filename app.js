@@ -842,11 +842,16 @@ async function syncBlocker(a, rid) {
   return ins.error ? null : ins.data.id;
 }
 
+const AF_KEYS = ['howto', 'mail', 'fl1', 'fl2', 'fl3', 'fl4', 'os1', 'os2', 'os3', 'os4'];
+let AFCHK = {};
+const afc = (id, key, label, fk) => { const F = AFCHK.flow || {}; const on = AFCHK[key] !== undefined ? !!AFCHK[key] : !!F[fk];
+  return `<div class="ls"><label class="ci" style="flex:1"><input type="checkbox" id="${id}" data-af="${key}" ${on ? 'checked' : ''}> <span>${label}</span></label></div>`; };
 function activityModal(kind, a, pre) {
   const isNew = !a;
   a = a || Object.assign({ kind, member_code: S.me.code, act_date: C.iso(C.today()), status: kind === 'live' ? 'LIVE Completed' : 'Scheduled', checklist: {} }, pre || {});
   kind = a.kind;
   const chk = a.checklist || {};
+  AFCHK = chk;
   const ckSel = (k, l) => `<div><label>${l} *</label><select data-ck="${k}">${opts(['Yes', 'N/A', 'No'], chk[k], true)}</select></div>`;
   const isAp = kind === 'appointment';
   const title = isAp ? (isNew ? '📅 ลงนัดหมายร้านค้า (Appointment)' : '📅 นัดหมาย · ' + esc(a.store_name)) : '🔴 บันทึกเปิด LIVE ร้านค้า (Record Store LIVE)';
@@ -872,7 +877,11 @@ function activityModal(kind, a, pre) {
       <span class="seg">${(x.opt ? ['Yes', 'No'] : x.na ? ['Yes', 'N/A', 'No'] : ['Yes', 'No']).map(v => `<label><input type="radio" name="ck_${x.k}" data-ck="${x.k}" value="${v}" ${chk[x.k] === v ? 'checked' : ''}><b>${v === 'Yes' ? '✓' : v === 'No' ? '✗' : 'N/A'}</b></label>`).join('')}</span></div>`).join('')}</div>
     <div class="sec">หลังวางสาย</div>
     <div class="cl">
-      <div class="ls"><label class="ci" style="flex:1"><input type="checkbox" id="af_howto" ${chk.howto ? 'checked' : ''}> <span>ส่ง How-to (response.io) + อีเมลวิธีการใช้งานให้ร้านแล้ว</span></label><button type="button" class="btn s" id="af_cpmsg">📋 Copy ข้อความแจ้งร้าน</button></div>
+      <div class="afh">A · ส่ง How-to ให้ร้าน</div>
+      ${afc('af_howto', 'howto', 'ส่ง How-to จาก respond.io แล้ว', 'a1')}${afc('af_mail', 'mail', 'ส่งอีเมล Grand Opening (Gmail Layout) แก้ Username / Password เป็นของร้านแล้ว', 'a2')}
+      <div class="afh">B · Create & Send Flyers ${content('flyer_url') ? `<a class="small" href="${esc(content('flyer_url'))}" target="_blank" rel="noopener">🎨 เปิด Create Flyers</a>` : ''}</div>
+      ${afc('af_fl1', 'fl1', 'สร้างใบปลิวแล้ว', 'e1')}${afc('af_fl2', 'fl2', 'ส่งใบปลิว + ข้อความให้ร้านทาง respond.io แล้ว', 'e2')}${afc('af_fl3', 'fl3', 'เตรียมข้อความโพสต์ (โดเมน + % ส่วนลด) แล้ว', 'e3')}${afc('af_fl4', 'fl4', 'เก็บใบปลิวใน Customer File ของร้านแล้ว', 'e4')}
+      <div class="afh">C · เว็บไซต์ร้าน</div>
       <div class="ls"><span>เว็บไซต์ร้านเป็นแบบไหน? *</span><span class="seg"><label><input type="radio" name="af_site" value="CW" ${chk.site === 'CW' ? 'checked' : ''}><b>🌐 CW</b></label><label><input type="radio" name="af_site" value="IT" ${chk.site === 'IT' ? 'checked' : ''}><b>🛠️ Template โดย IT</b></label></span></div>
       <div id="af_cw" class="subbox" style="${chk.site === 'CW' ? '' : 'display:none'}">
         <label class="ci"><input type="checkbox" id="af_ton" ${chk.ton ? 'checked' : ''}> <span>แจ้ง <b>คุณต้น</b> ให้ LIVE website แล้ว (Cloudflare DNS → 35.238.2.132 · Custom domain + SSL · Search Console)</span></label>
@@ -882,9 +891,14 @@ function activityModal(kind, a, pre) {
         <label class="ci"><input type="checkbox" id="af_24" ${chk.told_24h ? 'checked' : ''}> <span>บอกร้านแล้วว่า <b>พร้อมใช้พรุ่งนี้ (ภายใน 24 ชม.)</b></span></label>
         <label class="ci"><input type="checkbox" id="af_mit" ${chk.monday_it ? 'checked' : ''}> <span>แจ้งใน <b>Monday IT board</b> ให้อัปเดตปุ่ม Online Order & Table Reservation แล้ว</span></label>
         ${content('monday_it') ? `<a class="btn s" href="${esc(content('monday_it'))}" target="_blank" rel="noopener">🔗 เปิด Monday IT board</a>` : ''}</div>
+      <div class="afh">D · 486 Monday</div>
       <div class="ls"><span>อัปเดต 486 Monday Status * ${content('monday_486') ? `<a href="${esc(content('monday_486'))}" target="_blank" rel="noopener" class="small">🔗 เปิด 486 board</a>` : ''}</span><span class="seg"><label><input type="radio" name="af_486" value="Completed" ${chk.m486 === 'Completed' ? 'checked' : ''}><b>✅ Completed</b></label><label><input type="radio" name="af_486" value="Queue" ${chk.m486 === 'Queue' ? 'checked' : ''}><b>⏳ Queue to go live</b></label></span></div>
       <div id="af_fu" style="${chk.m486 === 'Queue' ? '' : 'display:none'}"><label>ต้องตามเรื่องอะไรต่อ? * <span class="small muted">(ระบบจะแจ้งเตือนเข้า Google Chat และขึ้นใน Dashboard จนกว่าจะเสร็จ)</span></label>
         <textarea id="af_fut" placeholder="เช่น รอ IT อัปเดตปุ่ม Online order, ร้านยังไม่เชื่อม Stripe, รอเครื่องปริ้นใหม่">${esc(a.followup || '')}</textarea></div>
+      <div class="afh">E · ปิดระบบร้านเก่า (Gloria Food / PartnerNet)</div>
+      ${afc('af_os1', 'os1', 'ปิดทุก service: Pickup · Delivery · Table reservation · On premise · Scheduled orders', 'd1')}${afc('af_os2', 'os2', 'PartnerNet: กด Cancel ที่ Sales Optimized Website และ Online Payments', 'd2')}
+      ${afc('af_os3', 'os3', 'Notifications: ปิด toggle ทั้งหมดของอีเมลร้าน', 'd3')}${afc('af_os4', 'os4', 'Alert call: ลบเบอร์โทรออก', 'd4')}
+      <div class="small muted" id="af_cnt"></div>
     </div>` : ''}
   <label>หมายเหตุ</label><textarea id="a_n">${esc(a.notes || '')}</textarea>
   <div class="actions">${!isNew ? '<button class="btn r s" id="del" style="margin-right:auto">ลบ</button>' : ''}
@@ -892,7 +906,8 @@ function activityModal(kind, a, pre) {
     <button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">บันทึก</button></div>`);
   const hvc = () => { const e = $('#hv_c'); if (e) e.textContent = `${document.querySelectorAll('[data-hv]:checked').length} / ${HANDOVER.length} เรียบร้อย`; };
   hvc(); document.querySelectorAll('[data-hv]').forEach(x => x.onchange = hvc);
-  if ($('#af_cpmsg')) $('#af_cpmsg').onclick = () => navigator.clipboard.writeText(content('howto_msg')).then(() => { toast('คัดลอกข้อความแล้ว'); $('#af_howto').checked = true; });
+  const afn = () => { const e = $('#af_cnt'); if (!e) return; const all = document.querySelectorAll('[data-af]'); e.textContent = `หลังวางสาย A–E: ติ๊กแล้ว ${[...all].filter(x => x.checked).length} / ${all.length}`; };
+  afn(); document.querySelectorAll('[data-af]').forEach(x => x.addEventListener('change', afn));
   if ($('#a_tz')) { const u = () => { const v = $('#a_at').value; $('#a_th').textContent = v ? '🇹🇭 ' + fmtTz(zonedToUtc(v, $('#a_tz').value).toISOString(), 'Asia/Bangkok') + ' น.' : '–'; }; u(); $('#a_at').oninput = u; $('#a_tz').onchange = u; }
   document.querySelectorAll('[name="af_site"]').forEach(x => x.onchange = () => { $('#af_cw').style.display = x.value === 'CW' ? '' : 'none'; $('#af_it').style.display = x.value === 'IT' ? '' : 'none'; });
   document.querySelectorAll('[name="af_486"]').forEach(x => x.onchange = () => { $('#af_fu').style.display = x.value === 'Queue' ? '' : 'none'; });
@@ -924,6 +939,7 @@ function activityModal(kind, a, pre) {
       LIVE_STEPS.forEach(x => rec.checklist[x.k] = (document.querySelector(`[name="ck_${x.k}"]:checked`) || {}).value || null);
       if (LIVE_CHK.some(k => !rec.checklist[k])) return toast('กรุณาเลือก ✓ / N/A / ✗ ให้ครบทุกข้อที่มี *', true);
       const g = id => !!($('#' + id) && $('#' + id).checked);
+      AF_KEYS.forEach(k => { const el = document.querySelector(`[data-af="${k}"]`); if (el) rec.checklist[k] = el.checked; });
       Object.assign(rec.checklist, { howto: g('af_howto'), ton: g('af_ton'), told_now: g('af_now'), told_24h: g('af_24'), monday_it: g('af_mit'),
         site: (document.querySelector('[name="af_site"]:checked') || {}).value || null, m486: (document.querySelector('[name="af_486"]:checked') || {}).value || null });
       if (!rec.checklist.site) return toast('กรุณาเลือกประเภทเว็บไซต์ (CW หรือ Template โดย IT)', true);
