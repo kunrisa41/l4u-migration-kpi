@@ -1332,11 +1332,11 @@ function bindFlowPick() {
     openModal(`<h3>❌ LIVE ไม่สำเร็จ · ${esc(p.store_name)}</h3><p class="small muted">ระบบจะบันทึกไว้ที่ "ปัญหา / No-show" แจ้งกลุ่ม Google Chat ทันที และเตือนทุก 2 วันจนกว่าจะติ๊ก ✓ เสร็จ</p>
       <div class="fg"><div><label>ติดปัญหาเรื่องอะไร *</label><select id="nf_c">${opts(L.ISSUE, '', true)}</select></div><div><label>ปัญหามาจากใคร</label><select id="nf_p">${opts(L.PARTY, 'Customer', true)}</select></div>
         <div><label>ต้องตามภายในวันที่</label><input id="nf_d" type="date" value="${C.iso(C.addWorkdays(C.today(), 2, C.holidaySet(S.settings)))}"></div></div>
-      <label>ต้อง follow-up อะไรต่อ *</label><textarea id="nf_t" placeholder="เช่น ร้านไม่มีเครื่องปริ้น รอซื้อใหม่, ร้านไม่สะดวกคุยตอนนี้ ขอนัดใหม่พรุ่งนี้ 10:00, ปริ้นเตอร์เชื่อม Bluetooth ไม่ได้"></textarea>
+      <label>ต้อง follow-up อะไรต่อ <span class="muted">(ไม่บังคับ ถ้าไม่ใส่จะใช้ชื่อปัญหาแทน)</span></label><textarea id="nf_t" class="lightph" placeholder="ตัวอย่าง: ร้านไม่มีเครื่องปริ้น รอซื้อใหม่ / ขอนัดใหม่พรุ่งนี้ 10:00"></textarea>
       <div class="actions"><button class="btn" id="cx">ยกเลิก</button><button class="btn r" id="sv">ส่งไป Follow-up</button></div>`);
     $('#cx').onclick = closeModal;
     $('#sv').onclick = async () => {
-      const cat = $('#nf_c').value, txt = $('#nf_t').value.trim(); if (!cat || !txt) return toast('กรุณาเลือกปัญหา และใส่ว่าต้องตามอะไรต่อ', true);
+      const cat = $('#nf_c').value; if (!cat) return toast('กรุณาเลือกว่าติดปัญหาเรื่องอะไร', true); const txt = $('#nf_t').value.trim() || cat;
       $('#sv').disabled = true; const r = await ensureRest(p.store_name); if (!r) { $('#sv').disabled = false; return; }
       const ins = await sb.from('blockers').insert({ log_date: C.iso(C.today()), rid: r.rid, employee: S.me.code, category: cat, party: $('#nf_p').value || null,
         description: 'LIVE ไม่สำเร็จ: ' + txt, fu_due: $('#nf_d').value || null, status: 'Open', review: 'Pending' });

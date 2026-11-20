@@ -241,3 +241,5 @@ table.issues{width:100%;background:#fff;border-collapse:collapse}table.issues td
 .gmailbox ol{margin:6px 0 8px;padding-left:20px;line-height:1.7;font-size:13px}
 .gmailpics{display:flex;gap:8px;align-items:flex-start}.gmailpics img{width:50%;border-radius:8px;border:1px solid var(--line);cursor:zoom-in}
 @media(max-width:900px){.gmailbox{grid-template-columns:1fr}}
+
+.lightph::placeholder{color:#B6C0CC;font-style:italic}
