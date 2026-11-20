@@ -709,6 +709,7 @@ function viewHome() {
     <h2 style="font-size:20px;margin:4px 0">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} <small>(${new Date().toLocaleDateString('th-TH', { dateStyle: 'full' })})</small></h2>
     ${isOff(td) ? '<div class="note">วันนี้เป็นวันหยุด — ไม่มีเป้าหมายงาน</div>' : ''}
     <div class="grid">${big('1. Team LIVE Target 🔴', 'live', 'k-live')}${big('2. New Build (Scratch) 🔨', 'scratch', '')}${big('3. IT Handover 💻', 'it', '')}${big('4. Appointments 📅', 'appt', '')}</div></div>
+  ${recorderCard(true)}
   <div class="mgrid">${team.map(mcard).join('')}</div>
   <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Daily Workflow Guide <small>07:00 – 16:00</small></h2><button class="btn s" id="tg">${showGuide ? 'Hide Guide' : 'Show Guide'}</button></div>
     ${showGuide ? `<div class="plan">${DAY_PLAN.map((p, i) => `<div class="pi"><div class="small muted">${p[0]}</div><b>${i + 1}. ${esc(p[1])}</b><ul>${p[2].map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`).join('')}</div>
@@ -730,13 +731,63 @@ function viewHome() {
   const shift = n => { const d = new Date(cy, cm - 1 + n, 1); S.calMonth = C.iso(d).slice(0, 7); render(); };
   $('#cp').onclick = () => shift(-1); $('#cn').onclick = () => shift(1);
   document.querySelectorAll('[data-day]').forEach(b => b.onclick = () => { S.selDate = b.dataset.day; render(); });
-  bindActButtons();
+  bindActButtons(); bindRecorder();
 }
 function liveTxt(a) { const c = a.checklist || {}; const ok = ['chk_install', 'chk_printer', 'chk_test', 'chk_booking'].every(k => c[k] === 'Yes' || c[k] === 'N/A');
   return (ok ? badge('Checks ✓', 'good') : badge('Checks ไม่ครบ', 'warn')) + ` Handover ${(c.handover || []).length}/${HANDOVER.length}`; }
 function bindActButtons() {
   document.querySelectorAll('[data-act]').forEach(b => b.onclick = () => activityModal(null, S.acts.find(a => String(a.id) === b.dataset.act)));
   document.querySelectorAll('[data-new]').forEach(b => b.onclick = () => activityModal(b.dataset.new));
+}
+
+
+// --- LFY Recorder (runs locally on each Mac; links live here) ---
+function recFile() { try { return JSON.parse(content('recorder_file') || 'null'); } catch { return null; } }
+function recorderCard(compact) {
+  const f = recFile(); const drive = content('mig_drive'); const ext = content('recorder_url');
+  const open = S.recHelp ?? !compact;
+  return `<div class="card rec"><div class="row" style="align-items:center"><div style="flex:1"><h2 style="margin:0">🧪 LFY Recorder <small>ตรวจเมนู + หลังบ้าน OLD vs NEW · Final Proof video</small></h2>
+      <div class="small muted">${f ? `เวอร์ชันล่าสุด: <b>${esc(f.version || f.name)}</b> · อัปโหลด ${fmtDT(f.at)}` : 'ยังไม่มีไฟล์ติดตั้งในระบบ'}</div></div>
+    <button class="btn s" id="rh">${open ? 'ซ่อนวิธีใช้' : 'วิธีติดตั้ง / ใช้งาน'}</button></div>
+    <div class="row" style="margin-top:10px">
+      ${f ? `<button class="btn p" id="rdl">⬇️ Download Team Pack ${esc(f.version || '')}</button>` : (ext ? `<a class="btn p" href="${esc(ext)}" target="_blank" rel="noopener">⬇️ Download Team Pack</a>` : '')}
+      <a class="btn t" href="http://localhost:3210/" target="_blank" rel="noopener">▶️ เปิด LFY Recorder</a>
+      ${drive ? `<a class="btn" href="${esc(drive)}" target="_blank" rel="noopener">📁 MIG Audit Check (ผลตรวจ / วิดีโอ)</a>` : ''}
+      ${isMgr() ? `<label class="btn s" style="margin:0;cursor:pointer">⬆️ Upload new version (.zip)<input type="file" id="rup" accept=".zip" style="display:none"></label><button class="btn s" id="rdr">Edit Drive link</button>` : ''}</div>
+    ${open ? `<div class="two" style="margin-top:12px"><div><div class="sec" style="margin-top:0">ติดตั้งครั้งแรก (ครั้งเดียวต่อ Mac)</div><ol class="small steps">
+      <li>กด <b>⬇️ Download Team Pack</b> ไฟล์ .zip จะไปอยู่ที่โฟลเดอร์ Downloads</li>
+      <li>ดับเบิลคลิกไฟล์ .zip เพื่อแตกไฟล์</li>
+      <li>ในโฟลเดอร์ที่แตกออกมา ดับเบิลคลิก <b>BOOTSTRAP-FIRST-RUN.command</b></li>
+      <li>ถ้า Mac เตือนเรื่องความปลอดภัย: คลิกขวาที่ไฟล์ ➔ <b>Open</b> ➔ <b>Open</b></li>
+      <li>รอจนขึ้น <b>SETUP COMPLETE</b> (ต้องต่อเน็ต ใช้เวลาไม่กี่นาที) เบราว์เซอร์จะเปิด localhost:3210 ให้เอง</li>
+      <li>รันครั้งแรกเสร็จ Google อาจขอให้ล็อกอิน ใช้บัญชี Local For You ที่เข้าโฟลเดอร์ MIG Audit Check ได้ (ครั้งเดียว)</li></ol>
+      <p class="small muted">มีเวอร์ชันใหม่: ดาวน์โหลดแล้วทำข้อ 2–5 ซ้ำ ทับของเดิมได้เลย</p></div>
+      <div><div class="sec" style="margin-top:0">ใช้งานทุกวัน</div><ol class="small steps">
+      <li>กด <b>▶️ เปิด LFY Recorder</b> (ต้องติดตั้งบน Mac เครื่องนั้นก่อน)</li>
+      <li>ใส่ชื่อร้าน · เลือกโหมด · ลิงก์ร้าน NEW · ลิงก์เมนู OLD แล้วกด <b>START</b></li>
+      <li>ล็อกอินหลังบ้าน / เลือกร้านในหน้าต่างที่เปิดขึ้นถ้าระบบขอ</li>
+      <li>โหมด <b>Final Proof</b> อัปโหลดผลเข้า <b>MIG Audit Check</b> ให้อัตโนมัติ</li>
+      <li>ได้ไฟล์ Compare Report (PDF) แล้ว อัปโหลดเก็บในแท็บ <b>Audit Reports</b> ให้ผูกกับร้านได้</li></ol>
+      <p class="small muted">ถ้าเปิด localhost:3210 ไม่ขึ้น: ดับเบิลคลิก RESTART-LFY-SERVICE.command ในโฟลเดอร์ที่แตกไว้</p></div></div>` : ''}</div>`;
+}
+function bindRecorder() {
+  if ($('#rh')) $('#rh').onclick = () => { const f = $('#rh').textContent.includes('ซ่อน'); S.recHelp = !f; render(); };
+  if ($('#rdl')) $('#rdl').onclick = async () => {
+    const f = recFile(); const { data, error } = await sb.storage.from('tools').createSignedUrl(f.path, 300, { download: f.name });
+    if (error) return toast(error.message, true); location.href = data.signedUrl;
+  };
+  if ($('#rup')) $('#rup').onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    const version = (file.name.match(/V\d+(?:\.\d+)+/i) || [''])[0].toUpperCase();
+    const path = `lfy-recorder/${Date.now()}-${file.name.replace(/[^A-Za-z0-9._-]/g, '_')}`;
+    toast('กำลังอัปโหลด…');
+    const up = await sb.storage.from('tools').upload(path, file, { contentType: 'application/zip' });
+    if (up.error) return toast(up.error.message, true);
+    const old = recFile();
+    await save(sb.from('content').update({ body: JSON.stringify({ path, name: file.name, version, at: new Date().toISOString() }), updated_at: new Date().toISOString() }).eq('key', 'recorder_file'), 'อัปโหลดเวอร์ชัน ' + (version || file.name) + ' แล้ว');
+    if (old && old.path) sb.storage.from('tools').remove([old.path]);
+  };
+  if ($('#rdr')) $('#rdr').onclick = async () => { const v = prompt('ลิงก์โฟลเดอร์ MIG Audit Check (Google Drive):', content('mig_drive')); if (v === null) return; await save(sb.from('content').update({ body: v.trim() }).eq('key', 'mig_drive'), 'Saved'); };
 }
 
 // --- Pre-Live Checklist ---
@@ -828,18 +879,14 @@ function viewPerf() {
 
 // --- Audit Reports (PDF archive) ---
 function viewAudit() {
-  const url = content('recorder_url');
-  $('#main').innerHTML = `<div class="two"><div class="card"><h2>LFY Recorder Team Pack <small>เครื่องมือตรวจเว็บอัตโนมัติ (Mac Apple Silicon)</small></h2>
-    <p class="small">รันบนเครื่อง Mac ของทีม แล้วเปิด Web App ที่ <code>http://localhost:3210/</code> · หลักฐานอยู่ใน Central Drive (OPEN-CENTRAL-EVIDENCE.command)</p>
-    <div class="row">${url ? `<a class="btn p" href="${esc(url)}" target="_blank" rel="noopener">Download LFY Recorder (.zip)</a>` : '<span class="muted small">ยังไม่ได้ใส่ลิงก์ดาวน์โหลด</span>'}
-      <a class="btn" href="http://localhost:3210/" target="_blank" rel="noopener">Launch Web App (localhost:3210)</a>${isMgr() ? '<button class="btn s" id="eu">Edit download URL</button>' : ''}</div>
-    <p class="small muted">หมายเหตุ: ตัวตรวจเทียบเว็บด้วย Gemini AI ของแอปเดิมยังไม่ได้ย้ายมา — ใช้ LFY Recorder แล้วอัปโหลด PDF ผลตรวจไว้ที่นี่</p></div>
+  $('#main').innerHTML = `${recorderCard(false)}<div class="two">
   <div class="card"><h2>Upload Audit Reports (PDF) <small>อ่านชื่อร้าน + คะแนนจากชื่อไฟล์อัตโนมัติ</small></h2>
-    <input type="file" id="pf" accept="application/pdf,.pdf" multiple><p class="small muted">เช่น <code>Thai Spoon_92%.pdf</code> → ร้าน "Thai Spoon", คะแนน 92%</p></div></div>
+    <input type="file" id="pf" accept="application/pdf,.pdf" multiple><p class="small muted">เช่น <code>Thai Spoon_92%.pdf</code> → ร้าน "Thai Spoon", คะแนน 92%</p></div>
+  <div class="card"><h2>ผลตรวจทั้งหมด <small>วิดีโอ Final Proof และหลักฐานอยู่ใน Google Drive</small></h2><p class="small">ทุกครั้งที่รันโหมด <b>Record Video — Final Proof</b> ระบบอัปโหลดเข้า MIG Audit Check ให้เอง (1 โฟลเดอร์ต่อร้าน)</p>${content('mig_drive') ? `<a class="btn" href="${esc(content('mig_drive'))}" target="_blank" rel="noopener">📁 เปิด MIG Audit Check</a>` : ''}</div></div>
   <div class="card"><h2>Saved PDF Report Library <small>${(S.reports || []).length} ไฟล์</small></h2><div class="tw"><table><thead><tr><th>ร้าน</th><th>คะแนน</th><th>ไฟล์</th><th>โดย</th><th>วันที่</th><th></th></tr></thead><tbody>
     ${(S.reports || []).map(r => `<tr><td><b>${esc(r.store_name)}</b></td><td>${esc(r.score || '')}</td><td class="small">${esc(r.file_name)}</td><td>${esc(memberName(r.uploaded_by))}</td><td class="small">${fmtDT(r.created_at)}</td>
       <td style="white-space:nowrap"><button class="btn s" data-dl="${r.id}">เปิด</button> ${isMgr() || r.uploaded_by === S.me.code ? `<button class="btn s r" data-rd="${r.id}">ลบ</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">ยังไม่มีไฟล์</td></tr>'}</tbody></table></div></div>`;
-  if ($('#eu')) $('#eu').onclick = async () => { const v = prompt('ลิงก์ดาวน์โหลด LFY Recorder (.zip):', url); if (v === null) return; await save(sb.from('content').update({ body: v.trim() }).eq('key', 'recorder_url'), 'Saved'); };
+  bindRecorder();
   $('#pf').onchange = async e => {
     const files = [...e.target.files]; let n = 0;
     for (const f of files) {

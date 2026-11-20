@@ -108,3 +108,6 @@ td a{white-space:nowrap}
 .flow ul{margin:0;padding-left:20px;line-height:1.7}
 code{background:var(--grey);padding:1px 5px;border-radius:5px;font-size:12px}
 @media(max-width:900px){.two{grid-template-columns:1fr}.cd{min-height:64px;font-size:10px}}
+.rec{border-color:#99F6E4;background:linear-gradient(180deg,#F0FDFA,#fff 60%)}
+.steps{margin:6px 0;padding-left:20px;line-height:1.7}
+a.btn{text-decoration:none;display:inline-block}
