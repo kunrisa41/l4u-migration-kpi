@@ -767,7 +767,7 @@ const PRELIVE = [
   { n: 19, t: 'System Defaults (General · Tipping · Age Verification · Ordering · Checkout)' },
   { n: 9, t: 'Test Orders (3 real orders + print)', opts: ['🛍️ Pickup order', '🛵 Delivery order', '🚗 Uber order'] },
   { n: 10, t: 'Website & Landing Page (Domain, SEO, Nav links, Gallery, Contact, Footer, CSS, Facebook)', opts: ['Add button with us', 'GF Web', 'Add button with other', 'Domain with us', 'Domain not with us'] },
-  { n: 11, t: 'Cloudflare DNS: add 35.238.2.132 to A Record', link: 'cloudflare_url', linkT: 'Cloudflare' }, { n: 12, t: 'Google Search Console Integration', link: 'gsc_url', linkT: 'Search Console' }, { n: 20, t: 'Create & Send Flyers (ใบปลิวใหม่ + ส่งร้านทาง respond.io)', link: 'flyer_url', linkT: 'Create Flyers' }, { n: 13, t: 'Queue to LIVE (Ready to Launch)' }];
+  { n: 11, t: 'Cloudflare DNS: add 35.238.2.132 to A Record', link: 'cloudflare_url', linkT: 'Cloudflare' }, { n: 12, t: 'Google Search Console Integration', link: 'gsc_url', linkT: 'Search Console' }, { n: 20, t: 'Create & Send Flyers (ใบปลิวใหม่ + ส่งร้านทาง respond.io + เก็บใน Customer File ของร้าน)', link: 'flyer_url', linkT: 'Create Flyers' }, { n: 13, t: 'Queue to LIVE (Ready to Launch)' }];
 const PL_REQ = PRELIVE.filter(x => !x.optional).length;
 const DAY_PLAN = [['07:00 – 08:00', 'Follow-up Non-responsive Stores', ['โทรตามคิว Priority ร้าน', 'อัปเดต Status ทันทีหลังโทร', 'ไม่รับสาย = ส่ง SMS/Email']],
   ['08:00 – 12:00', 'System Setup (16 Steps)', ['สร้างระบบร้านใหม่ตามคิว', 'ทำ Test Order เสมอ', 'ห้ามขึ้น Ready ถ้ายังไม่ Test']],
@@ -1367,7 +1367,7 @@ const OLD_SYS = [
   { k: 'd2', t: 'PartnerNet › รายชื่อร้าน › กดเปิดร้าน', d: 'กด <b>Cancel</b> ทั้ง 2 อันที่ <b>Sales Optimized Website</b> และ <b>Online Payments</b>', img: 'img/old_partner.jpg' },
   { k: 'd3', t: 'Other (•••) › General › Notifications', d: 'ที่อีเมลร้าน ปิด toggle <b>ทั้งหมด</b> ให้เป็นสีเทา (ไม่ต้องให้ระบบเก่าส่งอีเมลหาร้านอีก)', img: 'img/old_notif.jpg' },
   { k: 'd4', t: 'Setup › Taking orders › Alert call', d: 'ลบ <b>เบอร์โทร</b> ออกจากช่อง Phone number แล้วกด Next / Save (ระบบเก่าจะได้ไม่โทรหาร้าน)', img: 'img/old_alert.jpg' }];
-const FLOW_KEYS = () => [...FLOW.map(s => s.k), 'a1', 'a2', 'b1', 'b2', 'c1', ...OLD_SYS.map(x => x.k), 'e1', 'e2', 'e3'];
+const FLOW_KEYS = () => [...FLOW.map(s => s.k), 'a1', 'a2', 'b1', 'b2', 'c1', ...OLD_SYS.map(x => x.k), 'e1', 'e2', 'e3', 'e4'];
 const flowRec = () => plStores().find(x => x.store_name === S.flowStore);
 const fTicks = () => { const p = flowRec(); return (S.fTk && S.fTk.store === S.flowStore) ? S.fTk.v : ((p && p.checks && p.checks.flow) || {}); };
 const fT = k => !!fTicks()[k];
@@ -1392,9 +1392,13 @@ function flyerBlock() {
         <div class="row" style="margin:4px 0"><input id="fly_dom" placeholder="โดเมน เช่น www.hommalibangkok.com.au" value="${esc(S.flyDom || '')}" style="flex:2;min-width:180px"><input id="fly_pct" placeholder="% ส่วนลด" value="${esc(S.flyPct || '')}" style="width:100px"></div>
         <div class="row"><button class="btn p s" id="fly_cp">📋 Copy ข้อความโพสต์</button>${isMgr() ? '<button class="btn s" data-edt="flyer_post">แก้ไขข้อความ</button>' : ''}</div>
         <pre class="msg" id="fly_prev">${esc(flyerPost())}</pre>${tk('e3', 'เตรียมข้อความโพสต์ (ใส่โดเมน + % ส่วนลด) แล้ว')}</div>
+      <div class="flyc"><div class="spt">4️⃣ เก็บใน Customer File ของร้าน</div><p class="small" style="margin:4px 0 8px">อัปโหลดรูปใบปลิว (และข้อความโพสต์) เข้า <b>Customer File</b> ของร้านนี้ ให้ทีมหาเจอทีหลัง</p>
+        ${content('customer_file_url') ? `<a class="btn s" href="${esc(content('customer_file_url'))}" target="_blank" rel="noopener">📁 เปิด Customer File</a>` : ''}${isMgr() ? ' <button class="btn s" id="cf_set">⚙️ ตั้งลิงก์ Customer File</button>' : ''}${tk('e4', 'เก็บใบปลิวใน Customer File ของร้านแล้ว')}</div>
     </div></div></div>`;
 }
 function bindFlyers() {
+  if ($('#cf_set')) $('#cf_set').onclick = async () => { const v = prompt('ลิงก์โฟลเดอร์ Customer File (Google Drive):', content('customer_file_url')); if (v === null) return;
+    await save(sb.from('content').upsert({ key: 'customer_file_url', body: v.trim() }, { onConflict: 'key' }), 'บันทึกลิงก์แล้ว'); };
   const upd = () => { S.flyDom = $('#fly_dom').value.trim(); S.flyPct = $('#fly_pct').value.trim().replace('%', ''); $('#fly_prev').textContent = flyerPost(); };
   if ($('#fly_dom')) { $('#fly_dom').oninput = upd; $('#fly_pct').oninput = upd; }
   if ($('#fly_cp')) $('#fly_cp').onclick = () => { upd(); navigator.clipboard.writeText(flyerPost()).then(() => toast('คัดลอกข้อความโพสต์แล้ว')); };
