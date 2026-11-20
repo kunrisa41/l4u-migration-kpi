@@ -79,13 +79,14 @@ async function loadAll() {
     sb.from('members').select('*').order('created_at'), sb.from('settings').select('*').eq('id', 1).maybeSingle(),
     sb.from('restaurants').select('*').order('rid'), sb.from('blockers').select('*').order('log_date', { ascending: false }),
     sb.from('daily').select('*'), sb.from('kpi_months').select('*')]);
-  const [ac, pl, fb, ct, rp] = await Promise.all([sb.from('activities').select('*').order('created_at', { ascending: false }),
+  const [ac, pl, fb, ct, rp, cl] = await Promise.all([sb.from('activities').select('*').order('created_at', { ascending: false }),
     sb.from('prelive').select('*').order('updated_at', { ascending: false }), sb.from('feedback').select('*').order('created_at', { ascending: false }),
-    sb.from('content').select('*'), sb.from('reports').select('*').order('created_at', { ascending: false })]);
-  const err = [m, s, r, b, d, k, ac, pl, fb, ct, rp].find(x => x.error);
+    sb.from('content').select('*'), sb.from('reports').select('*').order('created_at', { ascending: false }),
+    sb.from('call_log').select('*').gte('call_date', C.iso(new Date(Date.now() - 120 * C.DAY))).order('created_at')]);
+  const err = [m, s, r, b, d, k, ac, pl, fb, ct, rp, cl].find(x => x.error);
   if (err) throw err.error;
   S.members = m.data; S.settings = s.data ? s.data.data : null; S.rests = r.data; S.blockers = b.data; S.daily = d.data; S.kpi = k.data;
-  S.acts = ac.data; S.prelive = pl.data; S.feedback = fb.data; S.content = ct.data; S.reports = rp.data;
+  S.acts = ac.data; S.calls = cl.data; S.prelive = pl.data; S.feedback = fb.data; S.content = ct.data; S.reports = rp.data;
   S.me = S.members.find(x => x.user_id === S.session.user.id) || null;
   if (!S.month) { const ms = C.periods(S.settings).filter(p => p.month); const cur = C.monthKey(asof()); S.month = (ms.find(p => p.month === cur) || ms[0]).month; }
 }
@@ -380,37 +381,96 @@ function blockerModal(b) {
   };
 }
 
-// ---------------- daily ----------------
+// ---------------- daily call log (บันทึกประจำวัน) ----------------
+const TZS = [['Australia/Sydney', '🇦🇺 Sydney / Melbourne / Canberra'], ['Australia/Brisbane', '🇦🇺 Brisbane (QLD)'], ['Australia/Adelaide', '🇦🇺 Adelaide'],
+  ['Australia/Perth', '🇦🇺 Perth'], ['Australia/Darwin', '🇦🇺 Darwin'], ['Australia/Hobart', '🇦🇺 Hobart'], ['Pacific/Auckland', '🇳🇿 New Zealand'], ['Asia/Bangkok', '🇹🇭 เวลาไทย']];
+const tzName = tz => ({ 'Australia/Sydney': 'Sydney', 'Australia/Melbourne': 'Melbourne', 'Australia/Brisbane': 'Brisbane', 'Australia/Adelaide': 'Adelaide', 'Australia/Perth': 'Perth',
+  'Australia/Darwin': 'Darwin', 'Australia/Hobart': 'Hobart', 'Pacific/Auckland': 'NZ', 'Asia/Bangkok': 'ไทย' }[tz] || tz);
+const tzFlag = tz => tz === 'Asia/Bangkok' ? '🇹🇭' : tz === 'Pacific/Auckland' ? '🇳🇿' : '🇦🇺';
+function tzParts(d, tz) { const o = {}; new Intl.DateTimeFormat('en-GB', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d).forEach(p => o[p.type] = p.value); return o; }
+function zonedToUtc(local, tz) { // 'YYYY-MM-DDTHH:mm' in tz -> Date
+  const [d, t] = local.split('T'); const [y, m, dd] = d.split('-').map(Number); const [hh, mi] = t.split(':').map(Number);
+  const want = Date.UTC(y, m - 1, dd, hh, mi); let g = want;
+  for (let i = 0; i < 3; i++) { const p = tzParts(new Date(g), tz); const got = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute); g += want - got; }
+  return new Date(g);
+}
+function utcToZonedInput(iso, tz) { const p = tzParts(new Date(iso), tz); return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`; }
+const fmtTz = (iso, tz) => { const p = tzParts(new Date(iso), tz); return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`; };
+const fmtHm = (iso, tz) => { const p = tzParts(new Date(iso), tz); return `${p.hour}:${p.minute}`; };
+function dualTime(iso, tz) { tz = tz || 'Australia/Sydney'; return tz === 'Asia/Bangkok' ? `🇹🇭 ${fmtTz(iso, tz)}` : `${tzFlag(tz)} ${tzName(tz)} ${fmtTz(iso, tz)} → 🇹🇭 ไทย ${fmtHm(iso, 'Asia/Bangkok')} น.`; }
+const RESULTS = { 'Not pickup': '📵 called - Not pickup', 'Appointment': '📅 Appointment', 'Call back': '🔁 ให้โทรกลับ', 'Left message': '💬 ฝากข้อความ / SMS', 'Declined': '🚫 ร้านปฏิเสธ', 'Other': '📝 อื่นๆ' };
 function viewDaily() {
-  const d = C.parseD(S.dailyDate); const mins = S.settings.minutes || { setup: 30, menu: 90, live: 37.5 };
-  const same = x => x && x.getTime() === d.getTime();
-  const rows = S.members.filter(m => m.active).map(m => {
-    const R = S.rests;
-    const setups = R.filter(r => r.setup_owner === m.code && same(C.setupDone(r))).length;
-    const menus = R.filter(r => r.menu_owner === m.code && same(C.menuDone(r))).length;
-    const built = R.filter(r => (r.setup_owner === m.code || r.menu_owner === m.code) && same(C.builtDate(r))).length;
-    const sched = R.filter(r => r.live_agent === m.code && same(C.parseD(r.booked_on))).length;
-    const lives = R.filter(r => r.live_agent === m.code && same(C.liveDate(r))).length;
-    const attended = lives + R.filter(r => r.live_agent === m.code && r.booking === 'Attended' && !C.isLive(r) && same(C.parseD(r.appt_date))).length;
-    const ns = S.blockers.filter(b => b.employee === m.code && same(C.parseD(b.log_date)) && b.category === 'No-show').length;
-    const bl = S.blockers.filter(b => b.employee === m.code && same(C.parseD(b.log_date)) && b.category !== 'No-show').length;
-    const dv = S.daily.find(x => x.member_code === m.code && x.work_date === S.dailyDate) || {};
-    const std = (setups * mins.setup + menus * mins.menu + lives * mins.live) / 60;
-    const can = isMgr() || m.code === S.me.code;
-    const inp = (k, w = 70) => `<input data-k="${k}" data-m="${m.code}" value="${esc(dv[k] ?? '')}" ${can ? '' : 'disabled'} style="width:${w}px;padding:4px 6px">`;
-    return `<tr><td><b>${esc(m.name)}</b><div class="small muted">${esc(m.role)}</div></td><td class="num">${setups}</td><td class="num">${menus}</td><td class="num">${built}</td>
-      <td>${inp('calls')}</td><td>${inp('contacted')}</td><td class="num">${sched}</td><td class="num">${attended}</td><td class="num">${lives}</td><td class="num">${ns}</td><td class="num">${bl}</td>
-      <td>${inp('hours')}</td><td class="num">${n1(std)}</td><td>${inp('notes', 200)}</td><td>${can ? `<button class="btn s p" data-sd="${m.code}">Save</button>` : ''}</td></tr>`;
-  }).join('');
-  $('#main').innerHTML = `<div class="card"><div class="row"><div><label>Date</label><input type="date" id="dd" value="${esc(S.dailyDate)}"></div>
-    <p class="small muted" style="flex:1">Counts come automatically from the Master Tracker and Blocker Log (no double entry). Only type calls, customers contacted, hours and notes.</p></div>
-  <div class="tw"><table><thead><tr><th>Employee</th><th class="num">Setups</th><th class="num">Menu builds</th><th class="num">Fully built</th><th>Calls attempted</th><th>Customers contacted</th><th class="num">Appts scheduled</th><th class="num">Appts attended</th><th class="num">Live completed</th><th class="num">No-shows</th><th class="num">Blocked</th><th>Hours</th><th class="num">Std workload (h)</th><th>Notes</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  const day = S.dailyDate; const mine = S.dailyMember || S.me.code;
+  const rows = (S.calls || []).filter(c => c.call_date === day);
+  const byM = code => rows.filter(c => c.member_code === code).sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const team = S.members.filter(m => m.active);
+  const sumRow = m => { const r = byM(m.code); const n = k => r.filter(c => c.result === k).length;
+    return `<tr><td><b>${esc(m.name)}</b></td><td class="num">${r.length}</td><td class="num">${n('Appointment')}</td><td class="num">${n('Not pickup')}</td><td class="num">${n('Call back') + n('Left message')}</td><td class="num">${n('Declined')}</td>
+      <td>${r.length ? (r.every(c => c.posted_at) ? badge('✓ ส่งเข้า Chat แล้ว', 'good') : `<button class="btn s t" data-post="${m.code}" ${isMgr() || m.code === S.me.code ? '' : 'disabled'}>📤 ส่งสรุปเข้า Chat</button>`) : ''}</td></tr>`; };
+  const list = code => byM(code).map((c, i) => `<div class="call"><div class="cn">${i + 1}</div><div style="flex:1"><b>${esc(c.store_name)}</b> <span class="small">${RESULTS[c.result] || c.result}</span>
+      ${c.appt_at ? `<div class="small">📅 ${dualTime(c.appt_at, c.tz)}</div>` : ''}${c.phone || c.contact ? `<div class="small">📞 ${esc([c.phone, c.contact].filter(Boolean).join(' - '))}</div>` : ''}${c.notes ? `<div class="small muted">${esc(c.notes)}</div>` : ''}</div>
+      ${isMgr() || c.member_code === S.me.code ? `<button class="btn s" data-cedit="${c.id}">แก้ไข</button>` : ''}</div>`).join('') || '<p class="muted small">ยังไม่มีรายการ</p>';
+  $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:flex-end"><div><label>วันที่</label><input type="date" id="dd" value="${esc(day)}"></div>
+      <div style="flex:1"><h2 style="margin:0">📞 บันทึกการโทรประจำวัน <small>ร้านที่ติดต่อวันนี้ · ลงนัดตรงนี้ได้เลย (เข้าปฏิทิน + Google Calendar อัตโนมัติ) · กดส่งสรุปเข้า Google Chat</small></h2></div>
+      <button class="btn p" id="cadd">+ เพิ่มร้านที่โทร</button></div>
+    <div class="tw" style="margin-top:12px"><table><thead><tr><th>พนักงาน</th><th class="num">โทรทั้งหมด</th><th class="num">ได้นัด</th><th class="num">ไม่รับสาย</th><th class="num">โทรกลับ / ฝากข้อความ</th><th class="num">ปฏิเสธ</th><th>Google Chat</th></tr></thead>
+      <tbody>${team.map(sumRow).join('')}</tbody></table></div></div>
+  <div class="mgrid">${team.map(m => `<div class="card"><h2>${esc(m.name)} <small>${byM(m.code).length} ร้าน</small></h2>${list(m.code)}</div>`).join('')}</div>`;
   $('#dd').onchange = e => { S.dailyDate = e.target.value; render(); };
-  document.querySelectorAll('[data-sd]').forEach(b => b.onclick = async () => {
-    const code = b.dataset.sd; const g = k => { const el = document.querySelector(`[data-k="${k}"][data-m="${code}"]`); return el.value.trim(); };
-    const rec = { member_code: code, work_date: S.dailyDate, calls: +g('calls') || 0, contacted: +g('contacted') || 0, hours: +g('hours') || 0, notes: g('notes') || null };
-    await save(sb.from('daily').upsert(rec, { onConflict: 'member_code,work_date' }), 'Daily entry saved');
+  $('#cadd').onclick = () => callModal(null);
+  document.querySelectorAll('[data-cedit]').forEach(b => b.onclick = () => callModal(S.calls.find(c => String(c.id) === b.dataset.cedit)));
+  document.querySelectorAll('[data-post]').forEach(b => b.onclick = async () => {
+    const code = b.dataset.post; const r = byM(code); const m = S.members.find(x => x.code === code);
+    const lines = r.map(c => `• *${c.store_name}*\n${c.result === 'Appointment' && c.appt_at ? `Appointment ${dualTime(c.appt_at, c.tz).replace(/^[^ ]+ /, '')}` : (RESULTS[c.result] || c.result).replace(/^\S+ /, '')}${c.phone || c.contact ? '\n' + [c.phone, c.contact].filter(Boolean).join(' - ') : ''}${c.notes ? '\n' + c.notes : ''}`);
+    const txt = `📞 *รายชื่อร้านที่ติดต่อไปวันนี้* — ${m.name} (${fd(day)})\n${lines.join('\n')}\n\nรวม ${r.length} ร้าน · ได้นัด ${r.filter(c => c.result === 'Appointment').length} · ไม่รับสาย ${r.filter(c => c.result === 'Not pickup').length}`;
+    const ok = await sb.rpc('gchat_ready'); if (!ok.data) return toast('ยังไม่ได้เชื่อม Google Chat — ให้ Manager ตั้งค่าที่ 🔒 KPI ➔ 🔔 Calendar & Chat', true);
+    if (!confirm('ส่งข้อความนี้เข้า Google Chat?\n\n' + txt)) return;
+    const { error } = await sb.rpc('gchat_post', { p_text: txt }); if (error) return toast(error.message, true);
+    await sb.from('call_log').update({ posted_at: new Date().toISOString() }).in('id', r.map(c => c.id));
+    toast('ส่งเข้า Google Chat แล้ว ✅'); await loadAll(); render();
   });
+}
+function callModal(c) {
+  const isNew = !c; c = c || { member_code: S.me.code, call_date: S.dailyDate, result: 'Not pickup', tz: S.lastTz || 'Australia/Sydney' };
+  openModal(`<h3>${isNew ? '📞 เพิ่มร้านที่โทร' : 'แก้ไข · ' + esc(c.store_name)}</h3>${restList()}<div class="fg">
+    <div><label>พนักงาน</label><select id="c_m" ${isMgr() ? '' : 'disabled'}>${memberOpts(c.member_code, false)}</select></div>
+    <div style="grid-column:span 2"><label>ชื่อร้าน *</label><input id="c_s" list="restlist" value="${esc(c.store_name || '')}"></div>
+    <div><label>วันที่โทร</label><input id="c_d" type="date" value="${esc(c.call_date)}"></div></div>
+    <div class="sec">ผลการโทร</div><div class="row">${Object.entries(RESULTS).map(([k, l]) => `<label class="pick"><input type="radio" name="c_r" value="${k}" ${c.result === k ? 'checked' : ''}> ${l}</label>`).join('')}</div>
+    <div id="c_ap" class="fg" style="${c.result === 'Appointment' ? '' : 'display:none'}">
+      <div><label>เขตเวลาของร้าน</label><select id="c_tz">${TZS.map(t => `<option value="${t[0]}" ${t[0] === (c.tz || 'Australia/Sydney') ? 'selected' : ''}>${t[1]}</option>`).join('')}</select></div>
+      <div><label>วันเวลานัด (เวลาของร้าน) *</label><input id="c_at" type="datetime-local" value="${c.appt_at ? utcToZonedInput(c.appt_at, c.tz || 'Australia/Sydney') : ''}"></div>
+      <div><label>= เวลาไทย</label><div id="c_th" class="thai">–</div></div></div>
+    <div class="fg"><div><label>เบอร์โทร</label><input id="c_p" value="${esc(c.phone || '')}" placeholder="61424932822"></div><div><label>ชื่อผู้ติดต่อ</label><input id="c_c" value="${esc(c.contact || '')}" placeholder="K.แป๋ว"></div></div>
+    <label>หมายเหตุ</label><input id="c_n" value="${esc(c.notes || '')}">
+    <p class="small muted">เลือก "📅 Appointment" ระบบจะสร้างนัดในปฏิทินหน้า Dashboard และส่งเข้า Google Calendar ให้อัตโนมัติ (ไม่ต้องกด Add Appointment ซ้ำ)</p>
+    <div class="actions">${!isNew ? '<button class="btn r s" id="del" style="margin-right:auto">ลบ</button>' : ''}<button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">บันทึก</button></div>`);
+  const upd = () => { const v = $('#c_at').value, tz = $('#c_tz').value; $('#c_th').textContent = v ? '🇹🇭 ' + fmtTz(zonedToUtc(v, tz).toISOString(), 'Asia/Bangkok') + ' น.' : '–'; };
+  upd(); $('#c_at').oninput = upd; $('#c_tz').onchange = upd;
+  document.querySelectorAll('[name="c_r"]').forEach(x => x.onchange = () => { $('#c_ap').style.display = x.value === 'Appointment' ? '' : 'none'; });
+  $('#cx').onclick = closeModal;
+  if ($('#del')) $('#del').onclick = async () => { if (!confirm('ลบรายการนี้?' + (c.activity_id ? ' (นัดที่สร้างไว้จะยังอยู่ในปฏิทิน ลบได้ที่หน้า Dashboard)' : ''))) return; closeModal(); await save(sb.from('call_log').delete().eq('id', c.id), 'ลบแล้ว'); };
+  $('#sv').onclick = async () => {
+    const rec = { member_code: $('#c_m').value, store_name: $('#c_s').value.trim(), call_date: $('#c_d').value, result: (document.querySelector('[name="c_r"]:checked') || {}).value,
+      phone: $('#c_p').value.trim() || null, contact: $('#c_c').value.trim() || null, notes: $('#c_n').value.trim() || null, tz: null, appt_at: null };
+    if (!rec.store_name || !rec.result) return toast('กรุณาใส่ชื่อร้านและผลการโทร', true);
+    if (rec.result === 'Appointment') { const v = $('#c_at').value; if (!v) return toast('กรุณาใส่วันเวลานัด', true); rec.tz = $('#c_tz').value; rec.appt_at = zonedToUtc(v, rec.tz).toISOString(); S.lastTz = rec.tz; }
+    $('#sv').disabled = true;
+    const r = await ensureRest(rec.store_name); if (!r) { $('#sv').disabled = false; return; } rec.rid = r.rid;
+    if (rec.result === 'Appointment') {
+      const ap = { kind: 'appointment', member_code: rec.member_code, rid: r.rid, store_name: r.name || rec.store_name, appt_at: rec.appt_at, act_date: rec.call_date,
+        contact: [rec.phone, rec.contact].filter(Boolean).join(' - ') || null, notes: rec.notes, status: 'Scheduled', checklist: { tz: rec.tz, from_call: true } };
+      const ex = c.activity_id && S.acts.find(a => a.id === c.activity_id);
+      if (ex) { if (ex.appt_at !== ap.appt_at && ex.status === 'Scheduled') ap.status = 'Rescheduled'; else ap.status = ex.status; ap.checklist = Object.assign({}, ex.checklist, ap.checklist);
+        const u = await sb.from('activities').update(ap).eq('id', ex.id); if (u.error) return toast(u.error.message, true); rec.activity_id = ex.id; }
+      else { const ins = await sb.from('activities').insert(ap).select('id').single(); if (ins.error) return toast(ins.error.message, true); rec.activity_id = ins.data.id; }
+      await sb.from('restaurants').update(feedPatch(ap, r)).eq('rid', r.rid);
+    }
+    closeModal();
+    const res = isNew ? await sb.from('call_log').insert(rec) : await sb.from('call_log').update(Object.assign(rec, { posted_at: null })).eq('id', c.id);
+    if (res.error) return toast(res.error.message, true);
+    toast(rec.result === 'Appointment' ? 'บันทึกแล้ว · สร้างนัดในปฏิทินแล้ว 📅' : 'บันทึกแล้ว'); await loadAll(); render();
+  };
 }
 
 // ---------------- weekly ----------------
@@ -666,7 +726,9 @@ function activityModal(kind, a, pre) {
   <div class="fg">
     <div><label>${isAp ? 'ผู้ทำนัด / ผู้ดูแลนัด' : 'ผู้เปิด LIVE'} *</label><select id="a_m" ${meOnly() ? 'disabled' : ''}>${memberOpts(a.member_code, false)}</select></div>
     <div style="grid-column:span 2"><label>ชื่อร้าน *</label><input id="a_r" list="restlist" value="${esc(a.store_name || '')}" placeholder="พิมพ์ชื่อร้าน (ร้านใหม่ระบบเพิ่มให้เอง)"></div>
-    ${isAp ? `<div><label>วันเวลานัดกับลูกค้า *</label><input id="a_at" type="datetime-local" value="${esc(a.appt_at ? toLocalDT(a.appt_at) : '')}"></div>
+    ${isAp ? `<div><label>เขตเวลาของร้าน</label><select id="a_tz">${TZS.map(t => `<option value="${t[0]}" ${t[0] === (chk.tz || S.lastTz || 'Australia/Sydney') ? 'selected' : ''}>${t[1]}</option>`).join('')}</select></div>
+      <div><label>วันเวลานัด (เวลาของร้าน) *</label><input id="a_at" type="datetime-local" value="${esc(a.appt_at ? utcToZonedInput(a.appt_at, chk.tz || S.lastTz || 'Australia/Sydney') : '')}"></div>
+      <div><label>= เวลาไทย</label><div id="a_th" class="thai">–</div></div>
       <div><label>ผู้ติดต่อ / เบอร์โทร</label><input id="a_c" value="${esc(a.contact || '')}" placeholder="เช่น Khun Somchai 0412 345 678"></div>`
     : `<div><label>วันที่เปิด LIVE *</label><input id="a_d" type="date" value="${esc(a.act_date)}"></div>`}
   </div>
@@ -703,6 +765,7 @@ function activityModal(kind, a, pre) {
   const hvc = () => { const e = $('#hv_c'); if (e) e.textContent = `${document.querySelectorAll('[data-hv]:checked').length} / ${HANDOVER.length} เรียบร้อย`; };
   hvc(); document.querySelectorAll('[data-hv]').forEach(x => x.onchange = hvc);
   if ($('#af_cpmsg')) $('#af_cpmsg').onclick = () => navigator.clipboard.writeText(content('howto_msg')).then(() => { toast('คัดลอกข้อความแล้ว'); $('#af_howto').checked = true; });
+  if ($('#a_tz')) { const u = () => { const v = $('#a_at').value; $('#a_th').textContent = v ? '🇹🇭 ' + fmtTz(zonedToUtc(v, $('#a_tz').value).toISOString(), 'Asia/Bangkok') + ' น.' : '–'; }; u(); $('#a_at').oninput = u; $('#a_tz').onchange = u; }
   document.querySelectorAll('[name="af_site"]').forEach(x => x.onchange = () => { $('#af_cw').style.display = x.value === 'CW' ? '' : 'none'; $('#af_it').style.display = x.value === 'IT' ? '' : 'none'; });
   document.querySelectorAll('[name="af_486"]').forEach(x => x.onchange = () => { $('#af_fu').style.display = x.value === 'Queue' ? '' : 'none'; });
   document.querySelectorAll('[name="a_s"]').forEach(x => x.onchange = () => {
@@ -722,7 +785,7 @@ function activityModal(kind, a, pre) {
     if (!name) return toast('กรุณาใส่ชื่อร้าน', true);
     if (isAp) {
       const v = $('#a_at').value; if (!v) return toast('กรุณาใส่วันเวลานัด', true);
-      rec.appt_at = new Date(v).toISOString(); rec.contact = $('#a_c').value.trim() || null; rec.act_date = a.act_date;
+      rec.checklist.tz = $('#a_tz').value; S.lastTz = rec.checklist.tz; rec.appt_at = zonedToUtc(v, rec.checklist.tz).toISOString(); rec.contact = $('#a_c').value.trim() || null; rec.act_date = a.act_date;
       const sEl = document.querySelector('[name="a_s"]:checked'); rec.status = sEl ? sEl.value : 'Scheduled';
       if (!isNew && a.appt_at && rec.appt_at !== a.appt_at && rec.status === 'Scheduled') rec.status = 'Rescheduled';
       rec.issue_category = (rec.status === 'Problem' || rec.status === 'No-show') && $('#a_ic') ? $('#a_ic').value || null : null;
@@ -798,7 +861,7 @@ function viewHome() {
   }
   const dayAp = appts.filter(a => apptDay(a) === day).sort((x, y) => (x.appt_at || '').localeCompare(y.appt_at || ''));
   const dayLv = lives.filter(a => a.act_date === day);
-  const apRow = a => `<tr class="clk" data-act="${a.id}"><td><b>${hhmm(a.appt_at)}</b></td><td><b>${esc(a.store_name)}</b>${a.contact ? `<div class="small muted">${esc(a.contact)}</div>` : ''}</td><td>${esc(memberName(a.member_code))}</td>
+  const apRow = a => `<tr class="clk" data-act="${a.id}"><td><b>🇹🇭 ${hhmm(a.appt_at)}</b>${(a.checklist || {}).tz && a.checklist.tz !== 'Asia/Bangkok' ? `<div class="small muted">${tzFlag(a.checklist.tz)} ${tzName(a.checklist.tz)} ${fmtHm(a.appt_at, a.checklist.tz)}</div>` : ''}</td><td><b>${esc(a.store_name)}</b>${a.contact ? `<div class="small muted">${esc(a.contact)}</div>` : ''}</td><td>${esc(memberName(a.member_code))}</td>
     <td>${stBadge(a.status)}</td><td class="small">${a.status === 'No-show' || a.status === 'Problem' ? esc([a.issue_category, a.issue_detail].filter(Boolean).join(' — ')) : ''}${a.notes ? `<div class="muted">${esc(a.notes)}</div>` : ''}</td><td><button class="btn s">เปิด</button></td></tr>`;
   const lvRow = a => `<tr class="clk" data-act="${a.id}"><td>🔴</td><td><b>${esc(a.store_name)}</b></td><td>${esc(memberName(a.member_code))}</td><td>${liveTxt(a)}</td><td class="small">${esc(a.notes || '')}</td><td><button class="btn s">เปิด</button></td></tr>`;
   const showGuide = S.guide === true;
@@ -822,7 +885,7 @@ function viewHome() {
     <div class="cal">${['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map(x => `<div class="ch">${x}</div>`).join('')}${cells}</div></div>
   <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${fd(day)} <small>นัด ${dayAp.length} · LIVE ${dayLv.length}</small></h2>
     <button class="btn s" data-new="appointment">+ Add Appointment</button><button class="btn s r" data-new="live">🔴 Record LIVE</button></div>
-    <div class="tw" style="margin-top:10px"><table><thead><tr><th>เวลา</th><th>ร้าน</th><th>ผู้ดูแล</th><th>สถานะ</th><th>ปัญหา / หมายเหตุ</th><th></th></tr></thead><tbody>
+    <div class="tw" style="margin-top:10px"><table><thead><tr><th>เวลา (ไทย)</th><th>ร้าน</th><th>ผู้ดูแล</th><th>สถานะ</th><th>ปัญหา / หมายเหตุ</th><th></th></tr></thead><tbody>
     ${dayAp.map(apRow).join('') || '<tr><td colspan="6" class="muted">ไม่มีนัดในวันนี้</td></tr>'}</tbody></table></div>
     ${dayLv.length ? `<div class="sec">LIVE ที่บันทึกวันนี้</div><div class="tw"><table><tbody>${dayLv.map(lvRow).join('')}</tbody></table></div>` : ''}</div>
   ${recorderCard(true)}
