@@ -333,51 +333,74 @@ function importModal() {
 }
 
 // ---------------- blockers ----------------
+const REVIEW2 = [['Pending', '—'], ['Noted', '✓ Noted'], ['Confirmed External', '✓ ปัญหาภายนอก (ลดเป้าได้)'], ['Rejected - Employee Responsible', '✗ พนักงานรับผิดชอบ'], ['Needs More Info', '? ขอข้อมูลเพิ่ม']];
+const BST2 = [['Open', '🔴 Open'], ['Follow-up Done', '🟡 ตามแล้ว รอผล'], ['Escalated', '🟠 Escalated'], ['Resolved', '✅ เสร็จแล้ว']];
+async function setBlocker(b, patch, msg) {
+  const t = C.iso(C.today());
+  if (patch.status === 'Resolved') Object.assign(patch, { res_date: t, fu_done: b.fu_done || t });
+  if (patch.status === 'Follow-up Done' && !b.fu_done) patch.fu_done = t;
+  if (patch.status && patch.status !== 'Resolved' && b.status === 'Resolved') patch.res_date = null;
+  await save(sb.from('blockers').update(patch).eq('id', b.id), msg);
+}
 function viewBlockers() {
   const a = asof();
+  const rn = b => (S.rests.find(r => r.rid === b.rid) || {}).name || b.store_name || b.rid || '';
   const openN = S.blockers.filter(b => b.status !== 'Resolved').length;
+  const list = S.blockers.filter(b => !S.bOpen || b.status !== 'Resolved');
   $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><button class="btn p" id="addb">+ บันทึกปัญหา / No-show</button><button class="btn" id="expb">Export CSV</button>
     <div style="flex:1"></div><label class="small" style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="bopen" style="width:auto" ${S.bOpen ? 'checked' : ''}> แสดงเฉพาะที่ยังไม่เสร็จ (${openN})</label></div>
-  <div class="note" style="margin-top:10px">💬 ทุกปัญหาที่บันทึกจะแจ้งเข้า <b>Google Chat</b> ทันที และ<b>เตือนซ้ำทุก 2 วัน</b> จนกว่าจะกด <b>✅ เสร็จแล้ว</b>${isMgr() ? ' · ตั้งค่า Google Chat ที่ 🔒 KPI ➔ 🔔 Calendar & Chat' : ''}</div>
-  <p class="small muted">Employee-controlled = Responsible Party Employee / Shared. External blockers reduce the employee's target automatically only when documented (restaurant, description, responsible party, follow-up due date), followed up on time, and not rejected by the Manager.</p>
-  <div class="tw"><table><thead><tr><th>Date</th><th>Restaurant</th><th>Employee</th><th>Category</th><th>Description</th><th>Responsible</th><th>Type</th><th>Follow-up due</th><th>Follow-up</th><th>Status</th><th>Manager review</th><th>Relief</th><th></th></tr></thead><tbody>
-  ${S.blockers.filter(b => !S.bOpen || b.status !== 'Resolved').map(b => { const i = C.blockerInfo(b, a); const rn = (S.rests.find(r => r.rid === b.rid) || {}).name || '';
-    return `<tr><td><a href="#" data-b="${b.id}">${fd(b.log_date)}</a></td><td>${esc(b.rid || '')}<div class="small muted">${esc(rn)}</div></td><td>${esc(memberName(b.employee))}</td><td class="small">${esc(b.category || '')}</td>
-    <td class="small">${esc(b.description || '')}${b.evidence ? ` <a href="${esc(b.evidence)}" target="_blank" rel="noopener">evidence</a>` : ''}${!i.docOk ? '<span class="flag">⚠ documentation incomplete</span>' : ''}</td>
-    <td class="small">${esc(b.party || '')}</td><td>${i.control === 'External' ? badge('External', 'blue') : i.control === 'Employee-controlled' ? badge('Employee', 'warn') : badge('Not set', 'grey')}</td>
-    <td class="small">${fd(b.fu_due)}</td><td>${badge(i.fu, i.fu === 'On time' ? 'good' : i.fu === 'Overdue' || i.fu === 'Late' ? 'bad' : 'grey')}</td><td class="small">${esc(b.status || '')}</td>
-    <td class="small">${esc(b.review || '')}</td><td>${i.relief ? badge('Yes', 'good') : ''}</td>
-    <td style="white-space:nowrap">${b.status === 'Resolved' ? badge('✅ เสร็จแล้ว', 'good') + (b.res_date ? `<div class="small muted">${fd(b.res_date)}</div>` : '') : `<button class="btn s t" data-bdone="${b.id}">✅ เสร็จแล้ว</button>${b.reminded_at ? `<div class="small muted">เตือนล่าสุด ${fmtDT(b.reminded_at)}</div>` : ''}`}</td></tr>`; }).join('') || '<tr><td colspan="13" class="muted">ยังไม่มีปัญหาที่บันทึกไว้</td></tr>'}</tbody></table></div></div>`;
+  <div class="note" style="margin-top:10px">💬 บันทึกแล้วแจ้งเข้า <b>Google Chat</b> ทันที และ<b>เตือนซ้ำทุก 2 วัน</b>จนกว่าจะ<b>ติ๊ก ✓ เสร็จ</b> · วันที่แก้เสร็จ = วันที่ติ๊ก · เปลี่ยนสถานะได้จากตารางนี้เลย</div>
+  <div class="tw"><table class="blk"><thead><tr><th>เสร็จ</th><th>วันที่</th><th>ร้าน</th><th>ผู้ดูแล</th><th>ปัญหา</th><th>รายละเอียด</th><th>ต้องตามภายใน</th><th>สถานะ</th><th>Manager Noted</th><th></th></tr></thead><tbody>
+  ${list.map(b => { const i = C.blockerInfo(b, a); const done = b.status === 'Resolved'; const days = Math.round((C.today() - C.parseD(b.log_date)) / C.DAY);
+    const can = isMgr() || b.employee === S.me.code;
+    return `<tr class="${done ? 'done' : ''}"><td style="text-align:center"><input type="checkbox" class="tick" data-tick="${b.id}" ${done ? 'checked' : ''} ${can ? '' : 'disabled'} title="ติ๊กเมื่อแก้เสร็จ"></td>
+    <td class="small">${fd(b.log_date)}${!done && days > 0 ? `<div style="color:${days >= 2 ? 'var(--badT)' : 'var(--warnT)'};font-weight:700">${days} วัน</div>` : ''}${done && b.res_date ? `<div class="small" style="color:var(--goodT)">เสร็จ ${fd(b.res_date)}</div>` : ''}</td>
+    <td><b>${esc(rn(b))}</b></td><td>${esc(memberName(b.employee))}</td><td class="small">${esc(b.category || '')}${b.party ? `<div class="muted">${esc(b.party)}</div>` : ''}</td>
+    <td class="small">${esc(b.description || '')}${b.evidence ? ` <a href="${esc(b.evidence)}" target="_blank" rel="noopener">หลักฐาน</a>` : ''}</td>
+    <td class="small">${fd(b.fu_due)}${!done && i.fu === 'Overdue' ? ' ' + badge('เลยกำหนด', 'bad') : ''}</td>
+    <td><select class="mini" data-bst="${b.id}" ${can ? '' : 'disabled'}>${BST2.map(o => `<option value="${o[0]}" ${(b.status || 'Open') === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></td>
+    <td>${isMgr() ? `<select class="mini" data-brv="${b.id}">${REVIEW2.map(o => `<option value="${o[0]}" ${(b.review || 'Pending') === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>` : `<span class="small">${esc((REVIEW2.find(o => o[0] === (b.review || 'Pending')) || ['', ''])[1])}</span>`}</td>
+    <td>${can ? `<button class="btn s" data-b="${b.id}">แก้ไข</button>` : ''}</td></tr>`; }).join('') || '<tr><td colspan="10" class="muted">ยังไม่มีปัญหาที่บันทึกไว้</td></tr>'}</tbody></table></div></div>`;
   $('#bopen').onchange = e => { S.bOpen = e.target.checked; render(); };
-  document.querySelectorAll('[data-bdone]').forEach(x => x.onclick = async () => {
-    const b = S.blockers.find(y => String(y.id) === x.dataset.bdone); const rn = (S.rests.find(r => r.rid === b.rid) || {}).name || b.rid || '';
-    if (!confirm(`ปัญหานี้แก้เสร็จแล้ว?\n${rn} — ${b.category || ''}\n\nระบบจะหยุดเตือน และแจ้ง Google Chat ว่าแก้เรียบร้อย`)) return;
-    const t = C.iso(C.today());
-    await save(sb.from('blockers').update({ status: 'Resolved', res_date: t, fu_done: b.fu_done || t }).eq('id', b.id), 'เรียบร้อย ✅ แจ้ง Google Chat แล้ว');
-  });
   $('#addb').onclick = () => blockerModal(null);
-  $('#expb').onclick = () => download('blocker-noshow-log.csv', toCsv([['Date', 'Restaurant ID', 'Restaurant Name', 'Employee', 'Issue Category', 'Issue Description', 'Evidence Link', 'Responsible Party', 'Follow-up Due Date', 'Follow-up Completed Date', 'Resolution Date', 'Status', 'Manager Review']]
-    .concat(S.blockers.map(b => [b.log_date, b.rid, (S.rests.find(r => r.rid === b.rid) || {}).name, b.employee, b.category, b.description, b.evidence, b.party, b.fu_due, b.fu_done, b.res_date, b.status, b.review]))));
-  document.querySelectorAll('[data-b]').forEach(x => x.onclick = e => { e.preventDefault(); blockerModal(S.blockers.find(b => String(b.id) === x.dataset.b)); });
+  $('#expb').onclick = () => download('blocker-noshow-log.csv', toCsv([['Date', 'Restaurant ID', 'Restaurant Name', 'Employee', 'Issue Category', 'Issue Description', 'Evidence Link', 'Responsible Party', 'Follow-up Due Date', 'Follow-up Completed Date', 'Resolved Date', 'Status', 'Manager Noted']]
+    .concat(S.blockers.map(b => [b.log_date, b.rid, rn(b), b.employee, b.category, b.description, b.evidence, b.party, b.fu_due, b.fu_done, b.res_date, b.status, b.review]))));
+  document.querySelectorAll('[data-b]').forEach(x => x.onclick = () => blockerModal(S.blockers.find(b => String(b.id) === x.dataset.b)));
+  document.querySelectorAll('[data-tick]').forEach(x => x.onchange = async () => {
+    const b = S.blockers.find(y => String(y.id) === x.dataset.tick);
+    if (x.checked) { if (!confirm(`แก้เสร็จแล้ว?\n${rn(b)} — ${b.category || ''}\n\nระบบจะหยุดเตือน และแจ้ง Google Chat ว่าแก้เรียบร้อย`)) { x.checked = false; return; } await setBlocker(b, { status: 'Resolved' }, 'เรียบร้อย ✅ แจ้ง Google Chat แล้ว'); }
+    else { if (!confirm('เปิดปัญหานี้ใหม่? (ระบบจะเริ่มเตือนอีกครั้ง)')) { x.checked = true; return; } await setBlocker(b, { status: 'Open' }, 'เปิดใหม่แล้ว'); }
+  });
+  document.querySelectorAll('[data-bst]').forEach(x => x.onchange = async () => {
+    const b = S.blockers.find(y => String(y.id) === x.dataset.bst);
+    if (x.value === 'Resolved' && !confirm('แก้เสร็จแล้ว? ระบบจะหยุดเตือน')) { x.value = b.status || 'Open'; return; }
+    await setBlocker(b, { status: x.value }, 'อัปเดตสถานะแล้ว');
+  });
+  document.querySelectorAll('[data-brv]').forEach(x => x.onchange = async () => { const b = S.blockers.find(y => String(y.id) === x.dataset.brv); await setBlocker(b, { review: x.value }, 'บันทึก Manager Noted แล้ว'); });
 }
 function blockerModal(b) {
-  const isNew = !b; b = b || { log_date: C.iso(C.today()), employee: S.me.code, status: 'Open', review: 'Pending' };
+  const isNew = !b; b = b || { log_date: C.iso(C.today()), employee: S.me.code, status: 'Open', review: 'Pending', fu_due: C.iso(C.addWorkdays(C.today(), 2, C.holidaySet(S.settings))) };
   const f = (n, l, t = 'text') => `<div><label>${l}</label><input name="${n}" type="${t}" value="${esc(b[n] ?? '')}"></div>`;
-  const s = (n, l, list, dis) => `<div><label>${l}</label><select name="${n}" ${dis ? 'disabled' : ''}>${opts(list, b[n], true)}</select></div>`;
-  openModal(`<h3>${isNew ? '🚨 บันทึกปัญหา / No-show' : 'แก้ไขปัญหา'}</h3>${isNew ? '<p class="small muted">บันทึกแล้วจะแจ้งเข้า Google Chat ทันที และเตือนซ้ำทุก 2 วันจนกว่าจะกด ✅ เสร็จแล้ว</p>' : ''}<div id="bf"><div class="fg">
-    ${f('log_date', 'Date', 'date')}<div><label>Restaurant</label><select name="rid"><option value=""></option>${S.rests.map(r => `<option value="${esc(r.rid)}" ${r.rid === b.rid ? 'selected' : ''}>${esc(r.rid)} · ${esc(r.name)}</option>`).join('')}</select></div>
-    <div><label>Employee</label><select name="employee">${memberOpts(b.employee)}</select></div>${s('category', 'Issue category', L.ISSUE)}${s('party', 'Responsible party', L.PARTY)}
-    ${f('evidence', 'Evidence link', 'url')}${f('fu_due', 'Follow-up due date', 'date')}${f('fu_done', 'Follow-up completed date', 'date')}${f('res_date', 'Resolution date', 'date')}
-    ${s('status', 'Status', L.BST)}${s('review', 'Manager review' + (isMgr() ? '' : ' (Manager only)'), L.REVIEW, !isMgr())}</div>
-    <label>Issue description</label><textarea name="description">${esc(b.description ?? '')}</textarea></div>
-    <div class="actions">${!isNew && isMgr() ? '<button class="btn r" id="del" style="margin-right:auto">Delete</button>' : ''}<button class="btn" id="cx">Cancel</button><button class="btn p" id="sv">Save</button></div>`);
+  const s = (n, l, list) => `<div><label>${l}</label><select name="${n}">${opts(list, b[n], true)}</select></div>`;
+  const r0 = S.rests.find(r => r.rid === b.rid);
+  openModal(`<h3>${isNew ? '🚨 บันทึกปัญหา / No-show' : 'แก้ไขปัญหา'}</h3>${isNew ? '<p class="small muted">บันทึกแล้วจะแจ้งเข้า Google Chat ทันที และเตือนซ้ำทุก 2 วันจนกว่าจะติ๊ก ✓ เสร็จ ในตาราง</p>' : ''}${restList()}
+    <div id="bf"><div class="fg">
+    ${f('log_date', 'วันที่', 'date')}<div style="grid-column:span 2"><label>ชื่อร้าน *</label><input id="b_r" list="restlist" value="${esc(r0 ? r0.name : '')}" placeholder="พิมพ์ชื่อร้าน"></div>
+    <div><label>ผู้ดูแล</label><select name="employee" ${isMgr() ? '' : 'disabled'}>${memberOpts(b.employee)}</select></div>${s('category', 'ประเภทปัญหา *', L.ISSUE)}${s('party', 'ปัญหามาจากใคร', L.PARTY)}
+    ${f('fu_due', 'ต้องตามภายในวันที่', 'date')}${f('evidence', 'ลิงก์หลักฐาน (ถ้ามี)', 'url')}</div>
+    <label>รายละเอียดปัญหา *</label><textarea name="description" placeholder="เช่น ร้านไม่รับสาย 3 ครั้ง, รอ IT แก้ปุ่ม, เครื่องปริ้นเสีย">${esc(b.description ?? '')}</textarea></div>
+    <div class="actions">${!isNew && isMgr() ? '<button class="btn r s" id="del" style="margin-right:auto">ลบ</button>' : ''}<button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">บันทึก</button></div>`);
   $('#cx').onclick = closeModal;
-  if ($('#del')) $('#del').onclick = async () => { if (confirm('Delete this entry?')) { closeModal(); await save(sb.from('blockers').delete().eq('id', b.id), 'Deleted'); } };
+  if ($('#del')) $('#del').onclick = async () => { if (confirm('ลบรายการนี้?')) { closeModal(); await save(sb.from('blockers').delete().eq('id', b.id), 'ลบแล้ว'); } };
   $('#sv').onclick = async () => {
-    const d = formData($('#bf')); if (!isMgr()) delete d.review;
-    if (!d.log_date) return toast('Date is required', true);
+    const d = formData($('#bf')); if (!isMgr()) d.employee = b.employee || S.me.code;
+    const name = $('#b_r').value.trim();
+    if (!name || !d.category || !d.description) return toast('กรุณาใส่ชื่อร้าน ประเภทปัญหา และรายละเอียด', true);
+    if (!d.log_date) d.log_date = C.iso(C.today());
+    $('#sv').disabled = true; const r = await ensureRest(name); if (!r) { $('#sv').disabled = false; return; } d.rid = r.rid;
+    if (isNew) { d.status = 'Open'; d.review = 'Pending'; }
     closeModal();
-    await save(isNew ? sb.from('blockers').insert(d) : sb.from('blockers').update(d).eq('id', b.id), 'Saved');
+    await save(isNew ? sb.from('blockers').insert(d) : sb.from('blockers').update(d).eq('id', b.id), isNew ? 'บันทึกแล้ว · แจ้ง Google Chat แล้ว 💬' : 'บันทึกแล้ว');
   };
 }
 
