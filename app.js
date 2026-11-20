@@ -766,7 +766,7 @@ const PRELIVE = [
   { n: 8, t: 'Payment Method Verification', opts: ['Pay at the Counter', 'Stripe'], optional: true },
   { n: 19, t: 'System Defaults (General · Tipping · Age Verification · Ordering · Checkout)' },
   { n: 9, t: 'Test Orders (3 real orders + print)', opts: ['🛍️ Pickup order', '🛵 Delivery order', '🚗 Uber order'] },
-  { n: 10, t: 'Website System & Domain Provider (+ Facebook link)', opts: ['Add button with us', 'GF Web', 'Add button with other', 'Domain with us', 'Domain not with us'] },
+  { n: 10, t: 'Website & Landing Page (Domain, SEO, Nav links, Gallery, Contact, Footer, CSS, Facebook)', opts: ['Add button with us', 'GF Web', 'Add button with other', 'Domain with us', 'Domain not with us'] },
   { n: 11, t: 'Cloudflare DNS: add 35.238.2.132 to A Record', link: 'cloudflare_url', linkT: 'Cloudflare' }, { n: 12, t: 'Google Search Console Integration', link: 'gsc_url', linkT: 'Search Console' }, { n: 13, t: 'Queue to LIVE (Ready to Launch)' }];
 const PL_REQ = PRELIVE.filter(x => !x.optional).length;
 const DAY_PLAN = [['07:00 – 08:00', 'Follow-up Non-responsive Stores', ['โทรตามคิว Priority ร้าน', 'อัปเดต Status ทันทีหลังโทร', 'ไม่รับสาย = ส่ง SMS/Email']],
