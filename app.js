@@ -1402,9 +1402,17 @@ async function viewFlow() {
       <div class="fpics">${pair.map((s, x) => { const { list } = pic(s); return `<div class="fpic"><div class="fpicn">${st + x + 1}</div>${list.length ? list.map((y, j) => `<img src="${esc(y)}" alt="${esc(s.t)}" class="real ${j ? 'extra' : ''}" data-zoom="${esc(y)}">`).join('') : MOCK[s.k]}</div>`; }).join('')}</div></div>`; }).join('')}</div>
   <div class="card" id="after"><h2>📨 หลังวางสาย (MIG ต้องทำทุกร้าน)</h2>
     <div class="after">
-      <div class="ac"><div class="an">A</div><div><b>ส่ง How-to ให้ร้าน</b><div class="tks">${tk('a1', 'ส่ง How-to จาก <b>response.io</b> ที่เกี่ยวข้องกับร้านแล้ว')}${tk('a2', 'ส่ง <b>อีเมลวิธีการใช้งาน</b> แล้ว — ใช้ข้อความสำเร็จรูปด้านล่าง (อังกฤษ + ไทย)')}</div>
-        <div class="row"><button class="btn p s" id="cpmsg">📋 Copy ข้อความแจ้งร้าน</button>${isMgr() ? '<button class="btn s" id="edmsg">แก้ไขข้อความ</button>' : ''}</div>
-        <pre class="msg">${esc(content('howto_msg'))}</pre></div></div>
+      <div class="ac"><div class="an">A</div><div><b>ส่ง How-to ให้ร้าน</b><div class="tks">${tk('a1', 'ส่ง How-to จาก <b>response.io</b> ที่เกี่ยวข้องกับร้านแล้ว')}</div>
+        <div class="gmailbox"><div><div class="spt">✉️ ส่งอีเมล "New System Grand Opening" ผ่าน Gmail Layout</div><ol>
+          <li>เปิด Gmail กด <b>Compose</b> ใส่อีเมลร้านที่ <b>Recipients</b> และใส่ <b>Subject</b></li>
+          <li>กดปุ่ม <b>Layouts</b> (ไอคอนกรอบสี่เหลี่ยม แถบล่างข้างปุ่มปฏิทิน) → แท็บ <b>My layouts</b> → เลือก <b>New System Grand Opening</b> → กด <b>Edit layout</b></li>
+          <li>แก้ข้อมูลล็อกอินหลังบ้านให้เป็นของร้านนี้: <b>Username</b> = อีเมลร้าน · <b>Password</b> = รหัสของร้าน (ช่องที่ไฮไลต์เหลืองในรูป)</li>
+          <li>เช็กชื่อผู้ส่งท้ายอีเมล (Best regards, ชื่อเรา) → กด <b>Insert</b> → <b>Send</b></li></ol>
+          ${tk('a2', 'ส่งอีเมล Grand Opening แล้ว (แก้ Username / Password เป็นของร้านนี้แล้ว)')}</div>
+          <div class="gmailpics"><img src="img/gmail_layout.jpg" class="real" data-zoom="img/gmail_layout.jpg" alt="Gmail Layouts"><img src="img/gmail_edit.jpg" class="real" data-zoom="img/gmail_edit.jpg" alt="Edit layout"></div></div>
+        <details class="small" style="margin-top:8px"><summary>ข้อความสำเร็จรูป (ใช้เมื่อส่งทางแชต / ไม่ได้ใช้ Gmail)</summary>
+        <div class="row" style="margin-top:6px"><button class="btn p s" id="cpmsg">📋 Copy ข้อความแจ้งร้าน</button>${isMgr() ? '<button class="btn s" id="edmsg">แก้ไขข้อความ</button>' : ''}</div>
+        <pre class="msg">${esc(content('howto_msg'))}</pre></details></div></div>
       <div class="ac"><div class="an">B</div><div><b>เว็บไซต์ร้านเป็นแบบไหน?</b>
         <div class="split"><div class="sp cw"><div class="spt">🌐 เว็บ CW</div><ul><li>แจ้ง <b>คุณต้น</b> ทุกครั้งเพื่อ LIVE website</li><li>บอกร้าน: <b>ใช้ระบบใหม่ได้ทันที</b></li></ul>${tonTasks()}</div>
           <div class="sp it"><div class="spt">🛠️ เว็บ Template สร้างโดย IT</div><ul><li>บอกร้าน: <b>พร้อมใช้พรุ่งนี้ (ภายใน 24 ชม.)</b></li><li>แจ้งใน Monday IT board ให้อัปเดตปุ่ม <b>Online Order</b> และ <b>Table Reservation</b></li></ul>${it ? `<a class="btn s" href="${esc(it)}" target="_blank" rel="noopener">🔗 Monday IT board</a>` : ''}</div></div>
