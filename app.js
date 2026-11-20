@@ -1149,6 +1149,31 @@ function tonTasks() {
     <li><b>Google Search Console:</b> เพิ่ม / ตรวจโดเมนร้าน และส่ง sitemap</li></ol>
     <div class="row">${cf ? `<a class="btn s" href="${esc(cf)}" target="_blank" rel="noopener">☁️ Cloudflare</a>` : ''}${gsc ? `<a class="btn s" href="${esc(gsc)}" target="_blank" rel="noopener">🔎 Google Search Console</a>` : ''}</div></div>`;
 }
+function plStores() { // latest pre-live record per store
+  const m = new Map(); (S.prelive || []).forEach(p => { const k = (p.store_name || '').trim().toLowerCase(); if (k && !m.has(k)) m.set(k, p); });
+  return [...m.values()].sort((a, b) => a.store_name.localeCompare(b.store_name));
+}
+function flowStorePick() {
+  const list = plStores(); const sel = S.flowStore || '';
+  const p = list.find(x => x.store_name === sel);
+  const isLiveDone = n => (S.acts || []).some(a => a.kind === 'live' && a.store_name.trim().toLowerCase() === n.trim().toLowerCase());
+  return `<div class="ac"><div class="an">D</div><div><b>เลือกร้านที่ LIVE แล้วบันทึก</b> <span class="small muted">รายชื่อร้านมาจาก Pre-Live Checklist เท่านั้น</span>
+    ${list.length ? `<div class="row" style="margin-top:8px;align-items:center"><select id="fsel" style="min-width:260px;flex:1;max-width:420px"><option value="">— เลือกชื่อร้าน —</option>
+      ${list.map(x => `<option value="${esc(x.store_name)}" ${x.store_name === sel ? 'selected' : ''}>${esc(x.store_name)}${x.done >= PL_REQ ? ' ✓ Pre-Live ครบ' : ` (Pre-Live ${x.done}/${PL_REQ})`}${isLiveDone(x.store_name) ? ' · 🔴 LIVE แล้ว' : ''}</option>`).join('')}</select>
+      <button class="btn r" id="fgo" ${p ? '' : 'disabled'}>🔴 บันทึก LIVE ร้านนี้</button></div>
+      ${p ? `<div class="small" style="margin-top:6px">${p.done >= PL_REQ ? badge('✓ Pre-Live Checklist ครบ ' + PL_REQ + ' ข้อ', 'good') : badge(`⚠️ Pre-Live ยังไม่ครบ (${p.done}/${PL_REQ})`, 'warn') + ' <a href="#" id="fpl">ไปเช็กต่อ</a>'} · ตรวจโดย ${esc(memberName(p.inspector))} · ${fmtDT(p.updated_at)}${isLiveDone(p.store_name) ? ' · ' + badge('ร้านนี้บันทึก LIVE ไปแล้ว', 'blue') : ''}</div>` : ''}`
+    : `<p class="small muted" style="margin:6px 0">ยังไม่มีร้านใน Pre-Live Checklist — ทำ Pre-Live Checklist ของร้านก่อน แล้วชื่อร้านจะขึ้นที่นี่</p>`}</div></div>`;
+}
+function bindFlowPick() {
+  if ($('#fsel')) $('#fsel').onchange = e => { S.flowStore = e.target.value; const y = window.scrollY; render(); window.scrollTo(0, y); };
+  if ($('#fpl')) $('#fpl').onclick = e => { e.preventDefault(); const p = plStores().find(x => x.store_name === S.flowStore); S.pl = Object.assign({}, p); S.tab = 'prelive'; render(); window.scrollTo(0, 0); };
+  if ($('#fgo')) $('#fgo').onclick = () => {
+    const p = plStores().find(x => x.store_name === S.flowStore); if (!p) return;
+    if (p.done < PL_REQ && !confirm(`Pre-Live Checklist ของร้านนี้ยังไม่ครบ (${p.done}/${PL_REQ}) จะบันทึก LIVE ต่อไหม?`)) return;
+    activityModal('live', null, { store_name: p.store_name, rid: p.rid, member_code: S.me.code, checklist: { from_prelive: p.id } });
+    const inp = $('#a_r'); if (inp) { inp.readOnly = true; inp.removeAttribute('list'); inp.classList.add('locked'); }
+  };
+}
 function flowImgs() { try { return JSON.parse(content('flow_images') || '{}'); } catch { return {}; } }
 async function viewFlow() {
   const imgs = flowImgs(); const paths = Object.values(imgs).filter(Boolean);
@@ -1159,7 +1184,7 @@ async function viewFlow() {
       <h2 style="margin:2px 0;color:#fff;font-size:20px"><img src="img/app-icon.png" alt="" style="width:30px;height:30px;vertical-align:middle;margin-right:6px">LIVE PROJECT FLOW <small style="color:#CBD5E1">ขั้นตอนพาร้านเปิดระบบขณะอยู่ในสาย</small></h2>
       <div style="color:#E2E8F0">🚀 เป้าหมายจบสาย: <b>หน้ารับออเดอร์เปิดค้าง + เครื่องปริ้น Test print สำเร็จ + รับ Test order ได้</b></div></div>
       <button class="btn r" data-new="live">🔴 Record LIVE</button></div>
-    <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">หลังวางสาย</a><a href="#gallery" class="fchip a">🖼️ รูปทั้งหมด</a></div></div>
+    <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">หลังวางสาย</a><a href="#after" class="fchip a">D. เลือกร้าน & บันทึก LIVE</a><a href="#gallery" class="fchip a">🖼️ รูปทั้งหมด</a></div></div>
   <div class="flowgrid">${FLOW.map((s, i) => { const p = imgs[s.k]; const up = p && urls[p]; const list = up ? [up] : (REAL[s.k] || []); const u = list[0];
     return `<div class="card fstep" id="st${i}"><div class="fnum">${i + 1}</div><div class="fbody"><h3>${esc(s.t)}</h3><ul>${s.d.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
       ${s.link && content(s.link) ? `<a class="btn s" href="${esc(content(s.link))}" target="_blank" rel="noopener">🔗 ${esc(s.linkT)}</a> <button class="btn s" data-cp="${esc(content(s.link))}">📋 Copy ลิงก์ส่งให้ร้าน</button>` : ''}
@@ -1176,10 +1201,11 @@ async function viewFlow() {
       <div class="ac"><div class="an">C</div><div><b>อัปเดต 486 Monday</b> ${content('monday_486') ? `<a class="btn s" href="${esc(content('monday_486'))}" target="_blank" rel="noopener">🔗 เปิด 486 board</a>` : ''}
         <div class="split"><div class="sp ok"><div class="spt">✅ เรียบร้อยทุกอย่าง</div><ul><li>เปลี่ยน Status เป็น <b>Completed</b></li></ul></div>
           <div class="sp q"><div class="spt">⏳ ยังไม่เรียบร้อย</div><ul><li>คงสถานะ <b>Queue to go live</b></li><li>ตอนกด Record LIVE ให้ใส่ <b>"ต้องตามเรื่องอะไร"</b></li><li>ระบบแจ้งเตือนเข้า <b>Google Chat</b> ให้เอง และขึ้นในกล่อง "ต้องตามงานต่อ" หน้า Dashboard จนกว่าจะกดเสร็จ</li></ul></div></div></div></div>
-    </div><div class="actions"><button class="btn r" data-new="live">🔴 Record LIVE</button></div></div>
+      ${flowStorePick()}
+    </div></div>
   <div class="card" id="gallery"><h2>🖼️ รูปหน้าจอแอป PushPrinter Nitro ทั้งหมด <small>กดรูปเพื่อขยาย · ใช้ประกอบการอธิบายร้านหรือส่งให้ร้านดูได้</small></h2>
     <div class="gal">${GALLERY.map(g => `<figure><img src="${g[0]}" alt="${esc(g[1])}" data-zoom="${g[0]}"><figcaption>${esc(g[1])}<br><a href="${g[0]}" download class="small">⬇️ ดาวน์โหลด</a></figcaption></figure>`).join('')}</div></div>`;
-  bindActButtons();
+  bindActButtons(); bindFlowPick();
   $('#cpmsg').onclick = () => navigator.clipboard.writeText(content('howto_msg')).then(() => toast('คัดลอกข้อความแล้ว — วางในอีเมล / แชตส่งร้านได้เลย'));
   if ($('#edmsg')) $('#edmsg').onclick = () => { openModal(`<h3>ข้อความแจ้งร้านหลัง LIVE</h3><textarea id="hm" style="min-height:420px">${esc(content('howto_msg'))}</textarea><div class="actions"><button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">Save</button></div>`);
     $('#cx').onclick = closeModal; $('#sv').onclick = async () => { const v = $('#hm').value; closeModal(); await save(sb.from('content').update({ body: v }).eq('key', 'howto_msg'), 'บันทึกข้อความแล้ว'); }; };
