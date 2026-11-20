@@ -243,3 +243,6 @@ table.issues{width:100%;background:#fff;border-collapse:collapse}table.issues td
 @media(max-width:900px){.gmailbox{grid-template-columns:1fr}}
 
 .lightph::placeholder{color:#B6C0CC;font-style:italic}
+
+html{scrollbar-gutter:stable}
+html.noscroll,html.noscroll body{overflow:hidden;overscroll-behavior:none}

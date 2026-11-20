@@ -1052,6 +1052,11 @@ function sheetCard() {
       <p class="small muted" style="margin:6px 0 0">ขึ้น "You need access" = เบราว์เซอร์ใช้บัญชี Google อื่นอยู่ → กด <b>ล็อกอิน Google (ครั้งแรก)</b> เลือก/ล็อกอินบัญชีด้านบนในแท็บใหม่ แล้วกลับมากด <b>🔄 โหลดเอกสารใหม่</b> · ทำครั้งเดียว เบราว์เซอร์จำไว้</p></div>`;
 }
 function bindSheet() {
+  document.querySelectorAll('.sheetframe').forEach(f => {
+    f.onmouseenter = () => document.documentElement.classList.add('noscroll');
+    f.onmouseleave = () => document.documentElement.classList.remove('noscroll');
+  });
+  document.documentElement.classList.remove('noscroll');
   document.querySelectorAll('[data-em]').forEach(x => x.onchange = () => { const i = x.dataset.em; S.emb[i] = Object.assign({}, S.emb[i], { mode: x.value }); render(); });
   document.querySelectorAll('[data-ebig]').forEach(x => x.onclick = () => { const i = x.dataset.ebig; S.emb[i] = Object.assign({}, S.emb[i], { big: !(S.emb[i] || {}).big }); render(); });
   document.querySelectorAll('[data-etg]').forEach(x => x.onclick = () => { const i = x.dataset.etg; const o = (S.emb[i] || {}).open !== false; S.emb[i] = Object.assign({}, S.emb[i], { open: !o }); render(); });
