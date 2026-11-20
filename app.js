@@ -845,27 +845,45 @@ function viewHome() {
     toast('เรียบร้อย ✅ แจ้ง Google Chat แล้ว'); await loadAll(); render();
   });
 }
+function embeds() { try { const v = JSON.parse(content('dash_embeds') || '[]'); if (v.length) return v; } catch { }
+  return content('dash_sheet') ? [{ t: '📊 ชีตงาน Migration', u: content('dash_sheet') }] : []; }
+function embedSrc(u, mode) {
+  const m = (u || '').match(/docs\.google\.com\/(spreadsheets|document|presentation)\/d\/([A-Za-z0-9_-]+)/); if (!m) return null;
+  const [, kind, id] = m; const gid = ((u || '').match(/[#&?]gid=(\d+)/) || [])[1];
+  if (kind === 'spreadsheets') return mode === 'view' ? `https://docs.google.com/spreadsheets/d/${id}/htmlview?rm=minimal${gid ? '&gid=' + gid : ''}` : `https://docs.google.com/spreadsheets/d/${id}/edit?rm=minimal${gid ? '#gid=' + gid : ''}`;
+  if (kind === 'document') return mode === 'view' ? `https://docs.google.com/document/d/${id}/preview` : `https://docs.google.com/document/d/${id}/edit?rm=minimal`;
+  return `https://docs.google.com/presentation/d/${id}/${mode === 'view' ? 'embed' : 'edit?rm=minimal'}`;
+}
 function sheetCard() {
-  const url = content('dash_sheet'); if (!url && !isMgr()) return '';
-  const m = (url || '').match(/\/spreadsheets\/d\/([A-Za-z0-9_-]+)/); const id = m && m[1];
-  const gid = ((url || '').match(/[#&?]gid=(\d+)/) || [])[1];
-  const mode = S.sheetMode || 'edit';
-  const src = id ? (mode === 'view' ? `https://docs.google.com/spreadsheets/d/${id}/htmlview?rm=minimal${gid ? '&gid=' + gid : ''}` : `https://docs.google.com/spreadsheets/d/${id}/edit?rm=minimal${gid ? '#gid=' + gid : ''}`) : '';
-  const open = S.sheetOpen !== false; const big = !!S.sheetBig;
-  return `<div class="card sheetcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">📊 ชีตงาน Migration <small>แก้ไขได้ตรงนี้เลย · บันทึกเข้า Google Sheets อัตโนมัติ</small></h2>
-      ${id ? `<span class="seg"><label><input type="radio" name="shm" value="edit" ${mode === 'edit' ? 'checked' : ''}><b>✏️ แก้ไข</b></label><label><input type="radio" name="shm" value="view" ${mode === 'view' ? 'checked' : ''}><b>👁️ ดูอย่างเดียว</b></label></span>
-      <button class="btn s" id="shbig">${big ? '↙️ ย่อ' : '↗️ ขยาย'}</button><a class="btn s" href="${esc(url)}" target="_blank" rel="noopener">เปิดในแท็บใหม่</a>` : ''}
-      ${isMgr() ? '<button class="btn s" id="shurl">เปลี่ยนลิงก์</button>' : ''}<button class="btn s" id="shtg">${open ? 'ซ่อน' : 'แสดง'}</button></div>
-    ${open ? (id ? `<iframe class="sheetframe ${big ? 'big' : ''}" src="${esc(src)}" loading="eager" allow="clipboard-read; clipboard-write"></iframe>
-      <p class="small muted" style="margin:6px 0 0">ถ้าชีตไม่ขึ้นหรือขึ้นให้ล็อกอิน: ล็อกอิน Google บัญชีบริษัทในเบราว์เซอร์นี้ หรือกด "เปิดในแท็บใหม่" · ถ้าแก้ไม่ได้ ให้เจ้าของชีตแชร์สิทธิ์ Editor ให้ทีม</p>`
-      : '<p class="muted">ยังไม่ได้ใส่ลิงก์ Google Sheet</p>') : ''}</div>`;
+  const list = embeds(); if (!list.length && !isMgr()) return '';
+  S.emb = S.emb || {};
+  return list.map((e, i) => { const st = S.emb[i] || {}; const mode = st.mode || 'edit'; const open = st.open !== false; const src = embedSrc(e.u, mode);
+    return `<div class="card sheetcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${esc(e.t)} <small>แก้ไขตรงนี้ได้เลย · อัปเดต real-time กับ Google</small></h2>
+      ${src ? `<span class="seg"><label><input type="radio" name="em${i}" data-em="${i}" value="edit" ${mode === 'edit' ? 'checked' : ''}><b>✏️ แก้ไข</b></label><label><input type="radio" name="em${i}" data-em="${i}" value="view" ${mode === 'view' ? 'checked' : ''}><b>👁️ ดูอย่างเดียว</b></label></span>
+      <button class="btn s" data-ebig="${i}">${st.big ? '↙️ ย่อ' : '↗️ ขยาย'}</button><a class="btn s" href="${esc(e.u)}" target="_blank" rel="noopener">เปิดในแท็บใหม่</a>` : ''}
+      <button class="btn s" data-etg="${i}">${open ? 'ซ่อน' : 'แสดง'}</button></div>
+      ${open ? (src ? `<iframe class="sheetframe ${st.big ? 'big' : ''}" src="${esc(src)}" loading="eager" allow="clipboard-read; clipboard-write"></iframe>` : '<p class="muted">ลิงก์นี้ไม่ใช่ Google Sheets / Docs</p>') : ''}</div>`; }).join('')
+    + `<div class="row small muted" style="margin:-8px 0 16px;gap:8px;align-items:center">ถ้าเอกสารไม่ขึ้น: ล็อกอิน Google บัญชีบริษัทในเบราว์เซอร์นี้ หรือกด "เปิดในแท็บใหม่"${isMgr() ? ' · <button class="btn s" id="emanage">⚙️ จัดการเอกสารบน Dashboard</button>' : ''}</div>`;
 }
 function bindSheet() {
-  document.querySelectorAll('[name="shm"]').forEach(x => x.onchange = () => { S.sheetMode = x.value; render(); });
-  if ($('#shbig')) $('#shbig').onclick = () => { S.sheetBig = !S.sheetBig; render(); };
-  if ($('#shtg')) $('#shtg').onclick = () => { S.sheetOpen = S.sheetOpen === false; render(); };
-  if ($('#shurl')) $('#shurl').onclick = async () => { const v = prompt('ลิงก์ Google Sheet:', content('dash_sheet')); if (v === null) return;
-    const { error } = await sb.from('content').upsert({ key: 'dash_sheet', body: v.trim() }); if (error) return toast(error.message, true); toast('บันทึกแล้ว'); await loadAll(); render(); };
+  document.querySelectorAll('[data-em]').forEach(x => x.onchange = () => { const i = x.dataset.em; S.emb[i] = Object.assign({}, S.emb[i], { mode: x.value }); render(); });
+  document.querySelectorAll('[data-ebig]').forEach(x => x.onclick = () => { const i = x.dataset.ebig; S.emb[i] = Object.assign({}, S.emb[i], { big: !(S.emb[i] || {}).big }); render(); });
+  document.querySelectorAll('[data-etg]').forEach(x => x.onclick = () => { const i = x.dataset.etg; const o = (S.emb[i] || {}).open !== false; S.emb[i] = Object.assign({}, S.emb[i], { open: !o }); render(); });
+  if ($('#emanage')) $('#emanage').onclick = () => {
+    const rows = embeds();
+    const draw = () => `<h3>เอกสารที่แสดงบน Dashboard</h3><p class="small muted">Google Sheets / Docs / Slides · เรียงจากบนลงล่าง</p>
+      ${rows.map((e, i) => `<div class="fg" style="grid-template-columns:1fr 2fr auto;align-items:end"><div><label>ชื่อ</label><input data-et="${i}" value="${esc(e.t)}"></div><div><label>ลิงก์</label><input data-eu="${i}" value="${esc(e.u)}"></div><button class="btn s r" data-edel="${i}">ลบ</button></div>`).join('')}
+      <div class="actions" style="justify-content:space-between"><button class="btn" id="eadd">+ เพิ่มเอกสาร</button><span><button class="btn" id="cx">ยกเลิก</button> <button class="btn p" id="sv">Save</button></span></div>`;
+    const sync = () => document.querySelectorAll('[data-et]').forEach(x => { const i = +x.dataset.et; rows[i] = { t: x.value.trim(), u: document.querySelector(`[data-eu="${i}"]`).value.trim() }; });
+    const bind = () => {
+      $('#cx').onclick = closeModal;
+      $('#eadd').onclick = () => { sync(); rows.push({ t: '📄 เอกสารใหม่', u: '' }); openModal(draw()); bind(); };
+      document.querySelectorAll('[data-edel]').forEach(b => b.onclick = () => { sync(); rows.splice(+b.dataset.edel, 1); openModal(draw()); bind(); });
+      $('#sv').onclick = async () => { sync(); const v = rows.filter(r => r.u); closeModal();
+        const { error } = await sb.from('content').upsert({ key: 'dash_embeds', body: JSON.stringify(v) }); if (error) return toast(error.message, true); S.emb = {}; toast('บันทึกแล้ว'); await loadAll(); render(); };
+    };
+    openModal(draw()); bind();
+  };
 }
 function goalCard() {
   const st = S.settings, G = st.goal; if (!G) return '';
