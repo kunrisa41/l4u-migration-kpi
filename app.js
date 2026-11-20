@@ -3,7 +3,9 @@ import * as C from './calc.js';
 
 const SB_URL = 'https://fpmlikgwjijgylszeiba.supabase.co';
 const SB_KEY = 'sb_publishable_G7d7dT7BRpkATd7I1GfBrw_NC3A4B-7';
-const sb = createClient(SB_URL, SB_KEY);
+const sbMain = createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+let sb = sbMain; let sbMgr = null;
+const MGR_IDLE = 30 * 60 * 1000;
 
 const L = {
   STAGE: ['Not Started', 'In Progress', 'Completed', 'Blocked'],
@@ -35,7 +37,8 @@ const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const pct = v => v === null || v === undefined || isNaN(v) ? '–' : Math.round(v * 100) + '%';
 const n1 = v => v === null || v === undefined || isNaN(v) ? '–' : (Math.round(v * 10) / 10).toString();
 const fd = d => d instanceof Date ? C.fmtD(d) : (d ? C.fmtD(d) : '');
-const isMgr = () => !!(S.me && S.me.is_manager);
+const isMgr = () => !!(S.mgrOn && S.me && S.me.is_manager);
+const curUid = () => S.mgrOn ? S.mgrUid : S.session.user.id;
 const memberName = code => (S.members.find(m => m.code === code) || {}).name || code || '';
 const asof = () => C.asOfDate(S.settings);
 function toast(msg, err) { const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (err ? ' err' : ''); clearTimeout(toast._t); toast._t = setTimeout(() => t.className = 'toast hidden', err ? 6000 : 2800); }
@@ -89,7 +92,13 @@ async function loadAll() {
   if (err) throw err.error;
   S.members = m.data; S.settings = s.data ? s.data.data : null; S.rests = r.data; S.blockers = b.data; S.daily = d.data; S.kpi = k.data;
   S.acts = ac.data; S.calls = cl.data; S.prelive = pl.data; S.feedback = fb.data; S.content = ct.data; S.reports = rp.data;
-  S.me = S.members.find(x => x.user_id === S.session.user.id) || null;
+  const acct = S.members.find(x => x.user_id === curUid()) || null;
+  S.acct = acct; S.me = acct;
+  if (acct && acct.is_team && !S.mgrOn) {
+    let code = null; try { code = localStorage.getItem('l4u-actor'); } catch (e) {}
+    const who = S.members.find(x => x.code === code && x.active);
+    S.me = who ? Object.assign({}, who, { is_manager: false, via_team: true }) : null; S.needActor = !who;
+  } else S.needActor = false;
   if (!S.month) { const ms = C.periods(S.settings).filter(p => p.month); const cur = C.monthKey(asof()); S.month = (ms.find(p => p.month === cur) || ms[0]).month; }
 }
 let reloadTimer;
@@ -113,23 +122,60 @@ function renderLogin(msg) {
     ${msg ? `<div class="note">${esc(msg)}</div>` : ''}
     <label>E-mail</label><input id="em" type="email" autocomplete="username">
     <label>Password</label><input id="pw" type="password" autocomplete="current-password">
-    <div class="actions" style="justify-content:space-between">
-      <button class="btn" id="signup">First-time Manager sign-up</button>
-      <button class="btn p" id="signin">Sign in</button>
-    </div>
-    <p class="muted small">พนักงาน: ขอบัญชีล็อกอินจาก Manager (Team members: ask the Manager for your login). The very first account created becomes the Manager.</p></div>`;
+    <div class="actions"><button class="btn p" id="signin">Sign in</button></div>
+    <p class="muted small">ล็อกอินครั้งเดียว ระบบจะจำไว้ใน Browser นี้ ครั้งต่อไปเปิดแล้วเข้าได้เลย · ใช้บัญชีทีม (Team) ที่ Manager สร้างให้</p></div>`;
+  $('#pw').onkeydown = e => { if (e.key === 'Enter') $('#signin').click(); };
   $('#signin').onclick = async () => {
     const { error } = await sb.auth.signInWithPassword({ email: $('#em').value.trim(), password: $('#pw').value });
     if (error) toast(error.message, true);
   };
-  $('#signup').onclick = async () => {
-    const email = $('#em').value.trim(), password = $('#pw').value;
-    if (password.length < 8) return toast('Password must be at least 8 characters', true);
-    const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin } });
-    if (error) return toast(error.message, true);
-    if (!data.session) renderLogin('Account created. Check your e-mail to confirm, then sign in.');
+}
+
+// ---------------- shared team account: who am I + manager lock ----------------
+function renderActor() {
+  const list = S.members.filter(m => m.active);
+  $('#app').innerHTML = `<div class="login"><div class="brand muted small" style="font-weight:700;letter-spacing:.08em">LOCAL FOR YOU</div>
+    <h1>วันนี้ใครใช้งานอยู่?</h1><p class="muted small">เลือกชื่อตัวเอง งานที่บันทึกจะลงชื่อนี้ (เปลี่ยนได้ทุกเมื่อที่ปุ่ม 👤 มุมขวาบน)</p>
+    <div class="actorgrid">${list.map(m => `<button class="btn" data-actor="${esc(m.code)}"><b>${esc(m.name)}</b><br><span class="small muted">${esc(m.role)}</span></button>`).join('')}</div>
+    ${S.me ? '<div class="actions"><button class="btn s" id="acx">ยกเลิก</button></div>' : ''}</div>`;
+  document.querySelectorAll('[data-actor]').forEach(b => b.onclick = async () => {
+    try { localStorage.setItem('l4u-actor', b.dataset.actor); } catch (e) {}
+    const who = S.members.find(x => x.code === b.dataset.actor);
+    S.me = Object.assign({}, who, { is_manager: false, via_team: true }); S.needActor = false; render();
+  });
+  if ($('#acx')) $('#acx').onclick = () => { S.needActor = false; render(); };
+}
+function unlockModal() {
+  const mgr = S.members.find(m => m.is_manager && m.email);
+  openModal(`<h2>🔒 เข้าหน้า Manager KPI</h2><p class="small muted">ใส่รหัสผ่านของ Manager · ระบบจะล็อกเองเมื่อรีเฟรชหน้า กด 🔒 ล็อก Manager หรือไม่ได้ใช้งาน 30 นาที</p>
+    <label>E-mail</label><input id="mem" type="email" value="${esc(mgr ? mgr.email : '')}">
+    <label>Password</label><input id="mpw" type="password" autocomplete="off">
+    <div class="actions"><button class="btn" id="mcx">ยกเลิก</button><button class="btn p" id="mok">ปลดล็อก</button></div>`);
+  setTimeout(() => $('#mpw').focus(), 50);
+  $('#mcx').onclick = closeModal;
+  $('#mpw').onkeydown = e => { if (e.key === 'Enter') $('#mok').click(); };
+  $('#mok').onclick = async () => {
+    $('#mok').disabled = true;
+    const c = createClient(SB_URL, SB_KEY, { auth: { persistSession: false, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'l4u-mgr' } });
+    const { data, error } = await c.auth.signInWithPassword({ email: $('#mem').value.trim(), password: $('#mpw').value });
+    if (error) { $('#mok').disabled = false; return toast('รหัสผ่านไม่ถูกต้อง', true); }
+    const m = S.members.find(x => x.user_id === data.user.id);
+    if (!m || !m.is_manager) { await c.auth.signOut(); $('#mok').disabled = false; return toast('บัญชีนี้ไม่ใช่ Manager', true); }
+    sbMgr = c; sb = c; S.mgrOn = true; S.mgrUid = data.user.id; S.lastAct = Date.now();
+    closeModal(); S.tab = 'dash';
+    try { await loadAll(); } catch (e) { toast(e.message || String(e), true); }
+    render(); toast('ปลดล็อก Manager แล้ว');
   };
 }
+async function lockMgr(msg) {
+  const c = sbMgr; sbMgr = null; sb = sbMain; S.mgrOn = false; S.mgrUid = null;
+  if (KPI_TABS.some(t => t[0] === S.tab)) S.tab = 'home';
+  try { if (c) await c.auth.signOut({ scope: 'local' }); } catch (e) {}
+  try { await loadAll(); } catch (e) { console.error(e); }
+  render(); toast(msg || 'ล็อก Manager แล้ว');
+}
+['click', 'keydown'].forEach(ev => document.addEventListener(ev, () => { S.lastAct = Date.now(); }, true));
+setInterval(() => { if (S.mgrOn && Date.now() - (S.lastAct || 0) > MGR_IDLE) lockMgr('ล็อก Manager อัตโนมัติ (ไม่ได้ใช้งาน 30 นาที)'); }, 60000);
 
 // ---------------- shell ----------------
 const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
@@ -139,6 +185,7 @@ const VIEWS = { home: () => viewHome(), tracker: () => viewTracker(), prelive: (
   perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), gcal: () => viewGcal(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
 function render() {
   S.charts.forEach(c => c.destroy()); S.charts = [];
+  if (S.needActor) return renderActor();
   if (!S.me) {
     $('#app').innerHTML = `<div class="login"><h1>Account not linked</h1><p>You are signed in as <b>${esc(S.session.user.email)}</b>, but this e-mail is not on the team list yet. Ask the Manager to add you in the Team tab.</p><button class="btn" id="out">Sign out</button></div>`;
     $('#out').onclick = () => sb.auth.signOut(); return;
@@ -147,14 +194,19 @@ function render() {
   if (S.tab === 'feedback') { S.tab = 'flow'; S.scrollFb = true; }
   const inKpi = KPI_TABS.some(t => t[0] === S.tab);
   if (inKpi && !isMgr()) S.tab = 'home';
+  S.lastAct = Date.now();
   const kpiOn = inKpi && isMgr();
   const override = kpiOn && S.settings.asof ? `<span class="badge b-warn">As-of override: ${fd(S.settings.asof)}</span>` : '';
   $('#app').innerHTML = `<div class="top"><div><div class="brand">LOCAL FOR YOU</div><h1>Restaurant Migration Tracker</h1></div>${override}<div class="sp"></div>
-    <div class="who">${esc(S.me.name)} · ${esc(S.me.role)}${isMgr() ? ' ⭐' : ''}</div><button class="btn s" id="out">Sign out</button></div>
+    <div class="who">${S.me.via_team ? `<button class="btn s" id="actor" title="เปลี่ยนคนที่ใช้งาน">👤 ${esc(S.me.name)} ▾</button>` : `${esc(S.me.name)} · ${esc(S.me.role)}`}${isMgr() ? ' ⭐' : ''}</div>
+    ${S.mgrOn ? '<button class="btn s r" id="mlock">🔒 ล็อก Manager</button>' : '<button class="btn s" id="out">Sign out</button>'}</div>
     <nav class="tabs">${STAFF_TABS.map(t => `<button data-tab="${t[0]}" class="${S.tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}
-      ${isMgr() ? `<button data-tab="${kpiOn ? S.tab : 'dash'}" class="kpitab ${kpiOn ? 'on' : ''}">🔒 KPI (Manager)</button>` : ''}</nav>
+      ${isMgr() ? `<button data-tab="${kpiOn ? S.tab : 'dash'}" class="kpitab ${kpiOn ? 'on' : ''}">🔓 KPI (Manager)</button>` : '<button class="kpitab" id="munlock">🔒 KPI (Manager)</button>'}</nav>
     ${kpiOn ? `<nav class="tabs sub">${KPI_TABS.map(t => `<button data-tab="${t[0]}" class="${S.tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</nav>` : ''}<main id="main"></main>`;
-  $('#out').onclick = () => sb.auth.signOut();
+  if ($('#out')) $('#out').onclick = () => { if (confirm('Sign out จาก Browser นี้? ครั้งหน้าต้องล็อกอินบัญชีทีมใหม่')) sbMain.auth.signOut(); };
+  if ($('#mlock')) $('#mlock').onclick = () => lockMgr();
+  if ($('#munlock')) $('#munlock').onclick = () => unlockModal();
+  if ($('#actor')) $('#actor').onclick = () => { S.needActor = true; render(); };
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; render(); });
   document.querySelectorAll('.top [data-new]').forEach(b => b.onclick = () => activityModal(b.dataset.new));
   VIEWS[S.tab]();
@@ -603,14 +655,15 @@ function viewTeam() {
     <td>${isMgr() ? `<button class="btn s p" data-msv="${m.id}">Save</button>` : ''}</td></tr>`).join('')}</tbody></table></div>
   ${isMgr() ? `<div class="row" style="margin-top:12px"><div><label>New member code</label><input id="nc" placeholder="e.g. NEW1" style="width:120px"></div><div><label>Name</label><input id="nn" style="width:200px"></div>
     <div><label>Role</label><select id="nr">${opts(L.ROLE, 'Live Specialist')}</select></div><button class="btn t" id="nadd">+ Add member</button></div>` : ''}
-  <p class="small muted">Create login sets an e-mail and a temporary password (min. 8 characters) for a team member — share it privately; they can sign in immediately. The Manager role is not scored.</p></div>`;
+  <p class="small muted">Create login sets an e-mail and a temporary password (min. 8 characters) for a team member — share it privately; they can sign in immediately. The Manager role is not scored.</p>
+  <div class="note"><b>👥 TEAM = บัญชีใช้ร่วมกัน</b> ใช้ล็อกอินครั้งเดียวใน Browser ของทีม แล้วทุกคนเลือกชื่อตัวเองตอนเปิดเว็บ บัญชีนี้เข้าหน้า Manager KPI ไม่ได้ ต้องใส่รหัส Manager ทุกครั้ง</div></div>`;
   if (!isMgr()) return;
   document.querySelectorAll('[data-msv]').forEach(b => b.onclick = async () => {
     const id = b.dataset.msv; const m = S.members.find(x => x.id === id);
     const targets = Object.assign({}, m.targets || {});
     document.querySelectorAll(`[data-t="${id}"]`).forEach(el => { const mo = el.dataset.mo; targets[mo] = targets[mo] || {}; targets[mo][el.dataset.k] = +el.value || 0; });
     const role = document.querySelector(`[data-mr="${id}"]`).value;
-    if (m.user_id === S.session.user.id && role !== 'Manager') return toast('You cannot remove your own Manager role here', true);
+    if (m.user_id === curUid() && role !== 'Manager') return toast('You cannot remove your own Manager role here', true);
     const daily = {}; document.querySelectorAll(`[data-dt="${id}"]`).forEach(el => daily[el.dataset.k] = +el.value || 0);
     await save(sb.from('members').update({ name: document.querySelector(`[data-mn="${id}"]`).value.trim(), role, is_manager: role === 'Manager', active: document.querySelector(`[data-ma="${id}"]`).value === 'Yes', targets, daily }).eq('id', id), 'Saved');
   });
@@ -1447,7 +1500,7 @@ function viewFeedback() {
     <div class="row" style="margin-top:10px">${[['', 'All Items'], [FB_CAT[0], '1. Client Online Order'], [FB_CAT[1], '2. Internal Migration Helper']].map(c => `<button class="btn s ${c[0] === cat ? 'p' : ''}" data-fc="${c[0]}">${c[1]} (${cnt(c[0])})</button>`).join('')}
       <input id="fq" placeholder="Search feedback, tags, keywords..." value="${esc(S.fbQ || '')}" style="flex:1;min-width:200px"></div></div>
   ${list.map(f => `<div class="card"><div class="row" style="align-items:center"><div style="flex:1"><b>${esc(f.title)}</b> ${badge(f.category === FB_CAT[0] ? 'Client Online Order' : 'Internal Helper', f.category === FB_CAT[0] ? 'blue' : 'grey')} ${badge(f.status, f.status === 'Done' ? 'good' : f.status === 'Rejected' ? 'bad' : f.status === 'In Review' ? 'warn' : 'grey')}
-    <div class="small muted">${esc(f.submitter || '')} · ${fmtDT(f.created_at)}</div></div>${isMgr() || f.created_by === S.session.user.id ? `<button class="btn s" data-fe="${f.id}">แก้ไข</button>` : ''}</div>
+    <div class="small muted">${esc(f.submitter || '')} · ${fmtDT(f.created_at)}</div></div>${isMgr() || f.created_by === curUid() ? `<button class="btn s" data-fe="${f.id}">แก้ไข</button>` : ''}</div>
     <p style="white-space:pre-wrap;margin:8px 0">${esc(f.detail || '')}</p>${(f.tags || '').split(',').map(t => t.trim()).filter(Boolean).map(t => `<span class="badge b-grey">#${esc(t)}</span> `).join('')}</div>`).join('') || '<div class="card muted">ไม่พบรายการ</div>'}`;
   document.querySelectorAll('[data-fc]').forEach(b => b.onclick = () => { S.fbCat = b.dataset.fc; viewFeedback(); });
   $('#fq').oninput = e => { S.fbQ = e.target.value; const p = e.target.selectionStart; viewFeedback(); const el = $('#fq'); el.focus(); el.setSelectionRange(p, p); };

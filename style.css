@@ -204,3 +204,5 @@ input.locked{background:#F1F5F9;font-weight:700}
 .auto{display:inline-block;font-size:12px;font-weight:700;border-radius:99px;padding:2px 10px}
 .auto.ok{background:var(--good);color:var(--goodT)}.auto.bad{background:var(--bad);color:var(--badT)}.auto.rev{background:var(--warn);color:var(--warnT)}
 table.issues{width:100%;background:#fff;border-collapse:collapse}table.issues td,table.issues th{padding:4px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.actorgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:14px 0}
+.actorgrid .btn{padding:14px 10px;text-align:center;line-height:1.4}
