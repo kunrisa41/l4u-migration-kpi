@@ -1046,13 +1046,17 @@ function sheetCard() {
       ${src ? `<span class="seg"><label><input type="radio" name="em${i}" data-em="${i}" value="edit" ${mode === 'edit' ? 'checked' : ''}><b>✏️ แก้ไข</b></label><label><input type="radio" name="em${i}" data-em="${i}" value="view" ${mode === 'view' ? 'checked' : ''}><b>👁️ ดูอย่างเดียว</b></label></span>
       <button class="btn s" data-ebig="${i}">${st.big ? '↙️ ย่อ' : '↗️ ขยาย'}</button><a class="btn s" href="${esc(e.u)}" target="_blank" rel="noopener">เปิดในแท็บใหม่</a>` : ''}
       <button class="btn s" data-etg="${i}">${open ? 'ซ่อน' : 'แสดง'}</button></div>
-      ${open ? (src ? `<iframe class="sheetframe ${st.big ? 'big' : ''}" src="${esc(src)}" loading="eager" allow="clipboard-read; clipboard-write"></iframe>` : '<p class="muted">ลิงก์นี้ไม่ใช่ Google Sheets / Docs</p>') : ''}</div>`; }).join('')
+      ${open ? (src ? `<div class="sheetwrap ${st.big ? 'big' : ''}"><iframe class="sheetframe ${st.big ? 'big' : ''}" src="${esc(src)}" loading="eager" allow="clipboard-read; clipboard-write"></iframe><div class="sheetshield"><span>🖱️ คลิกเพื่อเลื่อน / แก้ไขในเอกสาร<br><small>เอาเมาส์ออกนอกกรอบ = กลับไปเลื่อนหน้า Dashboard</small></span></div></div>` : '<p class="muted">ลิงก์นี้ไม่ใช่ Google Sheets / Docs</p>') : ''}</div>`; }).join('')
     + `<div class="card gacct"><div class="row" style="align-items:center;gap:8px"><span>🔑 เปิดเอกสารด้วยบัญชี Google: <b>${esc(gAcct() || '—')}</b></span>
       <button class="btn s" id="gchg">เปลี่ยนบัญชี</button><a class="btn s p" id="glogin" href="${esc(gLoginUrl(list[0] && list[0].u))}" target="_blank" rel="noopener">ล็อกอิน Google (ครั้งแรก)</a><button class="btn s" id="grel">🔄 โหลดเอกสารใหม่</button>
       ${isMgr() ? '<span style="flex:1"></span><button class="btn s" id="emanage">⚙️ จัดการเอกสารบน Dashboard</button>' : ''}</div>
       <p class="small muted" style="margin:6px 0 0">ขึ้น "You need access" = เบราว์เซอร์ใช้บัญชี Google อื่นอยู่ → กด <b>ล็อกอิน Google (ครั้งแรก)</b> เลือก/ล็อกอินบัญชีด้านบนในแท็บใหม่ แล้วกลับมากด <b>🔄 โหลดเอกสารใหม่</b> · ทำครั้งเดียว เบราว์เซอร์จำไว้</p></div>`;
 }
 function bindSheet() {
+  document.querySelectorAll('.sheetwrap').forEach(w => {
+    w.querySelector('.sheetshield').onclick = () => w.classList.add('active');
+    w.onmouseleave = () => w.classList.remove('active');
+  });
   document.querySelectorAll('[data-em]').forEach(x => x.onchange = () => { const i = x.dataset.em; S.emb[i] = Object.assign({}, S.emb[i], { mode: x.value }); render(); });
   document.querySelectorAll('[data-ebig]').forEach(x => x.onclick = () => { const i = x.dataset.ebig; S.emb[i] = Object.assign({}, S.emb[i], { big: !(S.emb[i] || {}).big }); render(); });
   document.querySelectorAll('[data-etg]').forEach(x => x.onclick = () => { const i = x.dataset.etg; const o = (S.emb[i] || {}).open !== false; S.emb[i] = Object.assign({}, S.emb[i], { open: !o }); render(); });
