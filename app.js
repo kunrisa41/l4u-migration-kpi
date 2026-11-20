@@ -1353,6 +1353,16 @@ function fbModal(f) {
   };
 }
 
+// ---------------- new version notice ----------------
+(function watchVersion() {
+  let tag = null;
+  const check = async () => { try { const r = await fetch('/app.js', { method: 'HEAD', cache: 'no-store' }); const t = r.headers.get('etag') || r.headers.get('last-modified');
+    if (!t) return; if (tag === null) { tag = t; return; }
+    if (t !== tag && !document.getElementById('newver')) { const d = document.createElement('div'); d.id = 'newver'; d.className = 'newver';
+      d.innerHTML = '🆕 มีเวอร์ชันใหม่ของเว็บ <button class="btn s p">รีเฟรชเลย</button>'; d.querySelector('button').onclick = () => location.reload(); document.body.appendChild(d); } } catch { } };
+  check(); setInterval(check, 120000); document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+})();
+
 // ---------------- boot ----------------
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 let subscribed = false;
