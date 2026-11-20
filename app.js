@@ -748,16 +748,26 @@ const HANDOVER = ['How to confirm order / Add Time / Check Details', 'How to Pau
   'Send Grand opening email', 'Cloudflare DNS: ลบ A Record/CNAME เก่า + เพิ่ม A Record www ➔ 35.238.2.132 (DNS only)',
   'Landing page: Custom Domain www.(domain) + SSL สีเขียว แล้ว Save', 'Turn off GF และ Cancel Gloria Food Subscription', 'Send Dine-in QR Code to shipment process',
   'อัปเดต Operation 486 (Sub-item "New System", Service, ชื่อ, Audit/Stage = Done, MIG Status)', 'ใส่ "Admin" ในฟิลด์ Cloudflare ของ MIG ใน 486'];
+// n = storage key (checks.i<n> / o<n>) — never renumber; display order below
 const PRELIVE = [
-  { t: 'Setup Condition Fee (Min. Order, Delivery Fee, Area Fee)' }, { t: 'GST / Tax Calculation Verification' },
-  { t: 'Receipt Creation & New System Printer Setup' }, { t: 'Lunch Menu Operating Hours Verification' }, { t: 'SCAN MENU Functional Verification' },
-  { t: 'Order Confirmation Mode', opts: ['GF Auto confirm', 'GF Manual Confirm'], one: true },
-  { t: 'All Services Verification', opts: ['Pickup', 'Delivery', 'Uber', 'Table Reservation', 'Dine-in'] },
-  { t: 'Send Dine-in Order to CRM / Customer Data Export', opts: ['Dine-in → CRM: YES', 'Dine-in → CRM: NO', 'Customer export: YES', 'Customer export: NO'] },
-  { t: 'Payment Method Verification', opts: ['Pay at the Counter', 'Stripe'], optional: true },
-  { t: 'Test Orders (3 real orders + print)', opts: ['🛍️ Pickup order', '🛵 Delivery order', '🚗 Uber order'] },
-  { t: 'Website System & Domain Provider', opts: ['Add button with us', 'GF Web', 'Add button with other', 'Domain with us', 'Domain not with us'] },
-  { t: 'Cloudflare DNS: add 35.238.2.132 to A Record', link: 'cloudflare_url', linkT: 'Cloudflare' }, { t: 'Google Search Console Integration', link: 'gsc_url', linkT: 'Search Console' }, { t: 'Queue to LIVE (Ready to Launch)' }];
+  { n: 0, t: 'Conditional Fees (Min. Order, Delivery Fee, Area Fee, Surcharge)' },
+  { n: 1, t: 'GST / Sales Tax (Tax in prices, rate)' },
+  { n: 14, t: 'Store Address & Timezone (ตรงกับ OLD / รัฐของร้าน)' },
+  { n: 15, t: 'Opening Hours & Special days / holidays (OLD Exceptions)' },
+  { n: 2, t: 'Receipt & Printer Setup (Receipt / Kitchen, Auto print, Header & Footer, Logo)' },
+  { n: 16, t: 'Notifications (Audio repeat 60 · E-mail reply-to = อีเมลร้าน)' },
+  { n: 3, t: 'Lunch Menu Hours / Lunch Conditions' },
+  { n: 17, t: 'Menu items, options & prices match OLD (Recorder เมนู 100%)' },
+  { n: 4, t: 'SCAN MENU Functional Verification' },
+  { n: 5, t: 'Order Confirmation Mode / Wait Times & Auto Statuses', opts: ['GF Auto confirm', 'GF Manual Confirm'], one: true },
+  { n: 6, t: 'All Services Verification', opts: ['Pickup', 'Delivery', 'Uber', 'Table Reservation', 'Dine-in'] },
+  { n: 18, t: 'Promotions / Promo codes (ตรงกับ OLD · ไม่มีก็ติ๊ก)' },
+  { n: 7, t: 'Send Dine-in Order to CRM / Customer Data Export', opts: ['Dine-in → CRM: YES', 'Dine-in → CRM: NO', 'Customer export: YES', 'Customer export: NO'] },
+  { n: 8, t: 'Payment Method Verification', opts: ['Pay at the Counter', 'Stripe'], optional: true },
+  { n: 19, t: 'System Defaults (General · Tipping · Age Verification · Ordering · Checkout)' },
+  { n: 9, t: 'Test Orders (3 real orders + print)', opts: ['🛍️ Pickup order', '🛵 Delivery order', '🚗 Uber order'] },
+  { n: 10, t: 'Website System & Domain Provider (+ Facebook link)', opts: ['Add button with us', 'GF Web', 'Add button with other', 'Domain with us', 'Domain not with us'] },
+  { n: 11, t: 'Cloudflare DNS: add 35.238.2.132 to A Record', link: 'cloudflare_url', linkT: 'Cloudflare' }, { n: 12, t: 'Google Search Console Integration', link: 'gsc_url', linkT: 'Search Console' }, { n: 13, t: 'Queue to LIVE (Ready to Launch)' }];
 const PL_REQ = PRELIVE.filter(x => !x.optional).length;
 const DAY_PLAN = [['07:00 – 08:00', 'Follow-up Non-responsive Stores', ['โทรตามคิว Priority ร้าน', 'อัปเดต Status ทันทีหลังโทร', 'ไม่รับสาย = ส่ง SMS/Email']],
   ['08:00 – 12:00', 'System Setup (16 Steps)', ['สร้างระบบร้านใหม่ตามคิว', 'ทำ Test Order เสมอ', 'ห้ามขึ้น Ready ถ้ายังไม่ Test']],
@@ -1196,8 +1206,8 @@ function bindRecorder() {
 function viewPrelive() {
   const cur = S.pl || { checks: {}, inspector: S.me.code };
   const ck = cur.checks || {};
-  const done = PRELIVE.filter((x, i) => ck['i' + i]).length;
-  const reqDone = PRELIVE.filter((x, i) => !x.optional && ck['i' + i]).length;
+  const done = PRELIVE.filter(x => ck['i' + x.n]).length;
+  const reqDone = PRELIVE.filter(x => !x.optional && ck['i' + x.n]).length;
   const r0 = S.rests.find(r => r.rid === cur.rid);
   const auto = ck.auto || {};
   const run = cur.store_name ? (S.runs || []).find(x => x.store_name.trim().toLowerCase() === cur.store_name.trim().toLowerCase()) : null;
@@ -1214,7 +1224,7 @@ function viewPrelive() {
       ${bad.length ? `<details style="margin-top:8px"><summary><b>รายการที่ Recorder พบว่าไม่ตรง / ต้องแก้ (${bad.length})</b> — OLD มีอะไร / NEW เป็นอะไร</summary>
         ${Object.entries(groups).map(([g, list]) => `<div class="sec">${esc(g)}</div><table class="small"><thead><tr><th></th><th>รายการ</th><th>OLD / ค่าที่ต้องเป็น</th><th>NEW ตอนนี้</th><th>ต้องทำ</th></tr></thead><tbody>
           ${list.slice(0, 60).map(c => `<tr><td>${c.status === 'FAIL' ? '❌' : '❓'}</td><td><b>${esc(c.field)}</b></td><td>${esc(c.old)}</td><td>${esc(c.new)}</td><td>${esc(c.action)}</td></tr>`).join('')}</tbody></table>`).join('')}</details>` : '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงตามมาตรฐานทุกจุดที่ Recorder ตรวจ</p>'}
-      ${ck.old_system && (ck.old_system.o6 || ck.old_system.o8) ? `<p class="small" style="margin:8px 0 0">🏚️ <b>ระบบเก่า (OLD) มี:</b> ${(ck.old_system.o6 || []).map(x => `<span class="badge b-blue">${esc(x)}</span>`).join(' ')} ${(ck.old_system.o8 || []).map(x => `<span class="badge b-grey">💳 ${esc(x)}</span>`).join(' ')} <span class="muted">— เลือกไว้ให้ในข้อ 7 และ 9 แล้ว</span></p>` : ''}
+      ${ck.old_system && (ck.old_system.o6 || ck.old_system.o8) ? `<p class="small" style="margin:8px 0 0">🏚️ <b>ระบบเก่า (OLD) มี:</b> ${(ck.old_system.o6 || []).map(x => `<span class="badge b-blue">${esc(x)}</span>`).join(' ')} ${(ck.old_system.o8 || []).map(x => `<span class="badge b-grey">💳 ${esc(x)}</span>`).join(' ')} <span class="muted">— เลือกไว้ให้ในข้อ All Services และ Payment แล้ว</span></p>` : ''}
       <p class="small muted" style="margin:6px 0 0">ข้อที่ Recorder ตรวจแล้วผ่านจะติ๊กให้อัตโนมัติ ข้อที่ไม่ผ่านจะไม่ติ๊ก — แก้ใน NEW แล้วรัน Recorder ใหม่ หรือติ๊กเองได้</p></div>`; })() : '';
   $('#main').innerHTML = `${restList()}<div class="two">
   <div class="card"><h2>Pre-Live System Checklist <small>ตรวจความพร้อมก่อน LIVE · ${PRELIVE.length} ข้อ</small></h2>
@@ -1224,9 +1234,9 @@ function viewPrelive() {
     <label>Inspection Notes (หมายเหตุ)</label><textarea id="pl_n">${esc(cur.notes || '')}</textarea>
     <div class="row" style="align-items:center;margin:10px 0"><div style="flex:1"><div class="small muted">Progress: ${reqDone} / ${PL_REQ} ข้อบังคับ (${pct(reqDone / PL_REQ)})</div><div class="bar"><i style="width:${reqDone / PL_REQ * 100}%"></i></div></div>
       <button class="btn s" id="pl_all">Select all</button><button class="btn s" id="pl_new">New / Reset</button><button class="btn s" id="pl_cp">Copy summary</button><button class="btn p" id="pl_sv">Save Audit Record</button></div>
-    <div class="cl">${PRELIVE.map((x, i) => `<div class="ci2"><label class="ci"><input type="checkbox" data-pi="${i}" ${ck['i' + i] ? 'checked' : ''}> <span><b>${i + 1}.</b> ${esc(x.t)}${x.optional ? '' : ' <span class="req">*</span>'}</span></label>
+    <div class="cl">${PRELIVE.map((x, i) => `<div class="ci2"><label class="ci"><input type="checkbox" data-pi="${x.n}" ${ck['i' + x.n] ? 'checked' : ''}> <span><b>${i + 1}.</b> ${esc(x.t)}${x.optional ? '' : ' <span class="req">*</span>'}</span></label>
       ${x.link && content(x.link) ? `<div style="margin:4px 0 0 24px"><a class="btn s" href="${esc(content(x.link))}" target="_blank" rel="noopener">🔗 เปิด ${esc(x.linkT)}</a></div>` : ''}
-      ${x.opts ? `<div class="chips">${x.opts.map(o => `<label class="chip"><input type="${x.one ? 'radio' : 'checkbox'}" name="po${i}" data-po="${i}" value="${esc(o)}" ${(ck['o' + i] || []).includes(o) ? 'checked' : ''}> ${esc(o)}</label>`).join('')}</div>` : ''}${autoBadge(i)}</div>`).join('')}</div>
+      ${x.opts ? `<div class="chips">${x.opts.map(o => `<label class="chip"><input type="${x.one ? 'radio' : 'checkbox'}" name="po${x.n}" data-po="${x.n}" value="${esc(o)}" ${(ck['o' + x.n] || []).includes(o) ? 'checked' : ''}> ${esc(o)}</label>`).join('')}</div>` : ''}${autoBadge(x.n)}</div>`).join('')}</div>
     <p class="small muted">เมื่อติ๊กข้อบังคับครบ และร้านอยู่ใน Tracker ระบบจะเปลี่ยน Migration Status ของร้านเป็น "Ready to Live" ให้อัตโนมัติ</p></div>
   <div class="card"><h2>Saved Pre-Live Audits <small>${(S.prelive || []).length} รายการ</small></h2>
     ${(S.prelive || []).map(p => { const v = p.done / PL_REQ; return `<div class="sv"><div class="pc ${v >= 1 ? 'ok' : ''}">${pct(Math.min(1, v))}</div><div style="flex:1"><b>${esc(p.store_name)}</b>${p.rid ? ` <span class="small muted">${esc(p.rid)}</span>` : ''}
@@ -1236,12 +1246,12 @@ function viewPrelive() {
     document.querySelectorAll('[data-pi]').forEach(x => { if (x.checked) checks['i' + x.dataset.pi] = true; });
     document.querySelectorAll('[data-po]:checked').forEach(x => { const k = 'o' + x.dataset.po; (checks[k] = checks[k] || []).push(x.value); });
     const rv = $('#pl_r').value.trim(); const r = findRest(rv);
-    return { id: cur.id, rid: r ? r.rid : null, store_name: r ? r.name : rv, inspector: $('#pl_i').value, notes: $('#pl_n').value.trim() || null, checks, done: PRELIVE.filter((x, i) => !x.optional && checks['i' + i]).length, _r: r };
+    return { id: cur.id, rid: r ? r.rid : null, store_name: r ? r.name : rv, inspector: $('#pl_i').value, notes: $('#pl_n').value.trim() || null, checks, done: PRELIVE.filter(x => !x.optional && checks['i' + x.n]).length, _r: r };
   };
   document.querySelectorAll('[data-pi],[data-po]').forEach(x => x.onchange = () => { const c = collect(); delete c._r; S.pl = c; render(); });
-  $('#pl_all').onclick = () => { const c = collect(); delete c._r; PRELIVE.forEach((x, i) => c.checks['i' + i] = true); c.done = PL_REQ; S.pl = c; render(); };
+  $('#pl_all').onclick = () => { const c = collect(); delete c._r; PRELIVE.forEach(x => c.checks['i' + x.n] = true); c.done = PL_REQ; S.pl = c; render(); };
   $('#pl_new').onclick = () => { S.pl = null; render(); };
-  $('#pl_cp').onclick = () => { const c = collect(); const t = `Pre-Live Audit: ${c.store_name}\nInspector: ${memberName(c.inspector)}\n` + PRELIVE.map((x, i) => `${c.checks['i' + i] ? '✅' : '⬜'} ${i + 1}. ${x.t}${c.checks['o' + i] ? ' — ' + c.checks['o' + i].join(', ') : ''}`).join('\n') + (c.notes ? `\nNotes: ${c.notes}` : '');
+  $('#pl_cp').onclick = () => { const c = collect(); const t = `Pre-Live Audit: ${c.store_name}\nInspector: ${memberName(c.inspector)}\n` + PRELIVE.map((x, i) => `${c.checks['i' + x.n] ? '✅' : '⬜'} ${i + 1}. ${x.t}${c.checks['o' + x.n] ? ' — ' + c.checks['o' + x.n].join(', ') : ''}`).join('\n') + (c.notes ? `\nNotes: ${c.notes}` : '');
     navigator.clipboard.writeText(t).then(() => toast('คัดลอกแล้ว'), () => toast('คัดลอกไม่ได้', true)); };
   $('#pl_sv').onclick = async () => {
     const c = collect(); delete c._r;
