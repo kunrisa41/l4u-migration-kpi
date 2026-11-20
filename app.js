@@ -131,7 +131,7 @@ function renderLogin(msg) {
 // ---------------- shell ----------------
 const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
   ['blockers', 'ปัญหา / No-show'], ['daily', 'บันทึกประจำวัน'], ['perf', 'Team Performance'], ['audit', 'Audit Reports'], ['feedback', 'Feedback & Tools']];
-const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['tracker', 'รายชื่อร้าน'], ['settings', 'KPI Settings'], ['team', 'Team & Logins'], ['gcal', '📆 Google Calendar']];
+const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['tracker', 'รายชื่อร้าน'], ['settings', 'KPI Settings'], ['team', 'Team & Logins'], ['gcal', '🔔 Calendar & Chat']];
 const VIEWS = { home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
   perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), gcal: () => viewGcal(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
 function render() {
@@ -605,6 +605,9 @@ const stBadge = s => badge((ST[s] || ST.Scheduled).icon + ' ' + (ST[s] || ST.Sch
 const apptDay = a => a.appt_at ? C.iso(new Date(a.appt_at)) : a.act_date;
 const hhmm = s => s ? new Date(s).toTimeString().slice(0, 5) : '';
 const LIVE_CHK = ['chk_install', 'chk_printer', 'chk_test', 'chk_booking'];
+const LIVE_STEPS = [{ k: 'chk_install', t: 'ร้านดาวน์โหลด PushPrinter Nitro + Login ด้วย pairing code' }, { k: 'setup_app', t: 'ตั้ง Light mode / ขนาดตัวหนังสือ / เสียง', opt: true },
+  { k: 'chk_printer', t: 'Add printer (Bluetooth / Wi-Fi) + Test print + Save printer', na: true }, { k: 'chk_test', t: 'Test order: ร้านกดรับได้ + สอนปุ่ม − / + เวลา' },
+  { k: 'chk_booking', t: 'Test booking + แนะนำ Pause service & Order history', na: true }];
 
 // --- feed into the restaurant record (this is what the KPI reads) ---
 function feedPatch(a, r) {
@@ -618,8 +621,10 @@ function feedPatch(a, r) {
     if (a.status === 'Problem' && r.mig_status !== 'Live Completed') p.mig_status = 'On Hold';
   } else if (a.kind === 'live') {
     const c = a.checklist || {};
-    Object.assign(p, { live_agent: a.member_code, actual_live: a.act_date, chk_install: c.chk_install, chk_printer: c.chk_printer, chk_test: c.chk_test, chk_booking: c.chk_booking, blocker: null });
-    p.mig_status = LIVE_CHK.every(k => c[k] === 'Yes' || c[k] === 'N/A') ? 'Live Completed' : 'Live In Progress';
+    Object.assign(p, { live_agent: a.member_code, actual_live: a.followup_done_at ? C.iso(new Date(a.followup_done_at)) : a.act_date, chk_install: c.chk_install, chk_printer: c.chk_printer, chk_test: c.chk_test, chk_booking: c.chk_booking });
+    const pending = a.followup && !a.followup_done_at;
+    p.mig_status = LIVE_CHK.every(k => c[k] === 'Yes' || c[k] === 'N/A') && c.m486 !== 'Queue' && !pending ? 'Live Completed' : 'Live In Progress';
+    p.blocker = pending ? a.followup : null;
     p.booking = 'Attended';
   }
   return p;
@@ -661,16 +666,32 @@ function activityModal(kind, a, pre) {
       <div><label>ปัญหาที่ทำให้ LIVE ไม่ได้</label><select id="a_ic">${opts(L.ISSUE, a.issue_category || (a.status === 'No-show' ? 'No-show' : ''), true)}</select></div>
       <div style="grid-column:span 2"><label>รายละเอียดปัญหา / สิ่งที่ต้องทำต่อ</label><input id="a_id" value="${esc(a.issue_detail || '')}" placeholder="เช่น ร้านยังไม่ส่งเมนู, เครื่องปริ้นเตอร์เสีย, ลูกค้าขอเลื่อน"></div></div>
     <p class="small muted">No-show / ติดปัญหา จะถูกบันทึกลง "ปัญหา / No-show" ให้อัตโนมัติ (ใช้ปรับเป้า KPI ให้ยุติธรรม) · ถ้าเลื่อนนัด ให้เปลี่ยนวันเวลานัดด้านบนแล้วเลือก "เลื่อนนัด"</p>` : ''}
-  ${!isAp ? `<div class="sec">Live checks (ต้องเป็น Yes หรือ N/A ครบ 4 ข้อ ถึงจะนับเป็น LIVE ใน KPI)</div><div class="fg">
-      ${ckSel('chk_install', 'ติดตั้งระบบ (Installation)')}${ckSel('chk_printer', 'เครื่องพิมพ์เชื่อมแล้ว (Printer)')}${ckSel('chk_test', 'Test Order')}${ckSel('chk_booking', 'Booking Test')}</div>
-    <div class="sec">Onboarding Verification Checklist (ก่อนส่งมอบร้าน) <span class="small muted" id="hv_c"></span></div>
-    <div class="cl">${HANDOVER.map((h, i) => `<label class="ci"><input type="checkbox" data-hv="${i}" ${(chk.handover || []).includes(i) ? 'checked' : ''}> <span>${i + 1}. ${esc(h)}</span></label>`).join('')}</div>` : ''}
+  ${!isAp ? `<div class="sec">ระหว่างโทร (ต้องเป็น ✓ หรือ N/A ครบ ถึงจะนับเป็น LIVE ใน KPI)</div>
+    <div class="cl">${LIVE_STEPS.map(x => `<div class="ls"><span>${esc(x.t)}${x.opt ? ' <span class="small muted">(ไม่บังคับ)</span>' : ' <span class="req">*</span>'}</span>
+      <span class="seg">${(x.opt ? ['Yes', 'No'] : x.na ? ['Yes', 'N/A', 'No'] : ['Yes', 'No']).map(v => `<label><input type="radio" name="ck_${x.k}" data-ck="${x.k}" value="${v}" ${chk[x.k] === v ? 'checked' : ''}><b>${v === 'Yes' ? '✓' : v === 'No' ? '✗' : 'N/A'}</b></label>`).join('')}</span></div>`).join('')}</div>
+    <div class="sec">หลังวางสาย</div>
+    <div class="cl">
+      <label class="ci"><input type="checkbox" id="af_howto" ${chk.howto ? 'checked' : ''}> <span>ส่ง How-to (response.io) + อีเมลวิธีการใช้งานให้ร้านแล้ว</span></label>
+      <div class="ls"><span>เว็บไซต์ร้านเป็นแบบไหน? *</span><span class="seg"><label><input type="radio" name="af_site" value="CW" ${chk.site === 'CW' ? 'checked' : ''}><b>🌐 CW</b></label><label><input type="radio" name="af_site" value="IT" ${chk.site === 'IT' ? 'checked' : ''}><b>🛠️ Template โดย IT</b></label></span></div>
+      <div id="af_cw" class="subbox" style="${chk.site === 'CW' ? '' : 'display:none'}">
+        <label class="ci"><input type="checkbox" id="af_ton" ${chk.ton ? 'checked' : ''}> <span>แจ้ง <b>คุณต้น</b> ให้ LIVE website แล้ว</span></label>
+        <label class="ci"><input type="checkbox" id="af_now" ${chk.told_now ? 'checked' : ''}> <span>บอกร้านแล้วว่า <b>ใช้ระบบใหม่ได้ทันที</b></span></label></div>
+      <div id="af_it" class="subbox" style="${chk.site === 'IT' ? '' : 'display:none'}">
+        <label class="ci"><input type="checkbox" id="af_24" ${chk.told_24h ? 'checked' : ''}> <span>บอกร้านแล้วว่า <b>พร้อมใช้พรุ่งนี้ (ภายใน 24 ชม.)</b></span></label>
+        <label class="ci"><input type="checkbox" id="af_mit" ${chk.monday_it ? 'checked' : ''}> <span>แจ้งใน <b>Monday IT board</b> ให้อัปเดตปุ่ม Online Order & Table Reservation แล้ว</span></label>
+        ${content('monday_it') ? `<a class="btn s" href="${esc(content('monday_it'))}" target="_blank" rel="noopener">🔗 เปิด Monday IT board</a>` : ''}</div>
+      <div class="ls"><span>อัปเดต 486 Monday Status *</span><span class="seg"><label><input type="radio" name="af_486" value="Completed" ${chk.m486 === 'Completed' ? 'checked' : ''}><b>✅ Completed</b></label><label><input type="radio" name="af_486" value="Queue" ${chk.m486 === 'Queue' ? 'checked' : ''}><b>⏳ Queue to go live</b></label></span></div>
+      <div id="af_fu" style="${chk.m486 === 'Queue' ? '' : 'display:none'}"><label>ต้องตามเรื่องอะไรต่อ? * <span class="small muted">(ระบบจะแจ้งเตือนเข้า Google Chat และขึ้นใน Dashboard จนกว่าจะเสร็จ)</span></label>
+        <textarea id="af_fut" placeholder="เช่น รอ IT อัปเดตปุ่ม Online order, ร้านยังไม่เชื่อม Stripe, รอเครื่องปริ้นใหม่">${esc(a.followup || '')}</textarea></div>
+    </div>` : ''}
   <label>หมายเหตุ</label><textarea id="a_n">${esc(a.notes || '')}</textarea>
   <div class="actions">${!isNew ? '<button class="btn r s" id="del" style="margin-right:auto">ลบ</button>' : ''}
     ${isAp && !isNew && a.status !== 'LIVE Completed' ? '<button class="btn" id="ns">❌ No-show</button><button class="btn r" id="golive">🔴 บันทึก LIVE ร้านนี้</button>' : ''}
     <button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">บันทึก</button></div>`);
   const hvc = () => { const e = $('#hv_c'); if (e) e.textContent = `${document.querySelectorAll('[data-hv]:checked').length} / ${HANDOVER.length} เรียบร้อย`; };
   hvc(); document.querySelectorAll('[data-hv]').forEach(x => x.onchange = hvc);
+  document.querySelectorAll('[name="af_site"]').forEach(x => x.onchange = () => { $('#af_cw').style.display = x.value === 'CW' ? '' : 'none'; $('#af_it').style.display = x.value === 'IT' ? '' : 'none'; });
+  document.querySelectorAll('[name="af_486"]').forEach(x => x.onchange = () => { $('#af_fu').style.display = x.value === 'Queue' ? '' : 'none'; });
   document.querySelectorAll('[name="a_s"]').forEach(x => x.onchange = () => {
     const v = x.value; $('#iss').style.display = v === 'Problem' || v === 'No-show' ? '' : 'none';
     if (v === 'No-show' && !$('#a_ic').value) $('#a_ic').value = 'No-show';
@@ -696,10 +717,18 @@ function activityModal(kind, a, pre) {
       if (rec.status === 'Problem' && !rec.issue_category && !rec.issue_detail) return toast('กรุณาเลือกหรือพิมพ์ปัญหาที่ทำให้ LIVE ไม่ได้', true);
     } else {
       rec.act_date = $('#a_d').value; rec.status = 'LIVE Completed'; if (!rec.act_date) return toast('กรุณาใส่วันที่', true);
-      LIVE_CHK.forEach(k => rec.checklist[k] = (document.querySelector(`[data-ck="${k}"]`) || {}).value || null);
-      rec.checklist.handover = [...document.querySelectorAll('[data-hv]:checked')].map(x => +x.dataset.hv);
-      if (LIVE_CHK.some(k => !rec.checklist[k])) return toast('กรุณาเลือก Live checks ให้ครบ 4 ข้อ', true);
-      if (LIVE_CHK.some(k => rec.checklist[k] === 'No') && !confirm('มี Live check ที่เป็น "No" — ร้านนี้จะยังไม่นับเป็น LIVE ใน KPI จนกว่าจะแก้เป็น Yes/N/A บันทึกต่อไหม?')) return;
+      LIVE_STEPS.forEach(x => rec.checklist[x.k] = (document.querySelector(`[name="ck_${x.k}"]:checked`) || {}).value || null);
+      if (LIVE_CHK.some(k => !rec.checklist[k])) return toast('กรุณาเลือก ✓ / N/A / ✗ ให้ครบทุกข้อที่มี *', true);
+      const g = id => !!($('#' + id) && $('#' + id).checked);
+      Object.assign(rec.checklist, { howto: g('af_howto'), ton: g('af_ton'), told_now: g('af_now'), told_24h: g('af_24'), monday_it: g('af_mit'),
+        site: (document.querySelector('[name="af_site"]:checked') || {}).value || null, m486: (document.querySelector('[name="af_486"]:checked') || {}).value || null });
+      if (!rec.checklist.site) return toast('กรุณาเลือกประเภทเว็บไซต์ (CW หรือ Template โดย IT)', true);
+      if (!rec.checklist.m486) return toast('กรุณาเลือกสถานะ 486 Monday', true);
+      rec.followup = rec.checklist.m486 === 'Queue' ? ($('#af_fut').value.trim() || null) : null;
+      if (rec.checklist.m486 === 'Queue' && !rec.followup) return toast('กรุณาใส่ว่าต้องตามเรื่องอะไรต่อ', true);
+      rec.followup_done_at = rec.checklist.m486 === 'Completed' && a.followup && !a.followup_done_at ? new Date().toISOString() : (rec.followup ? null : (a.followup_done_at || null));
+      if (rec.checklist.m486 === 'Completed' && a.followup && !rec.followup) rec.followup = a.followup;
+      if (LIVE_CHK.some(k => rec.checklist[k] === 'No') && !confirm('มีข้อที่เป็น ✗ — ร้านนี้จะยังไม่นับเป็น LIVE ใน KPI จนกว่าจะแก้เป็น ✓ / N/A บันทึกต่อไหม?')) return;
     }
     $('#sv').disabled = true;
     const r = await ensureRest(name); if (!r) { $('#sv').disabled = false; return; }
@@ -715,7 +744,7 @@ function activityModal(kind, a, pre) {
       const target = ap.find(x => x.id === chk.from_appt) || ap[0];
       if (target) { await sb.from('activities').update({ status: 'LIVE Completed' }).eq('id', target.id); const bid = (target.checklist || {}).blocker_id; if (bid) await sb.from('blockers').update({ status: 'Resolved', res_date: rec.act_date }).eq('id', bid); }
     }
-    toast(isAp ? (isNew ? 'ลงนัดแล้ว' : 'อัปเดตนัดแล้ว') : 'บันทึก LIVE แล้ว ✅');
+    toast(isAp ? (isNew ? 'ลงนัดแล้ว' : 'อัปเดตนัดแล้ว') : rec.followup && !rec.followup_done_at ? 'บันทึกแล้ว · ⏳ Queue to go live — แจ้ง Google Chat ให้แล้ว' : 'บันทึก LIVE แล้ว ✅');
     await loadAll(); render();
   };
 }
@@ -760,7 +789,13 @@ function viewHome() {
     <td>${stBadge(a.status)}</td><td class="small">${a.status === 'No-show' || a.status === 'Problem' ? esc([a.issue_category, a.issue_detail].filter(Boolean).join(' — ')) : ''}${a.notes ? `<div class="muted">${esc(a.notes)}</div>` : ''}</td><td><button class="btn s">เปิด</button></td></tr>`;
   const lvRow = a => `<tr class="clk" data-act="${a.id}"><td>🔴</td><td><b>${esc(a.store_name)}</b></td><td>${esc(memberName(a.member_code))}</td><td>${liveTxt(a)}</td><td class="small">${esc(a.notes || '')}</td><td><button class="btn s">เปิด</button></td></tr>`;
   const showGuide = S.guide === true;
-  $('#main').innerHTML = `${goalCard()}
+  const fus = lives.filter(a => a.followup && !a.followup_done_at).sort((x, y) => x.act_date.localeCompare(y.act_date));
+  const fuCard = fus.length ? `<div class="card fucard"><h2>⏳ ต้องตามงานต่อหลัง LIVE <small>${fus.length} ร้าน · 486 Monday = Queue to go live · แจ้ง Google Chat ทุกเช้า 07:30 จนกว่าจะกดเสร็จ</small></h2>
+    <div class="tw"><table><thead><tr><th>ร้าน</th><th>ต้องตามเรื่อง</th><th>โดย</th><th>LIVE เมื่อ</th><th></th></tr></thead><tbody>
+    ${fus.map(a => { const dd = Math.round((C.today() - C.parseD(a.act_date)) / C.DAY); return `<tr><td><b>${esc(a.store_name)}</b> <span class="small">${(a.checklist || {}).site === 'IT' ? '🛠️ IT' : '🌐 CW'}</span></td><td>${esc(a.followup)}</td><td>${esc(memberName(a.member_code))}</td>
+      <td class="small">${fd(a.act_date)}${dd > 0 ? ` · <b style="color:${dd >= 2 ? 'var(--badT)' : 'var(--warnT)'}">${dd} วัน</b>` : ''}</td>
+      <td style="white-space:nowrap">${isMgr() || a.member_code === S.me.code ? `<button class="btn s t" data-fudone="${a.id}">✅ ตามเสร็จแล้ว</button> ` : ''}<button class="btn s" data-act="${a.id}">แก้ไข</button></td></tr>`; }).join('')}</tbody></table></div></div>` : '';
+  $('#main').innerHTML = `${goalCard()}${fuCard}
   <div class="card"><div class="small muted" style="font-weight:700;letter-spacing:.05em">DAILY TARGET PERFORMANCE · REAL-TIME</div>
     <h2 style="font-size:20px;margin:4px 0">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} <small>(${new Date().toLocaleDateString('th-TH', { dateStyle: 'full' })})</small></h2>
     ${isOff(td) ? '<div class="note">วันนี้เป็นวันหยุด — ไม่มีเป้าหมายงาน</div>' : ''}
@@ -790,6 +825,13 @@ function viewHome() {
   $('#cp').onclick = () => shift(-1); $('#cn').onclick = () => shift(1); $('#ct').onclick = () => { S.calMonth = null; S.selDate = null; render(); };
   document.querySelectorAll('[data-day]').forEach(b => b.onclick = e => { if (e.target.closest('[data-act]')) return; S.selDate = b.dataset.day; render(); });
   bindActButtons(); bindRecorder();
+  document.querySelectorAll('[data-fudone]').forEach(b => b.onclick = async () => {
+    const a = S.acts.find(x => String(x.id) === b.dataset.fudone); if (!confirm(`ตามงานร้าน ${a.store_name} เสร็จแล้ว และอัปเดต 486 Monday เป็น Completed แล้ว?`)) return;
+    const rec = { followup_done_at: new Date().toISOString(), checklist: Object.assign({}, a.checklist, { m486: 'Completed' }) };
+    const u = await sb.from('activities').update(rec).eq('id', a.id); if (u.error) return toast(u.error.message, true);
+    const r = S.rests.find(x => x.rid === a.rid); if (r) await sb.from('restaurants').update(feedPatch(Object.assign({}, a, rec), r)).eq('rid', r.rid);
+    toast('เรียบร้อย ✅ แจ้ง Google Chat แล้ว'); await loadAll(); render();
+  });
 }
 function goalCard() {
   const st = S.settings, G = st.goal; if (!G) return '';
@@ -816,7 +858,8 @@ function goalCard() {
     <p class="small" style="color:#CBD5E1;margin:8px 0 0">นับเฉพาะ LIVE ที่เช็กครบ 4 ข้อ (Yes / N/A) · เป้าสัปดาห์ตามวันทำการจริง (หักวันหยุด Christmas, Boxing Day, New Year, Australia Day)</p></div>`;
 }
 function liveTxt(a) { const c = a.checklist || {}; const ok = LIVE_CHK.every(k => c[k] === 'Yes' || c[k] === 'N/A');
-  return (ok ? badge('Checks ✓', 'good') : badge('Checks ไม่ครบ', 'warn')) + ` <span class="small">Handover ${(c.handover || []).length}/${HANDOVER.length}</span>`; }
+  const pend = a.followup && !a.followup_done_at;
+  return (ok ? badge('Checks ✓', 'good') : badge('Checks ไม่ครบ', 'warn')) + ' ' + (pend ? badge('⏳ Queue to go live', 'warn') : c.m486 ? badge('486 ✓', 'good') : '') + (c.site ? ` <span class="small">${c.site === 'CW' ? '🌐 CW' : '🛠️ IT'}</span>` : '') + (pend ? `<div class="small" style="color:var(--warnT)">ต้องตาม: ${esc(a.followup)}</div>` : ''); }
 function bindActButtons() {
   document.querySelectorAll('[data-act]').forEach(b => b.onclick = e => { e.stopPropagation(); activityModal(null, S.acts.find(a => String(a.id) === b.dataset.act)); });
   document.querySelectorAll('#main [data-new]').forEach(b => b.onclick = () => activityModal(b.dataset.new));
@@ -915,30 +958,86 @@ function viewPrelive() {
   document.querySelectorAll('[data-pl]').forEach(b => b.onclick = () => { S.pl = Object.assign({}, S.prelive.find(p => String(p.id) === b.dataset.pl)); render(); window.scrollTo(0, 0); });
 }
 
-// --- LIVE Process Flow ---
-function mini(txt) {
-  const link = s => esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
-  let html = '', inList = false;
-  for (const line of txt.split('\n')) {
-    const l = line.trim();
-    if (l.startsWith('- ')) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${link(l.slice(2))}</li>`; continue; }
-    if (inList) { html += '</ul>'; inList = false; }
-    if (l.startsWith('## ')) html += `<h3 class="fh">${link(l.slice(3))}</h3>`; else if (l) html += `<p>${link(l)}</p>`;
-  }
-  return html + (inList ? '</ul>' : '');
-}
-function viewFlow() {
-  const body = content('live_flow');
-  $('#main').innerHTML = `<div class="card flow"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">LIVE PROJECT FLOW <small>ขั้นตอนแนะนำร้านค้าขณะอยู่ในสาย</small></h2>
-    ${isMgr() ? '<button class="btn s" id="fe">แก้ไขคู่มือ</button>' : ''}<button class="btn s r" data-new="live">🔴 Record LIVE</button></div>
-    <div id="fb">${mini(body) || '<p class="muted">ยังไม่มีเนื้อหา</p>'}</div>
-    <div class="sec">Onboarding Verification Checklist (ก่อนส่งมอบร้าน)</div><ol class="small">${HANDOVER.map(h => `<li>${esc(h)}</li>`).join('')}</ol>
-    <p class="small muted">ติ๊กเช็กลิสต์นี้ได้ตอนกด 🔴 Record LIVE — ข้อมูลจะบันทึกและนับเข้า KPI</p></div>`;
+// ================= LIVE PROCESS FLOW (visual) =================
+const P = (body, bar) => `<div class="ph"><div class="ph-notch"></div>${bar ? `<div class="ph-bar">${bar}</div>` : ''}<div class="ph-body">${body}</div></div>`;
+const MOCK = {
+  call: P(`<div class="mk-call"><div class="mk-av">🏪</div><b>Restaurant</b><div class="small muted">กำลังโทร… 00:42</div>
+    <div class="mk-bubble">"สวัสดีค่ะ จาก Local For You โทรตามนัดเพื่อเปิดระบบรับออเดอร์ใหม่ค่ะ"</div>
+    <div class="mk-row"><span class="mk-ci">🔇</span><span class="mk-ci">🔊</span><span class="mk-ci r">📞</span></div></div>`),
+  store: P(`<div class="mk-store"><div class="mk-app"><div class="mk-icon">🖨️</div><div><b>PushPrinter Nitro</b><div class="small muted">Local For You</div><div class="small">★★★★★</div></div></div>
+    <div class="mk-btn g">Install</div><div class="mk-shots"><i></i><i></i><i></i></div><div class="small muted">ค้นหา "PushPrinter" ใน Play Store / App Store</div></div>`, 'Play Store'),
+  pair: P(`<div class="mk-c"><div class="mk-icon big">🖨️</div><b>Login</b><div class="small muted">Enter pairing code</div>
+    <div class="mk-code"><i>4</i><i>8</i><i>2</i><i>9</i><i>1</i><i>6</i></div><div class="mk-btn">Connect</div>
+    <div class="small muted">📞 MIG อ่าน code ให้ร้านฟังในสาย</div></div>`, 'PushPrinter Nitro'),
+  theme: P(`<div class="mk-list"><div class="mk-h">Settings › Appearance</div><div class="mk-li">Theme<span class="mk-seg"><b>☀️ Light</b><i>🌙 Dark</i></span></div>
+    <div class="mk-li">Text size<span class="mk-slider"><i></i></span></div><div class="mk-li muted">Language<span>English</span></div>
+    <div class="mk-tip">💡 บอกร้าน: ปรับขนาดตัวหนังสือให้อ่านง่ายได้</div></div>`, 'Settings'),
+  audio: P(`<div class="mk-list"><div class="mk-h">Settings › Audio</div>${['Bell', 'Chime ✓', 'Alarm', 'Classic'].map((x, i) => `<div class="mk-li">🔔 ${x}<span class="mk-radio ${i === 1 ? 'on' : ''}"></span></div>`).join('')}
+    <div class="mk-tip">💻 ระหว่างนี้ MIG เปิดเว็บร้าน เตรียมส่ง Test order</div></div>`, 'Settings'),
+  addp: P(`<div class="mk-list"><div class="mk-h">More › Printers › Add printer</div><div class="mk-li"><b>Template:</b><span>Receipt (LFY)</span></div>
+    <div class="mk-two"><div class="mk-opt on">🔵<br>Bluetooth</div><div class="mk-opt">📶<br>Wi-Fi / LAN</div></div>
+    <div class="mk-tip">เลือกตามที่ระบบเดิม (Gloria Food) เชื่อมไว้</div></div>`, 'Add printer'),
+  scan: P(`<div class="mk-list"><div class="mk-h">Printers found</div><div class="mk-li on">🖨️ EPSON TM-m30<span class="mk-radio on"></span></div><div class="mk-li">🖨️ Star TSP143<span class="mk-radio"></span></div>
+    <div class="mk-two"><div class="mk-btn o">🧾 Test</div><div class="mk-btn g">💾 Save printer</div></div><div class="mk-paper">TEST PRINT ✓</div></div>`, 'Add printer'),
+  order: P(`<div class="mk-order"><div class="mk-h">New order <span class="mk-badge">TEST</span></div><div class="small">#1001 · Pickup · 2 items</div><div class="small muted">1× Pad Thai · 1× Spring Rolls</div>
+    <div class="mk-time"><span>−</span><b>20 min</b><span>+</span></div><div class="mk-btn g">Accept</div><div class="mk-tip">สอนร้าน: กด − / + เพื่อปรับเวลาก่อนรับออเดอร์</div></div>`, 'Orders'),
+  booking: P(`<div class="mk-order"><div class="mk-h">New booking <span class="mk-badge">TEST</span></div><div class="small">👥 4 people · Fri 7:00 PM</div><div class="mk-btn g">Confirm</div>
+    <div class="mk-two"><div class="mk-opt">⏸️<br>Pause service</div><div class="mk-opt">🧾<br>Order history</div></div><div class="mk-tip">ออเดอร์ที่ Completed แล้ว จะไปอยู่ใน Order history</div></div>`, 'Orders'),
+  done: P(`<div class="mk-c"><div class="mk-big">🎉</div><b>LIVE แล้ว!</b><div class="small muted">หน้ารับออเดอร์เปิดค้าง · เครื่องพิมพ์พร้อม</div><div class="mk-btn g">จบสาย</div></div>`),
+};
+const FLOW = [
+  { k: 'call', t: 'ติดต่อร้าน', d: ['โทรหาร้านตามเวลานัด แนะนำตัวและบอกว่าจะเปิดระบบรับออเดอร์ใหม่ด้วยกันในสาย'] },
+  { k: 'store', t: 'ให้ร้านดาวน์โหลด PushPrinter Nitro', d: ['ให้ร้านเปิด Play Store / App Store ค้นหา "PushPrinter" แล้วกด Install'], link: 'pushprinter_url', linkT: 'ลิงก์ Play Store' },
+  { k: 'pair', t: 'Login ด้วย Pairing code', d: ['ร้านเลือก Login by pairing code', 'MIG อ่าน code ให้ร้านฟังในสาย ร้านพิมพ์ใส่แล้วกด Connect'] },
+  { k: 'theme', t: 'Settings › Appearance › Theme', d: ['เลือก Light mode', 'บอกร้านว่าปรับขนาดตัวหนังสือได้ตามสะดวก'] },
+  { k: 'audio', t: 'Settings › Audio', d: ['ให้ร้านลองฟังและเลือกเสียงแจ้งเตือนที่ต้องการ', '💻 ระหว่างนี้ MIG เปิดเว็บร้าน เตรียมส่ง Test order'] },
+  { k: 'addp', t: 'กลับ › More › Add printer', d: ['ร้านตั้งเสียงเสร็จ ให้กดกลับ แล้วกด More อีกครั้งเพื่อตั้งค่าเครื่องปริ้น', 'Add printer › เลือก printer ตาม template ที่เราสร้างไว้', 'เลือก Bluetooth หรือ Wi-Fi ตามที่ระบบ Gloria Food เชื่อมไว้'] },
+  { k: 'scan', t: 'เลือกเครื่องปริ้น › Test › Save', d: ['ร้านเลือกเครื่องปริ้นที่ scan แล้วปรากฏ', 'กด Test ให้กระดาษออก แล้วกด Save printer'] },
+  { k: 'order', t: 'ส่ง Test order', d: ['ให้ร้านออกมาหน้าออเดอร์ MIG ส่ง Test order เข้าไป', 'ให้ร้านกดรับ และสอนการกด − / + ปรับเวลาตอนกดรับ'] },
+  { k: 'booking', t: 'ส่ง Test booking + แนะนำเมนู', d: ['ส่ง Test booking ให้ร้านกดรับ', 'แนะนำ Pause service และ Order history (ออเดอร์ที่ completed แล้วจะไปอยู่ที่นั่น)'] },
+  { k: 'done', t: 'จบสาย', d: ['หน้ารับออเดอร์เปิดค้างไว้ + เครื่องพิมพ์พร้อมขายจริง'] },
+];
+function flowImgs() { try { return JSON.parse(content('flow_images') || '{}'); } catch { return {}; } }
+async function viewFlow() {
+  const imgs = flowImgs(); const paths = Object.values(imgs).filter(Boolean);
+  let urls = {};
+  if (paths.length) { const { data } = await sb.storage.from('tools').createSignedUrls(paths, 3600); (data || []).forEach(x => { if (x.signedUrl) urls[x.path] = x.signedUrl; }); }
+  const it = content('monday_it');
+  $('#main').innerHTML = `<div class="card flowhead"><div class="row" style="align-items:center"><div style="flex:1"><div class="small" style="font-weight:700;letter-spacing:.06em;color:#FCA5A5">ON-CALL CLIENT ONBOARDING</div>
+      <h2 style="margin:2px 0;color:#fff;font-size:20px">🔴 LIVE PROJECT FLOW <small style="color:#CBD5E1">ขั้นตอนพาร้านเปิดระบบขณะอยู่ในสาย</small></h2>
+      <div style="color:#E2E8F0">🚀 เป้าหมายจบสาย: <b>หน้ารับออเดอร์เปิดค้าง + เครื่องปริ้น Test print สำเร็จ + รับ Test order ได้</b></div></div>
+      <button class="btn r" data-new="live">🔴 Record LIVE</button></div>
+    <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">หลังวางสาย</a></div></div>
+  <div class="flowgrid">${FLOW.map((s, i) => { const p = imgs[s.k]; const u = p && urls[p];
+    return `<div class="card fstep" id="st${i}"><div class="fnum">${i + 1}</div><div class="fbody"><h3>${esc(s.t)}</h3><ul>${s.d.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+      ${s.link && content(s.link) ? `<a class="btn s" href="${esc(content(s.link))}" target="_blank" rel="noopener">🔗 ${esc(s.linkT)}</a> <button class="btn s" data-cp="${esc(content(s.link))}">📋 Copy ลิงก์ส่งให้ร้าน</button>` : ''}
+      ${isMgr() ? `<div style="margin-top:8px"><label class="btn s" style="margin:0;cursor:pointer">📷 ${u ? 'เปลี่ยนรูปจริง' : 'ใส่รูปจริง'}<input type="file" accept="image/*" data-img="${s.k}" style="display:none"></label>${u ? ` <button class="btn s" data-imgdel="${s.k}">ใช้ภาพตัวอย่าง</button>` : ''}</div>` : ''}</div>
+      <div class="fpic">${u ? `<img src="${esc(u)}" alt="${esc(s.t)}" class="real" data-zoom="${esc(u)}">` : MOCK[s.k]}</div></div>`; }).join('')}</div>
+  <div class="card" id="after"><h2>📨 หลังวางสาย (MIG ต้องทำทุกร้าน)</h2>
+    <div class="after">
+      <div class="ac"><div class="an">A</div><div><b>ส่ง How-to ให้ร้าน</b><ul><li>ส่ง How-to จาก <b>response.io</b> ที่เกี่ยวข้องกับร้าน</li><li>ส่ง <b>อีเมลวิธีการใช้งาน</b></li></ul>${content('howto_url') ? `<a class="btn s" href="${esc(content('howto_url'))}" target="_blank" rel="noopener">🔗 เปิด How-to</a>` : ''}</div></div>
+      <div class="ac"><div class="an">B</div><div><b>เว็บไซต์ร้านเป็นแบบไหน?</b>
+        <div class="split"><div class="sp cw"><div class="spt">🌐 เว็บ CW</div><ul><li>แจ้ง <b>คุณต้น</b> ทุกครั้งเพื่อ LIVE website</li><li>บอกร้าน: <b>ใช้ระบบใหม่ได้ทันที</b></li></ul></div>
+          <div class="sp it"><div class="spt">🛠️ เว็บ Template สร้างโดย IT</div><ul><li>บอกร้าน: <b>พร้อมใช้พรุ่งนี้ (ภายใน 24 ชม.)</b></li><li>แจ้งใน Monday IT board ให้อัปเดตปุ่ม <b>Online Order</b> และ <b>Table Reservation</b></li></ul>${it ? `<a class="btn s" href="${esc(it)}" target="_blank" rel="noopener">🔗 Monday IT board</a>` : ''}</div></div></div></div>
+      <div class="ac"><div class="an">C</div><div><b>อัปเดต 486 Monday</b>
+        <div class="split"><div class="sp ok"><div class="spt">✅ เรียบร้อยทุกอย่าง</div><ul><li>เปลี่ยน Status เป็น <b>Completed</b></li></ul></div>
+          <div class="sp q"><div class="spt">⏳ ยังไม่เรียบร้อย</div><ul><li>คงสถานะ <b>Queue to go live</b></li><li>ตอนกด Record LIVE ให้ใส่ <b>"ต้องตามเรื่องอะไร"</b></li><li>ระบบแจ้งเตือนเข้า <b>Google Chat</b> ให้เอง และขึ้นในกล่อง "ต้องตามงานต่อ" หน้า Dashboard จนกว่าจะกดเสร็จ</li></ul></div></div></div></div>
+    </div><div class="actions"><button class="btn r" data-new="live">🔴 Record LIVE</button></div></div>`;
   bindActButtons();
-  if ($('#fe')) $('#fe').onclick = () => {
-    $('#fb').innerHTML = `<p class="small muted">"## " = หัวข้อ, "- " = ข้อย่อย · คู่มือนี้เก็บในฐานข้อมูล (ไม่อยู่ในโค้ดสาธารณะ) เห็นได้เฉพาะทีมที่ล็อกอิน</p><textarea id="ft" style="min-height:420px">${esc(body)}</textarea><div class="actions"><button class="btn p" id="fs">Save</button></div>`;
-    $('#fs').onclick = () => save(sb.from('content').update({ body: $('#ft').value, updated_at: new Date().toISOString() }).eq('key', 'live_flow'), 'บันทึกคู่มือแล้ว');
-  };
+  document.querySelectorAll('[data-cp]').forEach(b => b.onclick = () => navigator.clipboard.writeText(b.dataset.cp).then(() => toast('คัดลอกลิงก์แล้ว')));
+  document.querySelectorAll('[data-zoom]').forEach(im => im.onclick = () => openModal(`<img src="${esc(im.dataset.zoom)}" style="width:100%;border-radius:10px"><div class="actions"><button class="btn" onclick="document.getElementById('modal').click()">ปิด</button></div>`));
+  document.querySelectorAll('[data-img]').forEach(inp => inp.onchange = async e => {
+    const f = e.target.files[0]; if (!f) return; const k = inp.dataset.img;
+    const path = `flow/${k}-${Date.now()}.${(f.name.split('.').pop() || 'png').toLowerCase()}`;
+    const up = await sb.storage.from('tools').upload(path, f, { contentType: f.type || 'image/png' }); if (up.error) return toast(up.error.message, true);
+    const m = flowImgs(); const old = m[k]; m[k] = path;
+    await save(sb.from('content').update({ body: JSON.stringify(m) }).eq('key', 'flow_images'), 'ใส่รูปแล้ว');
+    if (old) sb.storage.from('tools').remove([old]);
+  });
+  document.querySelectorAll('[data-imgdel]').forEach(b => b.onclick = async () => {
+    const m = flowImgs(); const old = m[b.dataset.imgdel]; delete m[b.dataset.imgdel];
+    await save(sb.from('content').update({ body: JSON.stringify(m) }).eq('key', 'flow_images'), 'กลับไปใช้ภาพตัวอย่าง'); if (old) sb.storage.from('tools').remove([old]);
+  });
 }
 
 // --- Team Performance ---
@@ -1021,7 +1120,21 @@ async function viewGcal() {
     <pre id="gcode" class="code" style="display:none">${esc(code)}</pre>
     <div class="row" style="margin-top:14px"><div style="flex:1;min-width:280px"><label>Web app URL</label><input id="gurl" value="${esc(g.url || '')}" placeholder="https://script.google.com/macros/s/.../exec"></div>
       <button class="btn p" id="gsv">Save</button><button class="btn t" id="gts" ${g.url ? '' : 'disabled'}>ส่งนัดทดสอบ</button>${g.url ? '<button class="btn s" id="gof">ยกเลิกการเชื่อม</button>' : ''}</div>
-    <p class="small muted">โค้ดมีรหัสลับเฉพาะของคุณ — อย่าส่งต่อให้คนอื่น · นัดที่เปลี่ยนสถานะ (No-show / ติดปัญหา / LIVE แล้ว / เลื่อนนัด) จะอัปเดตในปฏิทินให้เอง · ลบนัดในระบบ = ลบในปฏิทินด้วย · นัดที่ลงไว้ก่อนเชื่อม จะเข้าปฏิทินเมื่อมีการแก้ไขนัดนั้น</p></div>`;
+    <p class="small muted" data-x="1">โค้ดมีรหัสลับเฉพาะของคุณ — อย่าส่งต่อให้คนอื่น · นัดที่เปลี่ยนสถานะ (No-show / ติดปัญหา / LIVE แล้ว / เลื่อนนัด) จะอัปเดตในปฏิทินให้เอง · ลบนัดในระบบ = ลบในปฏิทินด้วย · นัดที่ลงไว้ก่อนเชื่อม จะเข้าปฏิทินเมื่อมีการแก้ไขนัดนั้น</p></div>
+  <div class="card"><h2>💬 แจ้งเตือนเข้า Google Chat <small>ร้านที่ LIVE แล้วแต่ยัง Queue to go live / ต้องตามงานต่อ</small></h2>
+    <div>${g.chat_url ? badge('✓ เชื่อมแล้ว', 'good') : badge('ยังไม่ได้เชื่อม', 'warn')}</div>
+    <p class="small">ระบบจะส่งข้อความเข้า Space ใน Google Chat: (1) ทันทีที่มีคนบันทึก LIVE แบบ "Queue to go live" พร้อมเรื่องที่ต้องตาม (2) เมื่อกด "ตามเสร็จแล้ว" (3) สรุปร้านที่ยังค้าง ทุกวันจันทร์–ศุกร์ 07:30 น.</p>
+    <ol class="steps">
+      <li>เปิด <a href="https://chat.google.com/" target="_blank" rel="noopener"><b>Google Chat</b></a> แล้วเลือก Space ของทีม (หรือสร้าง Space ใหม่ เช่น "L4U Migration")</li>
+      <li>คลิกชื่อ Space ด้านบน ▾ → <b>Apps & integrations</b></li>
+      <li>เลือก <b>Webhooks</b> → <b>Add webhooks</b> → ตั้งชื่อ <b>L4U Migration Tracker</b> → <b>Save</b></li>
+      <li>กดไอคอน ⋮ ข้าง webhook ที่สร้าง → <b>Copy link</b> (ขึ้นต้นด้วย https://chat.googleapis.com/…)</li>
+      <li>วางในช่องด้านล่าง → <b>Save</b> → กด <b>ส่งข้อความทดสอบ</b></li></ol>
+    <p class="small muted">ถ้าไม่เห็นเมนู Webhooks แปลว่า Admin ของ Google Workspace ปิดไว้ ต้องให้ Admin เปิดให้ก่อน</p>
+    <div class="row"><div style="flex:1;min-width:280px"><label>Google Chat webhook URL</label><input id="curl" value="${esc(g.chat_url || '')}" placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=..."></div>
+      <button class="btn p" id="csv">Save</button><button class="btn t" id="cts" ${g.chat_url ? '' : 'disabled'}>ส่งข้อความทดสอบ</button></div></div>`;
+  $('#csv').onclick = async () => { const { error } = await sb.rpc('gchat_set_url', { p_url: $('#curl').value.trim() }); if (error) return toast(error.message, true); toast('บันทึกแล้ว'); viewGcal(); };
+  $('#cts').onclick = async () => { const { error } = await sb.rpc('gchat_test'); if (error) return toast(error.message, true); toast('ส่งข้อความทดสอบแล้ว — ดูใน Google Chat'); };
   $('#gcp').onclick = () => navigator.clipboard.writeText(code).then(() => toast('คัดลอกโค้ดแล้ว — ไปวางใน script.google.com'), () => { $('#gcode').style.display = 'block'; toast('คัดลอกอัตโนมัติไม่ได้ — เลือกโค้ดด้านล่างแล้วกด Cmd+C', true); });
   $('#gsh').onclick = () => { const e = $('#gcode'); e.style.display = e.style.display === 'none' ? 'block' : 'none'; };
   $('#gsv').onclick = async () => { const { error } = await sb.rpc('gcal_set_url', { p_url: $('#gurl').value.trim() }); if (error) return toast(error.message, true); toast('บันทึกแล้ว'); viewGcal(); };
