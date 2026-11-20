@@ -807,7 +807,7 @@ function viewHome() {
     ${fus.map(a => { const dd = Math.round((C.today() - C.parseD(a.act_date)) / C.DAY); return `<tr><td><b>${esc(a.store_name)}</b> <span class="small">${(a.checklist || {}).site === 'IT' ? '🛠️ IT' : '🌐 CW'}</span></td><td>${esc(a.followup)}</td><td>${esc(memberName(a.member_code))}</td>
       <td class="small">${fd(a.act_date)}${dd > 0 ? ` · <b style="color:${dd >= 2 ? 'var(--badT)' : 'var(--warnT)'}">${dd} วัน</b>` : ''}</td>
       <td style="white-space:nowrap">${isMgr() || a.member_code === S.me.code ? `<button class="btn s t" data-fudone="${a.id}">✅ ตามเสร็จแล้ว</button> ` : ''}<button class="btn s" data-act="${a.id}">แก้ไข</button></td></tr>`; }).join('')}</tbody></table></div></div>` : '';
-  $('#main').innerHTML = `${goalCard()}${fuCard}
+  $('#main').innerHTML = `${goalCard()}${fuCard}${sheetCard()}
   <div class="card"><div class="small muted" style="font-weight:700;letter-spacing:.05em">DAILY TARGET PERFORMANCE · REAL-TIME</div>
     <h2 style="font-size:20px;margin:4px 0">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} <small>(${new Date().toLocaleDateString('th-TH', { dateStyle: 'full' })})</small></h2>
     ${isOff(td) ? '<div class="note">วันนี้เป็นวันหยุด — ไม่มีเป้าหมายงาน</div>' : ''}
@@ -836,7 +836,7 @@ function viewHome() {
   const shift = n => { const d = new Date(cy, cm - 1 + n, 1); S.calMonth = C.iso(d).slice(0, 7); render(); };
   $('#cp').onclick = () => shift(-1); $('#cn').onclick = () => shift(1); $('#ct').onclick = () => { S.calMonth = null; S.selDate = null; render(); };
   document.querySelectorAll('[data-day]').forEach(b => b.onclick = e => { if (e.target.closest('[data-act]')) return; S.selDate = b.dataset.day; render(); });
-  bindActButtons(); bindRecorder();
+  bindActButtons(); bindRecorder(); bindSheet();
   document.querySelectorAll('[data-fudone]').forEach(b => b.onclick = async () => {
     const a = S.acts.find(x => String(x.id) === b.dataset.fudone); if (!confirm(`ตามงานร้าน ${a.store_name} เสร็จแล้ว และอัปเดต 486 Monday เป็น Completed แล้ว?`)) return;
     const rec = { followup_done_at: new Date().toISOString(), checklist: Object.assign({}, a.checklist, { m486: 'Completed' }) };
@@ -844,6 +844,28 @@ function viewHome() {
     const r = S.rests.find(x => x.rid === a.rid); if (r) await sb.from('restaurants').update(feedPatch(Object.assign({}, a, rec), r)).eq('rid', r.rid);
     toast('เรียบร้อย ✅ แจ้ง Google Chat แล้ว'); await loadAll(); render();
   });
+}
+function sheetCard() {
+  const url = content('dash_sheet'); if (!url && !isMgr()) return '';
+  const m = (url || '').match(/\/spreadsheets\/d\/([A-Za-z0-9_-]+)/); const id = m && m[1];
+  const gid = ((url || '').match(/[#&?]gid=(\d+)/) || [])[1];
+  const mode = S.sheetMode || 'edit';
+  const src = id ? (mode === 'view' ? `https://docs.google.com/spreadsheets/d/${id}/htmlview?rm=minimal${gid ? '&gid=' + gid : ''}` : `https://docs.google.com/spreadsheets/d/${id}/edit?rm=minimal${gid ? '#gid=' + gid : ''}`) : '';
+  const open = S.sheetOpen !== false; const big = !!S.sheetBig;
+  return `<div class="card sheetcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">📊 ชีตงาน Migration <small>แก้ไขได้ตรงนี้เลย · บันทึกเข้า Google Sheets อัตโนมัติ</small></h2>
+      ${id ? `<span class="seg"><label><input type="radio" name="shm" value="edit" ${mode === 'edit' ? 'checked' : ''}><b>✏️ แก้ไข</b></label><label><input type="radio" name="shm" value="view" ${mode === 'view' ? 'checked' : ''}><b>👁️ ดูอย่างเดียว</b></label></span>
+      <button class="btn s" id="shbig">${big ? '↙️ ย่อ' : '↗️ ขยาย'}</button><a class="btn s" href="${esc(url)}" target="_blank" rel="noopener">เปิดในแท็บใหม่</a>` : ''}
+      ${isMgr() ? '<button class="btn s" id="shurl">เปลี่ยนลิงก์</button>' : ''}<button class="btn s" id="shtg">${open ? 'ซ่อน' : 'แสดง'}</button></div>
+    ${open ? (id ? `<iframe class="sheetframe ${big ? 'big' : ''}" src="${esc(src)}" loading="eager" allow="clipboard-read; clipboard-write"></iframe>
+      <p class="small muted" style="margin:6px 0 0">ถ้าชีตไม่ขึ้นหรือขึ้นให้ล็อกอิน: ล็อกอิน Google บัญชีบริษัทในเบราว์เซอร์นี้ หรือกด "เปิดในแท็บใหม่" · ถ้าแก้ไม่ได้ ให้เจ้าของชีตแชร์สิทธิ์ Editor ให้ทีม</p>`
+      : '<p class="muted">ยังไม่ได้ใส่ลิงก์ Google Sheet</p>') : ''}</div>`;
+}
+function bindSheet() {
+  document.querySelectorAll('[name="shm"]').forEach(x => x.onchange = () => { S.sheetMode = x.value; render(); });
+  if ($('#shbig')) $('#shbig').onclick = () => { S.sheetBig = !S.sheetBig; render(); };
+  if ($('#shtg')) $('#shtg').onclick = () => { S.sheetOpen = S.sheetOpen === false; render(); };
+  if ($('#shurl')) $('#shurl').onclick = async () => { const v = prompt('ลิงก์ Google Sheet:', content('dash_sheet')); if (v === null) return;
+    const { error } = await sb.from('content').upsert({ key: 'dash_sheet', body: v.trim() }); if (error) return toast(error.message, true); toast('บันทึกแล้ว'); await loadAll(); render(); };
 }
 function goalCard() {
   const st = S.settings, G = st.goal; if (!G) return '';
