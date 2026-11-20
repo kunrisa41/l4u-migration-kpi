@@ -129,11 +129,11 @@ function renderLogin(msg) {
 }
 
 // ---------------- shell ----------------
-const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['tracker', 'รายชื่อร้าน (Tracker)'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
+const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
   ['blockers', 'ปัญหา / No-show'], ['daily', 'บันทึกประจำวัน'], ['perf', 'Team Performance'], ['audit', 'Audit Reports'], ['feedback', 'Feedback & Tools']];
-const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['settings', 'KPI Settings'], ['team', 'Team & Logins']];
+const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['tracker', 'รายชื่อร้าน'], ['settings', 'KPI Settings'], ['team', 'Team & Logins'], ['gcal', '📆 Google Calendar']];
 const VIEWS = { home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
-  perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
+  perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), gcal: () => viewGcal(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
 function render() {
   S.charts.forEach(c => c.destroy()); S.charts = [];
   if (!S.me) {
@@ -145,7 +145,7 @@ function render() {
   const kpiOn = inKpi && isMgr();
   const override = kpiOn && S.settings.asof ? `<span class="badge b-warn">As-of override: ${fd(S.settings.asof)}</span>` : '';
   $('#app').innerHTML = `<div class="top"><div><div class="brand">LOCAL FOR YOU</div><h1>Restaurant Migration Tracker</h1></div>${override}<div class="sp"></div>
-    <div class="acts"><button class="btn s" data-new="appointment">+ Add Appointment</button><button class="btn s" data-new="scratch">+ Build System</button><button class="btn s r" data-new="live">🔴 Record LIVE</button></div>
+    <div class="acts"><button class="btn s" data-new="appointment">+ Add Appointment</button><button class="btn s r" data-new="live">🔴 Record LIVE</button></div>
     <div class="who">${esc(S.me.name)} · ${esc(S.me.role)}${isMgr() ? ' ⭐' : ''}</div><button class="btn s" id="out">Sign out</button></div>
     <nav class="tabs">${STAFF_TABS.map(t => `<button data-tab="${t[0]}" class="${S.tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}
       ${isMgr() ? `<button data-tab="${kpiOn ? S.tab : 'dash'}" class="kpitab ${kpiOn ? 'on' : ''}">🔒 KPI (Manager)</button>` : ''}</nav>
@@ -506,11 +506,11 @@ function viewTeam() {
   const months = C.periods(S.settings).filter(p => p.month); const dis = isMgr() ? '' : 'disabled';
   $('#main').innerHTML = `${isMgr() ? '' : '<div class="note">View only — the Manager manages the team.</div>'}
   <div class="card"><h2>Team & monthly targets <small>role = primary responsibility · everyone may do Live calls · targets differ per person</small></h2>
-  <div class="tw"><table><thead><tr><th>Code</th><th>Name</th><th>Role</th><th>Active</th><th>Login</th><th>Daily targets<br><span class="small muted">LIVE / Scratch / IT / Appt</span></th>${months.map(p => `<th>${esc(p.label)} targets<br><span class="small muted">setup / menu / live</span></th>`).join('')}<th></th></tr></thead><tbody>
+  <div class="tw"><table><thead><tr><th>Code</th><th>Name</th><th>Role</th><th>Active</th><th>Login</th><th>Daily targets<br><span class="small muted">LIVE / นัดใหม่</span></th>${months.map(p => `<th>${esc(p.label)} targets<br><span class="small muted">setup / menu / live</span></th>`).join('')}<th></th></tr></thead><tbody>
   ${S.members.map(m => `<tr><td><b>${esc(m.code)}</b></td><td><input data-mn="${m.id}" value="${esc(m.name)}" ${dis}></td>
     <td><select data-mr="${m.id}" ${dis}>${opts(L.ROLE, m.role)}</select></td><td><select data-ma="${m.id}" ${dis}>${opts(['Yes', 'No'], m.active ? 'Yes' : 'No')}</select></td>
     <td class="small">${m.user_id ? badge('✓ ' + (m.email || ''), 'good') : (isMgr() ? `<button class="btn s" data-login="${m.id}">Create login</button>` : badge('No login', 'grey'))}${m.user_id && isMgr() && !m.is_manager ? ` <button class="btn s" data-reset="${esc(m.email || '')}">Reset password</button>` : ''}</td>
-    <td class="inline" style="white-space:nowrap">${['live', 'scratch', 'it', 'appt'].map(k => `<input type="number" min="0" data-dt="${m.id}" data-k="${k}" value="${(m.daily || {})[k] ?? 0}" style="width:52px" ${dis}>`).join(' ')}</td>
+    <td class="inline" style="white-space:nowrap">${['live', 'appt'].map(k => `<input type="number" min="0" data-dt="${m.id}" data-k="${k}" value="${(m.daily || {})[k] ?? 0}" style="width:52px" ${dis}>`).join(' ')}</td>
     ${months.map(p => { const t = (m.targets || {})[p.month] || {}; return `<td class="inline" style="white-space:nowrap">${['setup', 'menu', 'live'].map(k => `<input type="number" data-t="${m.id}" data-mo="${p.month}" data-k="${k}" value="${t[k] ?? 0}" style="width:62px" ${dis || (m.is_manager ? 'disabled' : '')}>`).join(' ')}</td>`; }).join('')}
     <td>${isMgr() ? `<button class="btn s p" data-msv="${m.id}">Save</button>` : ''}</td></tr>`).join('')}</tbody></table></div>
   ${isMgr() ? `<div class="row" style="margin-top:12px"><div><label>New member code</label><input id="nc" placeholder="e.g. NEW1" style="width:120px"></div><div><label>Name</label><input id="nn" style="width:200px"></div>
@@ -579,94 +579,143 @@ const DAY_PLAN = [['07:00 – 08:00', 'Follow-up Non-responsive Stores', ['โ�
 const content = k => ((S.content || []).find(c => c.key === k) || {}).body || '';
 const dailyT = m => Object.assign({ live: 0, scratch: 0, it: 0, appt: 0 }, m.daily || {});
 const isOff = d => { d = C.parseD(d); const w = d.getDay(); return w === 0 || w === 6 || C.holidaySet(S.settings).has(C.iso(d)); };
-const restLabel = r => `${r.rid} · ${r.name}`;
-const restList = () => `<datalist id="restlist">${S.rests.map(r => `<option value="${esc(restLabel(r))}"></option>`).join('')}</datalist>`;
+const restLabel = r => r.name;
+const restList = () => `<datalist id="restlist">${S.rests.map(r => `<option value="${esc(r.name)}"></option>`).join('')}</datalist>`;
 function findRest(v) {
   v = (v || '').trim(); if (!v) return null; const lv = v.toLowerCase();
-  return S.rests.find(r => restLabel(r).toLowerCase() === lv) || S.rests.find(r => r.rid.toLowerCase() === lv) || S.rests.find(r => (r.name || '').toLowerCase() === lv) || null;
+  return S.rests.find(r => (r.name || '').trim().toLowerCase() === lv) || S.rests.find(r => r.rid.toLowerCase() === lv) || null;
+}
+async function ensureRest(name) {
+  const r = findRest(name); if (r) return r;
+  const { data, error } = await sb.rpc('ensure_restaurant', { p_name: name });
+  if (error) { toast(error.message, true); return null; }
+  return { rid: data, name, booking: 'Not Booked' };
 }
 function countActs(filter) {
-  const o = { live: 0, scratch: 0, it: 0, appt: 0 };
-  (S.acts || []).filter(filter).forEach(a => o[KIND[a.kind].key]++);
+  const o = { live: 0, appt: 0, noshow: 0 };
+  (S.acts || []).filter(filter).forEach(a => { if (a.kind === 'live') o.live++; else if (a.kind === 'appointment') o.appt++; });
   return o;
 }
 const meOnly = () => !isMgr();
+const ST = {
+  'Scheduled': { th: 'นัดแล้ว', icon: '📅', cls: 'blue' }, 'Rescheduled': { th: 'เลื่อนนัด', icon: '🔁', cls: 'warn' },
+  'No-show': { th: 'No-show', icon: '❌', cls: 'bad' }, 'Problem': { th: 'ติดปัญหา', icon: '⚠️', cls: 'warn' },
+  'LIVE Completed': { th: 'LIVE แล้ว', icon: '✅', cls: 'good' }, 'Cancelled': { th: 'ยกเลิก', icon: '🚫', cls: 'grey' } };
+const stBadge = s => badge((ST[s] || ST.Scheduled).icon + ' ' + (ST[s] || ST.Scheduled).th, (ST[s] || ST.Scheduled).cls);
+const apptDay = a => a.appt_at ? C.iso(new Date(a.appt_at)) : a.act_date;
+const hhmm = s => s ? new Date(s).toTimeString().slice(0, 5) : '';
+const LIVE_CHK = ['chk_install', 'chk_printer', 'chk_test', 'chk_booking'];
 
-// --- feed into the Master Tracker (this is what the KPI reads) ---
+// --- feed into the restaurant record (this is what the KPI reads) ---
 function feedPatch(a, r) {
   const p = {};
   if (a.kind === 'appointment') {
-    const ad = a.appt_at ? a.appt_at.slice(0, 10) : null;
-    p.booking = (r.booking === 'Booked' || r.booking === 'Rescheduled') && r.appt_date && ad && r.appt_date !== ad ? 'Rescheduled' : (r.booking === 'Rescheduled' ? 'Rescheduled' : 'Booked');
+    const ad = a.appt_at ? C.iso(new Date(a.appt_at)) : null;
+    p.booking = { 'Scheduled': 'Booked', 'Rescheduled': 'Rescheduled', 'No-show': 'No-show', 'Cancelled': 'Cancelled by Customer', 'LIVE Completed': 'Attended', 'Problem': r.booking === 'Not Booked' || !r.booking ? 'Booked' : r.booking }[a.status] || 'Booked';
     p.booked_on = r.booked_on || a.act_date; if (ad) p.appt_date = ad;
     if (!r.live_agent) p.live_agent = a.member_code;
-  } else if (a.kind === 'scratch' || a.kind === 'it_handover') {
-    if (a.stages.includes('setup')) { p.setup_status = 'Completed'; p.setup_date = a.act_date; p.setup_owner = r.setup_owner || a.member_code; }
-    if (a.stages.includes('menu')) { p.menu_status = 'Completed'; p.menu_date = a.act_date; p.menu_owner = r.menu_owner || a.member_code; }
+    p.blocker = (a.status === 'Problem' || a.status === 'No-show') ? ([a.issue_category, a.issue_detail].filter(Boolean).join(' — ') || (a.status === 'No-show' ? 'No-show' : 'Problem')) : null;
+    if (a.status === 'Problem' && r.mig_status !== 'Live Completed') p.mig_status = 'On Hold';
   } else if (a.kind === 'live') {
     const c = a.checklist || {};
-    Object.assign(p, { live_agent: a.member_code, actual_live: a.act_date, chk_install: c.chk_install, chk_printer: c.chk_printer, chk_test: c.chk_test, chk_booking: c.chk_booking });
-    p.mig_status = ['chk_install', 'chk_printer', 'chk_test', 'chk_booking'].every(k => c[k] === 'Yes' || c[k] === 'N/A') ? 'Live Completed' : 'Live In Progress';
-    if (r.booking !== 'Attended') p.booking = 'Attended';
+    Object.assign(p, { live_agent: a.member_code, actual_live: a.act_date, chk_install: c.chk_install, chk_printer: c.chk_printer, chk_test: c.chk_test, chk_booking: c.chk_booking, blocker: null });
+    p.mig_status = LIVE_CHK.every(k => c[k] === 'Yes' || c[k] === 'N/A') ? 'Live Completed' : 'Live In Progress';
+    p.booking = 'Attended';
   }
   return p;
 }
+// No-show / problem → Blocker & No-show log (used by the KPI for fair targets)
+async function syncBlocker(a, rid) {
+  const bid = (a.checklist || {}).blocker_id;
+  const need = a.status === 'No-show' || a.status === 'Problem';
+  if (!need) { if (bid) await sb.from('blockers').update({ status: 'Resolved', res_date: C.iso(C.today()) }).eq('id', bid); return bid || null; }
+  const rec = { log_date: a.appt_at ? C.iso(new Date(a.appt_at)) : a.act_date, rid, employee: a.member_code,
+    category: a.status === 'No-show' ? 'No-show' : (a.issue_category || 'Other'), party: a.status === 'No-show' ? 'Customer' : null,
+    description: [a.status === 'No-show' ? 'No-show at appointment ' + fmtDT(a.appt_at) : null, a.issue_detail].filter(Boolean).join(' · ') || a.status, status: 'Open',
+    fu_due: C.iso(C.addWorkdays(C.today(), 1, C.holidaySet(S.settings))) };
+  if (bid) { delete rec.fu_due; delete rec.party; const u = await sb.from('blockers').update(rec).eq('id', bid); return u.error ? null : bid; }
+  const ins = await sb.from('blockers').insert(rec).select('id').single();
+  return ins.error ? null : ins.data.id;
+}
 
-function activityModal(kind, a) {
+function activityModal(kind, a, pre) {
   const isNew = !a;
-  const dflt = S.me.role === 'Menu & Website' ? ['menu'] : S.me.role === 'System Setup' ? ['setup'] : ['setup', 'menu'];
-  a = a || { kind, member_code: S.me.code, act_date: C.iso(C.today()), stages: dflt, checklist: {} };
+  a = a || Object.assign({ kind, member_code: S.me.code, act_date: C.iso(C.today()), status: kind === 'live' ? 'LIVE Completed' : 'Scheduled', checklist: {} }, pre || {});
   kind = a.kind;
-  const r0 = S.rests.find(r => r.rid === a.rid);
-  const isBuild = kind === 'scratch' || kind === 'it_handover';
   const chk = a.checklist || {};
   const ckSel = (k, l) => `<div><label>${l} *</label><select data-ck="${k}">${opts(['Yes', 'N/A', 'No'], chk[k], true)}</select></div>`;
-  const title = kind === 'appointment' ? '📅 บันทึกนัดหมายร้านค้า (Appointment)' : kind === 'live' ? '🔴 บันทึกเปิด LIVE ร้านค้า (Record Store LIVE)' : '🔨 บันทึกสร้างระบบร้านอาหาร (Build System)';
-  openModal(`<h3>${isNew ? '' : 'แก้ไข · '}${title}</h3>${restList()}
+  const isAp = kind === 'appointment';
+  const title = isAp ? (isNew ? '📅 ลงนัดหมายร้านค้า (Appointment)' : '📅 นัดหมาย · ' + esc(a.store_name)) : '🔴 บันทึกเปิด LIVE ร้านค้า (Record Store LIVE)';
+  openModal(`<h3>${title}</h3>${!isNew && isAp ? `<div style="margin-bottom:8px">${stBadge(a.status)} <span class="small muted">ลงนัดเมื่อ ${fd(a.act_date)} โดย ${esc(memberName(a.member_code))}</span></div>` : ''}${restList()}
   <div class="fg">
-    <div><label>${kind === 'appointment' ? 'ผู้ทำนัดหมาย' : kind === 'live' ? 'ผู้เปิด LIVE' : 'ผู้สร้างระบบ'} *</label><select id="a_m" ${meOnly() ? 'disabled' : ''}>${memberOpts(a.member_code, false)}</select></div>
-    <div style="grid-column:span 2"><label>ร้านค้า (พิมพ์ ID หรือชื่อ แล้วเลือกจากรายการ) *</label><input id="a_r" list="restlist" value="${esc(r0 ? restLabel(r0) : a.store_name || '')}" placeholder="เช่น L4U-001 หรือ ชื่อร้าน"></div>
-    <div><label>${kind === 'appointment' ? 'วันที่ลงบันทึกนัด' : kind === 'live' ? 'วันที่เปิด LIVE' : 'วันที่สร้างระบบเสร็จ'} *</label><input id="a_d" type="date" value="${esc(a.act_date)}"></div>
-    ${kind === 'appointment' ? `<div><label>วันเวลานัดหมายกับลูกค้า *</label><input id="a_at" type="datetime-local" value="${esc(a.appt_at ? toLocalDT(a.appt_at) : '')}"></div>` : ''}
+    <div><label>${isAp ? 'ผู้ทำนัด / ผู้ดูแลนัด' : 'ผู้เปิด LIVE'} *</label><select id="a_m" ${meOnly() ? 'disabled' : ''}>${memberOpts(a.member_code, false)}</select></div>
+    <div style="grid-column:span 2"><label>ชื่อร้าน *</label><input id="a_r" list="restlist" value="${esc(a.store_name || '')}" placeholder="พิมพ์ชื่อร้าน (ร้านใหม่ระบบเพิ่มให้เอง)"></div>
+    ${isAp ? `<div><label>วันเวลานัดกับลูกค้า *</label><input id="a_at" type="datetime-local" value="${esc(a.appt_at ? toLocalDT(a.appt_at) : '')}"></div>
+      <div><label>ผู้ติดต่อ / เบอร์โทร</label><input id="a_c" value="${esc(a.contact || '')}" placeholder="เช่น Khun Somchai 0412 345 678"></div>`
+    : `<div><label>วันที่เปิด LIVE *</label><input id="a_d" type="date" value="${esc(a.act_date)}"></div>`}
   </div>
-  ${isBuild ? `<div class="sec">ประเภทงาน</div><div class="row">
-      <label class="pick"><input type="radio" name="a_k" value="scratch" ${kind === 'scratch' ? 'checked' : ''}> 🔨 สร้างตั้งแต่ต้น</label>
-      <label class="pick"><input type="radio" name="a_k" value="it_handover" ${kind === 'it_handover' ? 'checked' : ''}> 💻 ทำต่อจาก IT</label></div>
-    <div class="sec">ส่วนที่ทำเสร็จ (จะอัปเดตสถานะร้านใน Tracker และนับเข้า KPI)</div><div class="row">
-      <label class="pick"><input type="checkbox" data-st="setup" ${a.stages.includes('setup') ? 'checked' : ''}> System Setup เสร็จ</label>
-      <label class="pick"><input type="checkbox" data-st="menu" ${a.stages.includes('menu') ? 'checked' : ''}> Menu & Website เสร็จ</label></div>` : ''}
-  ${kind === 'live' ? `<div class="sec">Live checks (ต้องเป็น Yes หรือ N/A ครบ 4 ข้อ ถึงจะนับเป็น LIVE ใน KPI)</div><div class="fg">
+  ${isAp && !isNew ? `<div class="sec">ผลของนัดนี้</div>
+    <div class="row">${['Scheduled', 'Rescheduled', 'No-show', 'Problem', 'Cancelled'].map(s => `<label class="pick"><input type="radio" name="a_s" value="${s}" ${a.status === s ? 'checked' : ''}> ${ST[s].icon} ${ST[s].th}</label>`).join('')}
+      ${a.status === 'LIVE Completed' ? `<label class="pick"><input type="radio" name="a_s" value="LIVE Completed" checked> ✅ LIVE แล้ว</label>` : ''}</div>
+    <div id="iss" class="fg" style="${a.status === 'Problem' || a.status === 'No-show' ? '' : 'display:none'}">
+      <div><label>ปัญหาที่ทำให้ LIVE ไม่ได้</label><select id="a_ic">${opts(L.ISSUE, a.issue_category || (a.status === 'No-show' ? 'No-show' : ''), true)}</select></div>
+      <div style="grid-column:span 2"><label>รายละเอียดปัญหา / สิ่งที่ต้องทำต่อ</label><input id="a_id" value="${esc(a.issue_detail || '')}" placeholder="เช่น ร้านยังไม่ส่งเมนู, เครื่องปริ้นเตอร์เสีย, ลูกค้าขอเลื่อน"></div></div>
+    <p class="small muted">No-show / ติดปัญหา จะถูกบันทึกลง "ปัญหา / No-show" ให้อัตโนมัติ (ใช้ปรับเป้า KPI ให้ยุติธรรม) · ถ้าเลื่อนนัด ให้เปลี่ยนวันเวลานัดด้านบนแล้วเลือก "เลื่อนนัด"</p>` : ''}
+  ${!isAp ? `<div class="sec">Live checks (ต้องเป็น Yes หรือ N/A ครบ 4 ข้อ ถึงจะนับเป็น LIVE ใน KPI)</div><div class="fg">
       ${ckSel('chk_install', 'ติดตั้งระบบ (Installation)')}${ckSel('chk_printer', 'เครื่องพิมพ์เชื่อมแล้ว (Printer)')}${ckSel('chk_test', 'Test Order')}${ckSel('chk_booking', 'Booking Test')}</div>
     <div class="sec">Onboarding Verification Checklist (ก่อนส่งมอบร้าน) <span class="small muted" id="hv_c"></span></div>
     <div class="cl">${HANDOVER.map((h, i) => `<label class="ci"><input type="checkbox" data-hv="${i}" ${(chk.handover || []).includes(i) ? 'checked' : ''}> <span>${i + 1}. ${esc(h)}</span></label>`).join('')}</div>` : ''}
-  <label>หมายเหตุ / รายละเอียด</label><textarea id="a_n">${esc(a.notes || '')}</textarea>
-  <div class="actions">${!isNew ? '<button class="btn r" id="del" style="margin-right:auto">ลบ</button>' : ''}<button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">บันทึก</button></div>`);
+  <label>หมายเหตุ</label><textarea id="a_n">${esc(a.notes || '')}</textarea>
+  <div class="actions">${!isNew ? '<button class="btn r s" id="del" style="margin-right:auto">ลบ</button>' : ''}
+    ${isAp && !isNew && a.status !== 'LIVE Completed' ? '<button class="btn" id="ns">❌ No-show</button><button class="btn r" id="golive">🔴 บันทึก LIVE ร้านนี้</button>' : ''}
+    <button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">บันทึก</button></div>`);
   const hvc = () => { const e = $('#hv_c'); if (e) e.textContent = `${document.querySelectorAll('[data-hv]:checked').length} / ${HANDOVER.length} เรียบร้อย`; };
   hvc(); document.querySelectorAll('[data-hv]').forEach(x => x.onchange = hvc);
+  document.querySelectorAll('[name="a_s"]').forEach(x => x.onchange = () => {
+    const v = x.value; $('#iss').style.display = v === 'Problem' || v === 'No-show' ? '' : 'none';
+    if (v === 'No-show' && !$('#a_ic').value) $('#a_ic').value = 'No-show';
+  });
   $('#cx').onclick = closeModal;
+  if ($('#ns')) $('#ns').onclick = () => { const r = document.querySelector('[name="a_s"][value="No-show"]'); r.checked = true; r.onchange(); $('#a_id').focus(); };
+  if ($('#golive')) $('#golive').onclick = () => { closeModal(); activityModal('live', null, { store_name: a.store_name, rid: a.rid, member_code: S.me.code, checklist: { from_appt: a.id } }); };
   if ($('#del')) $('#del').onclick = async () => {
-    if (!confirm('ลบรายการนี้? (สถานะร้านใน Tracker จะไม่ถูกย้อนกลับอัตโนมัติ — ถ้าต้องแก้ ให้แก้ที่หน้า Tracker)')) return;
+    if (!confirm('ลบรายการนี้?' + (isAp ? ' (นัดใน Google Calendar จะถูกลบด้วย)' : ''))) return;
     closeModal(); await save(sb.from('activities').delete().eq('id', a.id), 'ลบแล้ว');
   };
   $('#sv').onclick = async () => {
-    const rv = $('#a_r').value.trim(); const r = findRest(rv);
-    const rec = { kind, member_code: $('#a_m').value, rid: r ? r.rid : null, store_name: r ? r.name : rv, act_date: $('#a_d').value, notes: $('#a_n').value.trim() || null, stages: [], checklist: {} };
-    if (isBuild) { rec.kind = (document.querySelector('[name="a_k"]:checked') || {}).value || 'scratch'; rec.stages = [...document.querySelectorAll('[data-st]:checked')].map(x => x.dataset.st); }
-    if (kind === 'appointment') { const v = $('#a_at').value; if (!v) return toast('กรุณาใส่วันเวลานัดหมาย', true); rec.appt_at = new Date(v).toISOString(); }
-    if (kind === 'live') {
-      document.querySelectorAll('[data-ck]').forEach(x => rec.checklist[x.dataset.ck] = x.value || null);
+    const name = $('#a_r').value.trim();
+    const rec = { kind, member_code: $('#a_m').value, store_name: name, notes: $('#a_n').value.trim() || null, checklist: Object.assign({}, chk) };
+    if (!name) return toast('กรุณาใส่ชื่อร้าน', true);
+    if (isAp) {
+      const v = $('#a_at').value; if (!v) return toast('กรุณาใส่วันเวลานัด', true);
+      rec.appt_at = new Date(v).toISOString(); rec.contact = $('#a_c').value.trim() || null; rec.act_date = a.act_date;
+      const sEl = document.querySelector('[name="a_s"]:checked'); rec.status = sEl ? sEl.value : 'Scheduled';
+      if (!isNew && a.appt_at && rec.appt_at !== a.appt_at && rec.status === 'Scheduled') rec.status = 'Rescheduled';
+      rec.issue_category = (rec.status === 'Problem' || rec.status === 'No-show') && $('#a_ic') ? $('#a_ic').value || null : null;
+      rec.issue_detail = (rec.status === 'Problem' || rec.status === 'No-show') && $('#a_id') ? $('#a_id').value.trim() || null : null;
+      if (rec.status === 'Problem' && !rec.issue_category && !rec.issue_detail) return toast('กรุณาเลือกหรือพิมพ์ปัญหาที่ทำให้ LIVE ไม่ได้', true);
+    } else {
+      rec.act_date = $('#a_d').value; rec.status = 'LIVE Completed'; if (!rec.act_date) return toast('กรุณาใส่วันที่', true);
+      LIVE_CHK.forEach(k => rec.checklist[k] = (document.querySelector(`[data-ck="${k}"]`) || {}).value || null);
       rec.checklist.handover = [...document.querySelectorAll('[data-hv]:checked')].map(x => +x.dataset.hv);
-      if (['chk_install', 'chk_printer', 'chk_test', 'chk_booking'].some(k => !rec.checklist[k])) return toast('กรุณาเลือก Live checks ให้ครบ 4 ข้อ', true);
-      if (['chk_install', 'chk_printer', 'chk_test', 'chk_booking'].some(k => rec.checklist[k] === 'No') && !confirm('มี Live check ที่เป็น "No" — ร้านนี้จะยังไม่นับเป็น LIVE ใน KPI จนกว่าจะแก้เป็น Yes/N/A บันทึกต่อไหม?')) return;
+      if (LIVE_CHK.some(k => !rec.checklist[k])) return toast('กรุณาเลือก Live checks ให้ครบ 4 ข้อ', true);
+      if (LIVE_CHK.some(k => rec.checklist[k] === 'No') && !confirm('มี Live check ที่เป็น "No" — ร้านนี้จะยังไม่นับเป็น LIVE ใน KPI จนกว่าจะแก้เป็น Yes/N/A บันทึกต่อไหม?')) return;
     }
-    if (!rv || !rec.act_date) return toast('กรุณาใส่ร้านค้าและวันที่', true);
-    if (isBuild && !rec.stages.length) return toast('เลือกอย่างน้อย 1 ส่วนที่ทำเสร็จ (Setup หรือ Menu)', true);
-    if (!r && !confirm('ไม่พบร้านนี้ในรายชื่อร้าน (Tracker)\nบันทึกได้ แต่จะยังไม่นับเข้า KPI จนกว่าจะเพิ่มร้านนี้ใน Tracker แล้วแก้รายการนี้ให้เลือกร้านที่ถูกต้อง\n\nบันทึกต่อไหม?')) return;
+    $('#sv').disabled = true;
+    const r = await ensureRest(name); if (!r) { $('#sv').disabled = false; return; }
+    rec.rid = r.rid;
+    if (isAp) { const bid = await syncBlocker(Object.assign({}, a, rec), r.rid); if (bid) rec.checklist.blocker_id = bid; }
     closeModal();
     const res = isNew ? await sb.from('activities').insert(rec) : await sb.from('activities').update(rec).eq('id', a.id);
     if (res.error) return toast(res.error.message, true);
-    if (r) { const p = feedPatch(rec, r); if (Object.keys(p).length) { const u = await sb.from('restaurants').update(p).eq('rid', r.rid); if (u.error) toast('บันทึกแล้ว แต่ อัปเดต Tracker ไม่สำเร็จ: ' + u.error.message, true); } }
-    toast(r ? 'บันทึกแล้ว · อัปเดตร้าน ' + r.rid + ' ใน Tracker' : 'บันทึกแล้ว (ยังไม่เชื่อมกับร้านใน Tracker)');
+    const p = feedPatch(rec, r); if (Object.keys(p).length) await sb.from('restaurants').update(p).eq('rid', r.rid);
+    if (kind === 'live') { // close the appointment this LIVE came from (or the latest open one for this store)
+      const ap = (S.acts || []).filter(x => x.kind === 'appointment' && x.rid === r.rid && x.status !== 'LIVE Completed' && x.status !== 'Cancelled')
+        .sort((x, y) => (y.appt_at || '').localeCompare(x.appt_at || ''));
+      const target = ap.find(x => x.id === chk.from_appt) || ap[0];
+      if (target) { await sb.from('activities').update({ status: 'LIVE Completed' }).eq('id', target.id); const bid = (target.checklist || {}).blocker_id; if (bid) await sb.from('blockers').update({ status: 'Resolved', res_date: rec.act_date }).eq('id', bid); }
+    }
+    toast(isAp ? (isNew ? 'ลงนัดแล้ว' : 'อัปเดตนัดแล้ว') : 'บันทึก LIVE แล้ว ✅');
     await loadAll(); render();
   };
 }
@@ -677,69 +726,76 @@ const fmtDT = s => { if (!s) return ''; const d = new Date(s); return fd(d) + ' 
 function viewHome() {
   const td = C.iso(C.today()); const day = S.selDate || td;
   const team = S.members.filter(m => m.active);
-  const tgt = team.reduce((o, m) => { const t = dailyT(m); for (const k in o) o[k] += +t[k] || 0; return o; }, { live: 0, scratch: 0, it: 0, appt: 0 });
-  const cnt = countActs(a => a.act_date === td);
-  const big = (l, k, cls) => { const v = tgt[k] ? cnt[k] / tgt[k] : 0; return `<div class="kpi ${cls}"><div class="l">${l}</div><div class="v">${cnt[k]} <span class="small muted">/ ${tgt[k]} ร้าน (${pct(Math.min(v, 9))})</span></div><div class="bar"><i style="width:${Math.min(1, v) * 100}%"></i></div></div>`; };
-  const mcard = m => { const t = dailyT(m); const c = countActs(a => a.act_date === td && a.member_code === m.code);
-    const line = (l, k) => `<div class="ml"><span>${l}${t[k] ? ` (Target: ${t[k]})` : ''}</span><b>${c[k]}${t[k] ? ' / ' + t[k] : ''}</b></div><div class="bar thin"><i style="width:${t[k] ? Math.min(1, c[k] / t[k]) * 100 : (c[k] ? 100 : 0)}%"></i></div>`;
-    const done = ['live', 'scratch', 'it'].every(k => !t[k] || c[k] >= t[k]) && (t.live + t.scratch + t.it > 0);
+  const tgt = team.reduce((o, m) => { const t = dailyT(m); o.live += +t.live || 0; o.appt += +t.appt || 0; return o; }, { live: 0, appt: 0 });
+  const appts = (S.acts || []).filter(a => a.kind === 'appointment');
+  const lives = (S.acts || []).filter(a => a.kind === 'live');
+  const cnt = { live: lives.filter(a => a.act_date === td).length, appt: appts.filter(a => a.act_date === td).length };
+  const todayAp = appts.filter(a => apptDay(a) === td);
+  const big = (l, v, t, cls, sub) => { const r = t ? v / t : 0; return `<div class="kpi ${cls}"><div class="l">${l}</div><div class="v">${v}${t ? ` <span class="small muted">/ ${t} ร้าน (${pct(Math.min(r, 9))})</span>` : ''}</div>${t ? `<div class="bar"><i style="width:${Math.min(1, r) * 100}%"></i></div>` : `<div class="s">${sub || ''}</div>`}</div>`; };
+  const mcard = m => { const t = dailyT(m);
+    const lv = lives.filter(a => a.act_date === td && a.member_code === m.code).length, ap = appts.filter(a => a.act_date === td && a.member_code === m.code).length;
+    const mine = todayAp.filter(a => a.member_code === m.code);
+    const line = (l, c, k) => `<div class="ml"><span>${l}${k ? ` (Target: ${k})` : ''}</span><b>${c}${k ? ' / ' + k : ''}</b></div><div class="bar thin"><i style="width:${k ? Math.min(1, c / k) * 100 : (c ? 100 : 0)}%"></i></div>`;
+    const done = t.live > 0 && lv >= t.live;
     return `<div class="card mc"><div class="row" style="align-items:center"><div style="flex:1"><h2 style="margin:0">${esc(m.name)}${m.is_manager ? ' ⭐' : ''}</h2><div class="small muted">${esc(m.role)}</div></div>${badge(done ? 'Target Met 🎉' : 'In Progress', done ? 'good' : 'blue')}</div>
-      ${line('🔴 LIVE Launch', 'live')}${line('🔨 New Build (Scratch)', 'scratch')}${line('💻 IT Handover', 'it')}${line('📅 Appointments', 'appt')}</div>`; };
-  // calendar
+      ${line('🔴 LIVE วันนี้', lv, t.live)}${line('📅 ลงนัดวันนี้', ap, t.appt)}
+      <div class="ml"><span>🗓️ นัดของวันนี้</span><b>${mine.length}${mine.filter(a => a.status === 'No-show').length ? ` · ❌ ${mine.filter(a => a.status === 'No-show').length}` : ''}</b></div></div>`; };
   const [cy, cm] = (S.calMonth || td.slice(0, 7)).split('-').map(Number);
   const first = new Date(cy, cm - 1, 1), days = new Date(cy, cm, 0).getDate();
   let cells = ''; for (let i = 0; i < first.getDay(); i++) cells += '<div class="cd empty"></div>';
   for (let dn = 1; dn <= days; dn++) {
-    const ds = C.iso(new Date(cy, cm - 1, dn)); const c = countActs(a => a.act_date === ds);
-    const off = isOff(ds); const hol = (S.settings.holidays || []).find(h => h.date === ds);
-    const met = !off && tgt.live && c.live >= tgt.live; const all = met && c.scratch >= tgt.scratch && c.it >= tgt.it;
-    const show = S.calF === 'live' ? met : S.calF === 'all' ? all : S.calF === 'pending' ? (!off && !all && ds <= td) : true;
-    cells += `<button class="cd ${off ? 'off' : ''} ${ds === td ? 'today' : ''} ${ds === day ? 'sel' : ''} ${all ? 'met' : ''} ${show ? '' : 'dim'}" data-day="${ds}"><div class="dn">${dn}</div>
-      ${off ? `<div class="small muted">☕ ${esc(hol ? (hol.name || 'วันหยุด') : 'วันหยุด')}</div>` + (c.live + c.scratch + c.it + c.appt ? `<div class="small">${c.live + c.scratch + c.it + c.appt} รายการ</div>` : '')
-        : `<div class="cl2">🔴 ${c.live}/${tgt.live}</div><div class="cl2">🔨 ${c.scratch}/${tgt.scratch}</div><div class="cl2">💻 ${c.it}/${tgt.it}</div>${c.appt ? `<div class="cl2">📅 ${c.appt}</div>` : ''}`}</button>`;
+    const ds = C.iso(new Date(cy, cm - 1, dn)); const off = isOff(ds); const hol = (S.settings.holidays || []).find(h => h.date === ds);
+    const dAp = appts.filter(a => apptDay(a) === ds).sort((x, y) => (x.appt_at || '').localeCompare(y.appt_at || ''));
+    const dLv = lives.filter(a => a.act_date === ds).length;
+    const show = S.calF === 'noshow' ? dAp.some(a => a.status === 'No-show') : S.calF === 'problem' ? dAp.some(a => a.status === 'Problem') : S.calF === 'open' ? dAp.some(a => a.status === 'Scheduled' || a.status === 'Rescheduled') : true;
+    cells += `<div class="cd ${off ? 'off' : ''} ${ds === td ? 'today' : ''} ${ds === day ? 'sel' : ''} ${show ? '' : 'dim'}" data-day="${ds}"><div class="dn">${dn}${off ? ` <span class="small muted">☕ ${esc(hol ? (hol.name || 'วันหยุด') : '')}</span>` : ''}</div>
+      ${dLv ? `<div class="cl2"><b>🔴 LIVE ${dLv}${!off && tgt.live ? '/' + tgt.live : ''}</b></div>` : (!off && tgt.live ? `<div class="cl2 muted">🔴 0/${tgt.live}</div>` : '')}
+      ${dAp.slice(0, 4).map(a => `<button class="ev ev-${(ST[a.status] || ST.Scheduled).cls}" data-act="${a.id}" title="${esc(a.store_name)}">${(ST[a.status] || ST.Scheduled).icon} ${hhmm(a.appt_at)} ${esc(a.store_name)}</button>`).join('')}
+      ${dAp.length > 4 ? `<div class="small muted">+${dAp.length - 4} นัด</div>` : ''}</div>`;
   }
-  const dayActs = (S.acts || []).filter(a => a.act_date === day);
-  const actRow = a => { const can = isMgr() || a.member_code === S.me.code;
-    return `<tr><td>${KIND[a.kind].icon} ${KIND[a.kind].th}</td><td>${a.rid ? `<b>${esc(a.rid)}</b> ` : ''}${esc(a.store_name)}${a.rid ? '' : ' <span class="flag">⚠ ยังไม่เชื่อมกับ Tracker (ไม่นับ KPI)</span>'}</td><td>${esc(memberName(a.member_code))}</td>
-      <td class="small">${a.kind === 'appointment' ? 'นัด: ' + fmtDT(a.appt_at) : a.kind === 'live' ? liveTxt(a) : (a.stages || []).map(s => s === 'setup' ? 'Setup ✓' : 'Menu ✓').join(' · ')}</td><td class="small">${esc(a.notes || '')}</td>
-      <td>${can ? `<button class="btn s" data-act="${a.id}">แก้ไข</button>` : ''}</td></tr>`; };
-  const showGuide = S.guide !== false;
+  const dayAp = appts.filter(a => apptDay(a) === day).sort((x, y) => (x.appt_at || '').localeCompare(y.appt_at || ''));
+  const dayLv = lives.filter(a => a.act_date === day);
+  const apRow = a => `<tr class="clk" data-act="${a.id}"><td><b>${hhmm(a.appt_at)}</b></td><td><b>${esc(a.store_name)}</b>${a.contact ? `<div class="small muted">${esc(a.contact)}</div>` : ''}</td><td>${esc(memberName(a.member_code))}</td>
+    <td>${stBadge(a.status)}</td><td class="small">${a.status === 'No-show' || a.status === 'Problem' ? esc([a.issue_category, a.issue_detail].filter(Boolean).join(' — ')) : ''}${a.notes ? `<div class="muted">${esc(a.notes)}</div>` : ''}</td><td><button class="btn s">เปิด</button></td></tr>`;
+  const lvRow = a => `<tr class="clk" data-act="${a.id}"><td>🔴</td><td><b>${esc(a.store_name)}</b></td><td>${esc(memberName(a.member_code))}</td><td>${liveTxt(a)}</td><td class="small">${esc(a.notes || '')}</td><td><button class="btn s">เปิด</button></td></tr>`;
+  const showGuide = S.guide === true;
   $('#main').innerHTML = `
   <div class="card"><div class="small muted" style="font-weight:700;letter-spacing:.05em">DAILY TARGET PERFORMANCE · REAL-TIME</div>
     <h2 style="font-size:20px;margin:4px 0">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} <small>(${new Date().toLocaleDateString('th-TH', { dateStyle: 'full' })})</small></h2>
     ${isOff(td) ? '<div class="note">วันนี้เป็นวันหยุด — ไม่มีเป้าหมายงาน</div>' : ''}
-    <div class="grid">${big('1. Team LIVE Target 🔴', 'live', 'k-live')}${big('2. New Build (Scratch) 🔨', 'scratch', '')}${big('3. IT Handover 💻', 'it', '')}${big('4. Appointments 📅', 'appt', '')}</div></div>
-  ${recorderCard(true)}
+    <div class="grid">${big('🔴 Team LIVE วันนี้', cnt.live, tgt.live, 'k-live')}${big('📅 ลงนัดใหม่วันนี้', cnt.appt, tgt.appt, '')}
+      ${big('🗓️ นัดของวันนี้', todayAp.length, 0, '', `รอ ${todayAp.filter(a => a.status === 'Scheduled' || a.status === 'Rescheduled').length} · LIVE ${todayAp.filter(a => a.status === 'LIVE Completed').length}`)}
+      ${big('❌ No-show / ⚠️ ติดปัญหา วันนี้', todayAp.filter(a => a.status === 'No-show' || a.status === 'Problem').length, 0, '', `No-show ${todayAp.filter(a => a.status === 'No-show').length} · ปัญหา ${todayAp.filter(a => a.status === 'Problem').length}`)}</div></div>
   <div class="mgrid">${team.map(mcard).join('')}</div>
+  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">ปฏิทินนัดหมาย & LIVE <small>กดชื่อร้านเพื่อเปิดนัด · กดช่องวันเพื่อดูรายการ</small></h2>
+    <select id="calf" style="width:auto">${[['', 'ทั้งหมด'], ['open', '📅 ยังรออยู่'], ['noshow', '❌ มี No-show'], ['problem', '⚠️ มีปัญหา']].map(o => `<option value="${o[0]}" ${o[0] === (S.calF || '') ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>
+    <button class="btn s" id="cp">◀</button><b>${first.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</b><button class="btn s" id="cn">▶</button><button class="btn s" id="ct">วันนี้</button></div>
+    <div class="cal">${['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map(x => `<div class="ch">${x}</div>`).join('')}${cells}</div></div>
+  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${fd(day)} <small>นัด ${dayAp.length} · LIVE ${dayLv.length}</small></h2>
+    <button class="btn s" data-new="appointment">+ Add Appointment</button><button class="btn s r" data-new="live">🔴 Record LIVE</button></div>
+    <div class="tw" style="margin-top:10px"><table><thead><tr><th>เวลา</th><th>ร้าน</th><th>ผู้ดูแล</th><th>สถานะ</th><th>ปัญหา / หมายเหตุ</th><th></th></tr></thead><tbody>
+    ${dayAp.map(apRow).join('') || '<tr><td colspan="6" class="muted">ไม่มีนัดในวันนี้</td></tr>'}</tbody></table></div>
+    ${dayLv.length ? `<div class="sec">LIVE ที่บันทึกวันนี้</div><div class="tw"><table><tbody>${dayLv.map(lvRow).join('')}</tbody></table></div>` : ''}</div>
+  ${recorderCard(true)}
   <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Daily Workflow Guide <small>07:00 – 16:00</small></h2><button class="btn s" id="tg">${showGuide ? 'Hide Guide' : 'Show Guide'}</button></div>
-    ${showGuide ? `<div class="plan">${DAY_PLAN.map((p, i) => `<div class="pi"><div class="small muted">${p[0]}</div><b>${i + 1}. ${esc(p[1])}</b><ul>${p[2].map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`).join('')}</div>
-    <div class="note" style="margin-top:12px"><b>กฎเหล็ก:</b> ทุกร้านต้องมี Status · Owner · Last Contact · Next Action · Follow-up Date · Appt Date · Expected Go Live · Blocker — ห้ามปล่อยร้านค้างใน Queue โดยไม่มี Next Action + Owner + Follow-up Date</div>` : ''}
+    ${showGuide ? `<div class="plan">${DAY_PLAN.map((p, i) => `<div class="pi"><div class="small muted">${p[0]}</div><b>${i + 1}. ${esc(p[1])}</b><ul>${p[2].map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`).join('')}</div>` : ''}
     <div class="sec">Active Blockers Pad (โน้ตปัญหาติดตาม — ทุกคนแก้ได้)</div>
     <textarea id="pad" placeholder="คลิกเพื่อบันทึก blockers หรือ follow-up ประจำวัน...">${esc(content('pad'))}</textarea>
-    <div class="actions" style="margin-top:6px"><button class="btn s p" id="padsv">Save note</button></div></div>
-  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Migration Target Calendar (ปฏิทินเป้าหมาย) <small>กดวันที่เพื่อดูรายการ</small></h2>
-    <select id="calf" style="width:auto">${[['', 'All (ทั้งหมด)'], ['live', '🔴 LIVE Target Met'], ['all', '100% Targets Met'], ['pending', 'Pending Targets']].map(o => `<option value="${o[0]}" ${o[0] === (S.calF || '') ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>
-    <button class="btn s" id="cp">◀</button><b>${first.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</b><button class="btn s" id="cn">▶</button></div>
-    <div class="cal">${['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map(x => `<div class="ch">${x}</div>`).join('')}${cells}</div></div>
-  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Daily Activity Log · ${fd(day)} <small>${dayActs.length} รายการ</small></h2>
-    <button class="btn s" data-new="appointment">+ Add Appointment</button><button class="btn s" data-new="scratch">+ Build System</button><button class="btn s r" data-new="live">🔴 Record LIVE</button></div>
-    <div class="tw" style="margin-top:10px"><table><thead><tr><th>ประเภท</th><th>ร้าน</th><th>โดย</th><th>รายละเอียด</th><th>หมายเหตุ</th><th></th></tr></thead><tbody>
-    ${dayActs.map(actRow).join('') || '<tr><td colspan="6" class="muted">ยังไม่มีรายการในวันนี้</td></tr>'}</tbody></table></div></div>`;
+    <div class="actions" style="margin-top:6px"><button class="btn s p" id="padsv">Save note</button></div></div>`;
   $('#tg').onclick = () => { S.guide = !showGuide; render(); };
   $('#padsv').onclick = () => save(sb.from('content').update({ body: $('#pad').value, updated_at: new Date().toISOString() }).eq('key', 'pad'), 'บันทึกโน้ตแล้ว');
   $('#calf').onchange = e => { S.calF = e.target.value; render(); };
   const shift = n => { const d = new Date(cy, cm - 1 + n, 1); S.calMonth = C.iso(d).slice(0, 7); render(); };
-  $('#cp').onclick = () => shift(-1); $('#cn').onclick = () => shift(1);
-  document.querySelectorAll('[data-day]').forEach(b => b.onclick = () => { S.selDate = b.dataset.day; render(); });
+  $('#cp').onclick = () => shift(-1); $('#cn').onclick = () => shift(1); $('#ct').onclick = () => { S.calMonth = null; S.selDate = null; render(); };
+  document.querySelectorAll('[data-day]').forEach(b => b.onclick = e => { if (e.target.closest('[data-act]')) return; S.selDate = b.dataset.day; render(); });
   bindActButtons(); bindRecorder();
 }
-function liveTxt(a) { const c = a.checklist || {}; const ok = ['chk_install', 'chk_printer', 'chk_test', 'chk_booking'].every(k => c[k] === 'Yes' || c[k] === 'N/A');
-  return (ok ? badge('Checks ✓', 'good') : badge('Checks ไม่ครบ', 'warn')) + ` Handover ${(c.handover || []).length}/${HANDOVER.length}`; }
+function liveTxt(a) { const c = a.checklist || {}; const ok = LIVE_CHK.every(k => c[k] === 'Yes' || c[k] === 'N/A');
+  return (ok ? badge('Checks ✓', 'good') : badge('Checks ไม่ครบ', 'warn')) + ` <span class="small">Handover ${(c.handover || []).length}/${HANDOVER.length}</span>`; }
 function bindActButtons() {
-  document.querySelectorAll('[data-act]').forEach(b => b.onclick = () => activityModal(null, S.acts.find(a => String(a.id) === b.dataset.act)));
-  document.querySelectorAll('[data-new]').forEach(b => b.onclick = () => activityModal(b.dataset.new));
+  document.querySelectorAll('[data-act]').forEach(b => b.onclick = e => { e.stopPropagation(); activityModal(null, S.acts.find(a => String(a.id) === b.dataset.act)); });
+  document.querySelectorAll('#main [data-new]').forEach(b => b.onclick = () => activityModal(b.dataset.new));
 }
-
 
 // --- LFY Recorder (runs locally on each Mac; links live here) ---
 function recFile() { try { return JSON.parse(content('recorder_file') || 'null'); } catch { return null; } }
@@ -799,7 +855,7 @@ function viewPrelive() {
   const r0 = S.rests.find(r => r.rid === cur.rid);
   $('#main').innerHTML = `${restList()}<div class="two">
   <div class="card"><h2>Pre-Live System Checklist <small>ตรวจความพร้อมก่อน LIVE · ${PRELIVE.length} ข้อ</small></h2>
-    <div class="fg"><div style="grid-column:span 2"><label>Store (ร้านค้า) *</label><input id="pl_r" list="restlist" value="${esc(r0 ? restLabel(r0) : cur.store_name || '')}"></div>
+    <div class="fg"><div style="grid-column:span 2"><label>ชื่อร้าน *</label><input id="pl_r" list="restlist" value="${esc(r0 ? restLabel(r0) : cur.store_name || '')}"></div>
       <div><label>Inspector (ผู้ตรวจ) *</label><select id="pl_i">${memberOpts(cur.inspector, false)}</select></div></div>
     <label>Inspection Notes (หมายเหตุ)</label><textarea id="pl_n">${esc(cur.notes || '')}</textarea>
     <div class="row" style="align-items:center;margin:10px 0"><div style="flex:1"><div class="small muted">Progress: ${reqDone} / ${PL_REQ} ข้อบังคับ (${pct(reqDone / PL_REQ)})</div><div class="bar"><i style="width:${reqDone / PL_REQ * 100}%"></i></div></div>
@@ -822,9 +878,9 @@ function viewPrelive() {
   $('#pl_cp').onclick = () => { const c = collect(); const t = `Pre-Live Audit: ${c.store_name}\nInspector: ${memberName(c.inspector)}\n` + PRELIVE.map((x, i) => `${c.checks['i' + i] ? '✅' : '⬜'} ${i + 1}. ${x.t}${c.checks['o' + i] ? ' — ' + c.checks['o' + i].join(', ') : ''}`).join('\n') + (c.notes ? `\nNotes: ${c.notes}` : '');
     navigator.clipboard.writeText(t).then(() => toast('คัดลอกแล้ว'), () => toast('คัดลอกไม่ได้', true)); };
   $('#pl_sv').onclick = async () => {
-    const c = collect(); const r = c._r; delete c._r;
+    const c = collect(); delete c._r;
     if (!c.store_name) return toast('กรุณาใส่ชื่อร้าน', true);
-    if (!r && !confirm('ไม่พบร้านนี้ใน Tracker — บันทึกได้ แต่จะไม่อัปเดตสถานะร้าน บันทึกต่อไหม?')) return;
+    const r = await ensureRest(c.store_name); if (!r) return; c.rid = r.rid; c.store_name = r.name;
     const id = c.id; delete c.id; c.updated_at = new Date().toISOString();
     const res = id ? await sb.from('prelive').update(c).eq('id', id) : await sb.from('prelive').insert(c);
     if (res.error) return toast(res.error.message, true);
@@ -863,18 +919,90 @@ function viewFlow() {
 
 // --- Team Performance ---
 function viewPerf() {
-  const months = [...new Set((S.acts || []).map(a => a.act_date.slice(0, 7)).concat([C.iso(C.today()).slice(0, 7)]))].sort().reverse();
+  const months = [...new Set((S.acts || []).map(a => (a.kind === 'appointment' ? apptDay(a) : a.act_date).slice(0, 7)).concat([C.iso(C.today()).slice(0, 7)]))].sort().reverse();
   const mo = S.perfMonth ?? '';
-  const inP = a => !mo || a.act_date.startsWith(mo);
-  $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Team Performance & Targets <small>ผลงานจากรายการที่บันทึก</small></h2>
+  const inP = d => !mo || (d || '').startsWith(mo);
+  $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Team Performance <small>จากนัดหมายและ LIVE ที่บันทึก</small></h2>
     <div><select id="pm" style="width:auto"><option value="">All time</option>${months.map(m => `<option ${m === mo ? 'selected' : ''}>${m}</option>`).join('')}</select></div></div></div>
-  <div class="mgrid">${S.members.filter(m => m.active).map(m => { const c = countActs(a => a.member_code === m.code && inP(a)); const t = dailyT(m);
-    const pl = (S.prelive || []).filter(p => p.inspector === m.code && (!mo || (p.updated_at || '').startsWith(mo)));
+  <div class="mgrid">${S.members.filter(m => m.active).map(m => { const t = dailyT(m);
+    const ap = (S.acts || []).filter(a => a.kind === 'appointment' && a.member_code === m.code && inP(apptDay(a)));
+    const lv = (S.acts || []).filter(a => a.kind === 'live' && a.member_code === m.code && inP(a.act_date)).length;
+    const n = s => ap.filter(a => a.status === s).length;
+    const done = ap.filter(a => a.status !== 'Scheduled' && a.status !== 'Rescheduled' && a.status !== 'Cancelled').length;
+    const pl = (S.prelive || []).filter(p => p.inspector === m.code && inP(p.updated_at));
     const k = (l, v, s) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
-    return `<div class="card"><h2>${esc(m.name)}${m.is_manager ? ' ⭐' : ''} <small>${esc(m.role)} · Daily: LIVE ${t.live} • Scratch ${t.scratch} • IT ${t.it}</small></h2><div class="grid g3">
-      ${k('🔴 Live stores', c.live, 'ร้านที่เปิดแล้ว')}${k('🔨 Scratch setup', c.scratch, 'สร้างจากต้น')}${k('💻 IT handover', c.it, 'ทำต่อจาก IT')}
-      ${k('📅 Appointments', c.appt, 'นัดหมายทั้งหมด')}${k('✅ Pre-Live audits', pl.length, `ครบ 100%: ${pl.filter(p => p.done >= PL_REQ).length}`)}</div></div>`; }).join('')}</div>`;
+    return `<div class="card"><h2>${esc(m.name)}${m.is_manager ? ' ⭐' : ''} <small>${esc(m.role)} · Daily: LIVE ${t.live} • นัด ${t.appt}</small></h2><div class="grid g3">
+      ${k('🔴 LIVE', lv, 'ร้านที่เปิดแล้ว')}${k('📅 นัดทั้งหมด', ap.length, `รอ ${n('Scheduled') + n('Rescheduled')}`)}${k('❌ No-show', n('No-show'), done ? 'อัตรา ' + pct(n('No-show') / done) : '')}
+      ${k('⚠️ ติดปัญหา', n('Problem'), 'LIVE ไม่ได้')}${k('✅ Pre-Live', pl.length, `ครบ 100%: ${pl.filter(p => p.done >= PL_REQ).length}`)}</div></div>`; }).join('')}</div>`;
   $('#pm').onchange = e => { S.perfMonth = e.target.value; render(); };
+}
+
+// --- Google Calendar (Manager) ---
+function gcalScript(secret) {
+  return `// L4U Migration Tracker → Google Calendar
+const SECRET = '${secret}';
+const MINUTES = 45;           // ความยาวนัด (นาที)
+const REMIND = [30, 10];      // เตือนก่อนนัด (นาที)
+const APP = 'https://l4u-migration-kpi.vercel.app/';
+
+function doPost(e) {
+  const d = JSON.parse(e.postData.contents || '{}');
+  if (d.secret !== SECRET) return out({ ok: false, error: 'bad secret' });
+  const cal = CalendarApp.getDefaultCalendar();
+  const props = PropertiesService.getScriptProperties();
+  if (d.action === 'test') {
+    const s = new Date(Date.now() + 5 * 60000);
+    const ev = cal.createEvent('✅ L4U Migration Tracker เชื่อม Google Calendar แล้ว', s, new Date(s.getTime() + 15 * 60000), { description: APP });
+    ev.removeAllReminders(); ev.addPopupReminder(1);
+    return out({ ok: true });
+  }
+  const key = 'a' + d.id;
+  const id = props.getProperty(key);
+  let ev = null;
+  if (id) { try { ev = cal.getEventById(id); } catch (err) { ev = null; } }
+  if (d.action === 'delete') { if (ev) ev.deleteEvent(); props.deleteProperty(key); return out({ ok: true }); }
+  const icon = { 'Scheduled': '📅', 'Rescheduled': '🔁', 'No-show': '❌', 'Problem': '⚠️', 'LIVE Completed': '✅', 'Cancelled': '🚫' }[d.status] || '📅';
+  const title = icon + ' ' + d.store + ' – นัด Migration (' + d.member + ')' + (d.status === 'No-show' ? ' · NO-SHOW' : d.status === 'Problem' ? ' · ติดปัญหา' : '');
+  const desc = ['ร้าน: ' + d.store, 'ผู้ดูแล: ' + d.member, 'สถานะ: ' + d.status, d.contact ? 'ติดต่อ: ' + d.contact : '',
+    d.issue ? 'ปัญหา: ' + d.issue : '', d.notes ? 'หมายเหตุ: ' + d.notes : ''].filter(function (x) { return x; }).join('\\n') + '\\n\\nเปิดในระบบ: ' + APP;
+  const start = new Date(d.start), end = new Date(start.getTime() + MINUTES * 60000);
+  if (!ev) { ev = cal.createEvent(title, start, end, { description: desc }); props.setProperty(key, ev.getId()); }
+  else { ev.setTitle(title); ev.setTime(start, end); ev.setDescription(desc); }
+  ev.removeAllReminders();
+  if (d.status === 'Scheduled' || d.status === 'Rescheduled') REMIND.forEach(function (m) { ev.addPopupReminder(m); });
+  const color = { 'No-show': CalendarApp.EventColor.RED, 'Problem': CalendarApp.EventColor.ORANGE, 'LIVE Completed': CalendarApp.EventColor.GREEN, 'Cancelled': CalendarApp.EventColor.GRAY }[d.status];
+  if (color) ev.setColor(color); else ev.setColor(CalendarApp.EventColor.BLUE);
+  return out({ ok: true });
+}
+function doGet() { return out({ ok: true, app: 'L4U calendar bridge' }); }
+function out(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+function authorize() { CalendarApp.getDefaultCalendar(); }`;
+}
+async function viewGcal() {
+  $('#main').innerHTML = '<div class="card muted">กำลังโหลด…</div>';
+  const { data, error } = await sb.rpc('gcal_get');
+  if (error) { $('#main').innerHTML = `<div class="card">${esc(error.message)}</div>`; return; }
+  const g = data || {}; const code = gcalScript(g.secret || '');
+  $('#main').innerHTML = `<div class="card"><h2>📆 เชื่อมนัดหมายเข้า Google Calendar ของคุณ <small>ทุกนัดที่ทีมลง จะขึ้นในปฏิทินของคุณพร้อมเตือน 30 และ 10 นาทีก่อนนัด</small></h2>
+    <div>${g.url ? badge('✓ เชื่อมแล้ว', 'good') + ` <span class="small muted">${fmtDT(g.updated_at)}</span>` : badge('ยังไม่ได้เชื่อม', 'warn')}</div>
+    <ol class="steps">
+      <li>เปิด <a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener"><b>script.google.com → New project</b></a> (ล็อกอินด้วย Google บัญชีที่ใช้ปฏิทิน)</li>
+      <li>ลบโค้ดเดิมในหน้าจอออกทั้งหมด แล้วกดปุ่ม <b>Copy script</b> ด้านล่าง → วางลงไป → กด 💾 Save (ตั้งชื่อโปรเจกต์ว่า L4U Calendar)</li>
+      <li>ที่แถบด้านบน เลือกฟังก์ชัน <b>authorize</b> แล้วกด <b>▶ Run</b> → <b>Review permissions</b> → เลือกบัญชี → <b>Advanced</b> → <b>Go to L4U Calendar (unsafe)</b> → <b>Allow</b> (เป็นโค้ดของคุณเอง ปลอดภัย)</li>
+      <li>กด <b>Deploy</b> (มุมขวาบน) → <b>New deployment</b> → รูปเฟือง ⚙️ → เลือก <b>Web app</b></li>
+      <li>ตั้งค่า: <b>Execute as: Me</b> และ <b>Who has access: Anyone</b> → กด <b>Deploy</b></li>
+      <li>คัดลอก <b>Web app URL</b> (ขึ้นต้นด้วย https://script.google.com/macros/s/…) มาวางในช่องด้านล่าง แล้วกด <b>Save</b></li>
+      <li>กด <b>ส่งนัดทดสอบ</b> — ภายใน 1 นาทีจะมีนัด "✅ L4U Migration Tracker เชื่อม Google Calendar แล้ว" ขึ้นในปฏิทิน (ลบทิ้งได้)</li></ol>
+    <div class="row"><button class="btn p" id="gcp">📋 Copy script</button><button class="btn s" id="gsh">ดูโค้ด</button></div>
+    <pre id="gcode" class="code" style="display:none">${esc(code)}</pre>
+    <div class="row" style="margin-top:14px"><div style="flex:1;min-width:280px"><label>Web app URL</label><input id="gurl" value="${esc(g.url || '')}" placeholder="https://script.google.com/macros/s/.../exec"></div>
+      <button class="btn p" id="gsv">Save</button><button class="btn t" id="gts" ${g.url ? '' : 'disabled'}>ส่งนัดทดสอบ</button>${g.url ? '<button class="btn s" id="gof">ยกเลิกการเชื่อม</button>' : ''}</div>
+    <p class="small muted">โค้ดมีรหัสลับเฉพาะของคุณ — อย่าส่งต่อให้คนอื่น · นัดที่เปลี่ยนสถานะ (No-show / ติดปัญหา / LIVE แล้ว / เลื่อนนัด) จะอัปเดตในปฏิทินให้เอง · ลบนัดในระบบ = ลบในปฏิทินด้วย · นัดที่ลงไว้ก่อนเชื่อม จะเข้าปฏิทินเมื่อมีการแก้ไขนัดนั้น</p></div>`;
+  $('#gcp').onclick = () => navigator.clipboard.writeText(code).then(() => toast('คัดลอกโค้ดแล้ว — ไปวางใน script.google.com'), () => { $('#gcode').style.display = 'block'; toast('คัดลอกอัตโนมัติไม่ได้ — เลือกโค้ดด้านล่างแล้วกด Cmd+C', true); });
+  $('#gsh').onclick = () => { const e = $('#gcode'); e.style.display = e.style.display === 'none' ? 'block' : 'none'; };
+  $('#gsv').onclick = async () => { const { error } = await sb.rpc('gcal_set_url', { p_url: $('#gurl').value.trim() }); if (error) return toast(error.message, true); toast('บันทึกแล้ว'); viewGcal(); };
+  if ($('#gof')) $('#gof').onclick = async () => { if (!confirm('ยกเลิกการส่งนัดเข้า Google Calendar?')) return; await sb.rpc('gcal_set_url', { p_url: '' }); viewGcal(); };
+  if ($('#gts')) $('#gts').onclick = async () => { const { error } = await sb.rpc('gcal_test'); if (error) return toast(error.message, true); toast('ส่งนัดทดสอบแล้ว — ดูในปฏิทินภายใน 1 นาที'); };
 }
 
 // --- Audit Reports (PDF archive) ---
