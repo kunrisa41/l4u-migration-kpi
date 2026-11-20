@@ -131,7 +131,7 @@ function renderLogin(msg) {
 
 // ---------------- shell ----------------
 const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
-  ['blockers', 'ปัญหา / No-show'], ['perf', 'Team Performance'], ['audit', 'Audit Reports'], ['feedback', 'Feedback & Tools']];
+  ['blockers', 'ปัญหา / No-show'], ['perf', 'Team Performance'], ['audit', 'Audit Reports']];
 const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['tracker', 'รายชื่อร้าน'], ['settings', 'KPI Settings'], ['team', 'Team & Logins'], ['gcal', '🔔 Calendar & Chat']];
 const VIEWS = { home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
   perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), gcal: () => viewGcal(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
@@ -142,6 +142,7 @@ function render() {
     $('#out').onclick = () => sb.auth.signOut(); return;
   }
   if (S.tab === 'daily') S.tab = 'perf';
+  if (S.tab === 'feedback') { S.tab = 'flow'; S.scrollFb = true; }
   const inKpi = KPI_TABS.some(t => t[0] === S.tab);
   if (inKpi && !isMgr()) S.tab = 'home';
   const kpiOn = inKpi && isMgr();
@@ -1217,7 +1218,7 @@ async function viewFlow() {
       <h2 style="margin:2px 0;color:#fff;font-size:20px"><img src="img/app-icon.png" alt="" style="width:30px;height:30px;vertical-align:middle;margin-right:6px">LIVE PROJECT FLOW <small style="color:#CBD5E1">ขั้นตอนพาร้านเปิดระบบขณะอยู่ในสาย</small></h2>
       <div style="color:#E2E8F0">🚀 เป้าหมายจบสาย: <b>หน้ารับออเดอร์เปิดค้าง + เครื่องปริ้น Test print สำเร็จ + รับ Test order ได้</b></div></div>
       <button class="btn r" data-new="live">🔴 Record LIVE</button></div>
-    <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">หลังวางสาย</a><a href="#after" class="fchip a">D. เลือกร้าน & บันทึก LIVE</a><a href="#gallery" class="fchip a">🖼️ รูปทั้งหมด</a></div></div>
+    <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">หลังวางสาย</a><a href="#after" class="fchip a">D. เลือกร้าน & บันทึก LIVE</a><a href="#feedback" class="fchip a">E. Feedback & Tools</a><a href="#gallery" class="fchip a">🖼️ รูปทั้งหมด</a></div></div>
   <div class="flowgrid">${FLOW.map((s, i) => { const p = imgs[s.k]; const up = p && urls[p]; const list = up ? [up] : (REAL[s.k] || []); const u = list[0];
     return `<div class="card fstep" id="st${i}"><div class="fnum">${i + 1}</div><div class="fbody"><h3>${esc(s.t)}</h3><ul>${s.d.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
       ${s.link && content(s.link) ? `<a class="btn s" href="${esc(content(s.link))}" target="_blank" rel="noopener">🔗 ${esc(s.linkT)}</a> <button class="btn s" data-cp="${esc(content(s.link))}">📋 Copy ลิงก์ส่งให้ร้าน</button>` : ''}
@@ -1239,6 +1240,10 @@ async function viewFlow() {
   <div class="card" id="gallery"><h2>🖼️ รูปหน้าจอแอป PushPrinter Nitro ทั้งหมด <small>กดรูปเพื่อขยาย · ใช้ประกอบการอธิบายร้านหรือส่งให้ร้านดูได้</small></h2>
     <div class="gal">${GALLERY.map(g => `<figure><img src="${g[0]}" alt="${esc(g[1])}" data-zoom="${g[0]}"><figcaption>${esc(g[1])}<br><a href="${g[0]}" download class="small">⬇️ ดาวน์โหลด</a></figcaption></figure>`).join('')}</div></div>`;
   bindActButtons(); bindFlowPick();
+  const fw = document.createElement('div'); fw.className = 'card fbwrap'; fw.id = 'feedback';
+  fw.innerHTML = '<div class="row" style="align-items:center;gap:12px"><div class="an">E</div><div><b style="font-size:16px">Feedback & Tools</b> <span class="small muted">ข้อเสนอแนะจากร้าน (Online Order) และเครื่องมือที่ทีมอยากได้ — เจอระหว่าง LIVE ก็บันทึกที่นี่</span></div></div><div id="fbbox"></div>';
+  $('#after').after(fw); viewFeedback();
+  if (S.scrollFb) { S.scrollFb = false; fw.scrollIntoView(); }
   $('#cpmsg').onclick = () => navigator.clipboard.writeText(content('howto_msg')).then(() => toast('คัดลอกข้อความแล้ว — วางในอีเมล / แชตส่งร้านได้เลย'));
   if ($('#edmsg')) $('#edmsg').onclick = () => { openModal(`<h3>ข้อความแจ้งร้านหลัง LIVE</h3><textarea id="hm" style="min-height:420px">${esc(content('howto_msg'))}</textarea><div class="actions"><button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">Save</button></div>`);
     $('#cx').onclick = closeModal; $('#sv').onclick = async () => { const v = $('#hm').value; closeModal(); await save(sb.from('content').update({ body: v }).eq('key', 'howto_msg'), 'บันทึกข้อความแล้ว'); }; };
@@ -1403,15 +1408,16 @@ function viewFeedback() {
   const cat = S.fbCat || ''; const q = (S.fbQ || '').toLowerCase();
   const list = (S.feedback || []).filter(f => (!cat || f.category === cat) && (!q || [f.title, f.detail, f.tags, f.submitter].join(' ').toLowerCase().includes(q)));
   const cnt = c => (S.feedback || []).filter(f => !c || f.category === c).length;
-  $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Feedback & Internal Tools <small>ข้อเสนอแนะจากลูกค้า และเครื่องมือที่ทีมต้องการ</small></h2>
+  const host = $('#fbbox') || $('#main');
+  host.innerHTML = `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Feedback & Internal Tools <small>ข้อเสนอแนะจากลูกค้า และเครื่องมือที่ทีมต้องการ</small></h2>
     <button class="btn" id="fx">Export CSV</button><button class="btn" id="ft2">Export TXT</button><button class="btn p" id="fn">+ New Feedback / Request</button></div>
     <div class="row" style="margin-top:10px">${[['', 'All Items'], [FB_CAT[0], '1. Client Online Order'], [FB_CAT[1], '2. Internal Migration Helper']].map(c => `<button class="btn s ${c[0] === cat ? 'p' : ''}" data-fc="${c[0]}">${c[1]} (${cnt(c[0])})</button>`).join('')}
       <input id="fq" placeholder="Search feedback, tags, keywords..." value="${esc(S.fbQ || '')}" style="flex:1;min-width:200px"></div></div>
   ${list.map(f => `<div class="card"><div class="row" style="align-items:center"><div style="flex:1"><b>${esc(f.title)}</b> ${badge(f.category === FB_CAT[0] ? 'Client Online Order' : 'Internal Helper', f.category === FB_CAT[0] ? 'blue' : 'grey')} ${badge(f.status, f.status === 'Done' ? 'good' : f.status === 'Rejected' ? 'bad' : f.status === 'In Review' ? 'warn' : 'grey')}
     <div class="small muted">${esc(f.submitter || '')} · ${fmtDT(f.created_at)}</div></div>${isMgr() || f.created_by === S.session.user.id ? `<button class="btn s" data-fe="${f.id}">แก้ไข</button>` : ''}</div>
     <p style="white-space:pre-wrap;margin:8px 0">${esc(f.detail || '')}</p>${(f.tags || '').split(',').map(t => t.trim()).filter(Boolean).map(t => `<span class="badge b-grey">#${esc(t)}</span> `).join('')}</div>`).join('') || '<div class="card muted">ไม่พบรายการ</div>'}`;
-  document.querySelectorAll('[data-fc]').forEach(b => b.onclick = () => { S.fbCat = b.dataset.fc; render(); });
-  $('#fq').oninput = e => { S.fbQ = e.target.value; const p = e.target.selectionStart; render(); const el = $('#fq'); el.focus(); el.setSelectionRange(p, p); };
+  document.querySelectorAll('[data-fc]').forEach(b => b.onclick = () => { S.fbCat = b.dataset.fc; viewFeedback(); });
+  $('#fq').oninput = e => { S.fbQ = e.target.value; const p = e.target.selectionStart; viewFeedback(); const el = $('#fq'); el.focus(); el.setSelectionRange(p, p); };
   $('#fn').onclick = () => fbModal(null);
   document.querySelectorAll('[data-fe]').forEach(b => b.onclick = () => fbModal(S.feedback.find(f => String(f.id) === b.dataset.fe)));
   const rows = () => [['Category', 'Title', 'Submitter', 'Description', 'Tags', 'Status', 'Created']].concat(list.map(f => [f.category, f.title, f.submitter, f.detail, f.tags, f.status, f.created_at]));

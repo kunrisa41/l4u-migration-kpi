@@ -197,3 +197,4 @@ input.locked{background:#F1F5F9;font-weight:700}
 .btn.big{padding:12px 22px;font-size:15px}
 .callbtn{text-align:right}.callbtn .small{margin-top:4px;line-height:1.4}
 #dailybox{margin-top:8px}
+.fbwrap #fbbox{margin-top:12px}.fbwrap #fbbox .card{box-shadow:none}
