@@ -222,6 +222,7 @@ const VIEWS = { home: () => viewHome(), tracker: () => viewTracker(), prelive: (
   perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), gcal: () => viewGcal(), chlog: () => viewChlog(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
 function render() {
   S.charts.forEach(c => c.destroy()); S.charts = [];
+  document.documentElement.classList.remove('noscroll');
   if (S.needActor) return renderActor();
   if (!S.me) {
     $('#app').innerHTML = `<div class="login"><h1>Account not linked</h1><p>You are signed in as <b>${esc(S.session.user.email)}</b>, but this e-mail is not on the team list yet. Ask the Manager to add you in the Team tab.</p><button class="btn" id="out">Sign out</button></div>`;
