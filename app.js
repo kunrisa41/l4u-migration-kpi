@@ -26,7 +26,7 @@ const CSV_HEAD = { rid: 'Restaurant ID', name: 'Restaurant Name', country: 'Coun
   menu_date: 'Menu & Website Completed Date', target_build: 'Target Build Date', target_live: 'Target Live Date', booked_on: 'Appointment Booked On', chk_install: 'Live check: Installation',
   chk_printer: 'Live check: Printer Connected', chk_test: 'Live check: Test Order', chk_booking: 'Live check: Booking Test' };
 
-const S = { session: null, me: null, members: [], settings: null, rests: [], blockers: [], daily: [], kpi: [], tab: 'dash', period: 'all', memberFilter: '',
+const S = { session: null, me: null, members: [], settings: null, rests: [], blockers: [], daily: [], kpi: [], acts: [], prelive: [], feedback: [], content: [], reports: [], tab: 'home', period: 'all', memberFilter: '',
   month: null, q: '', filter: 'all', owner: '', dailyDate: C.iso(C.today()), charts: [] };
 
 // ---------------- utils ----------------
@@ -79,9 +79,13 @@ async function loadAll() {
     sb.from('members').select('*').order('created_at'), sb.from('settings').select('*').eq('id', 1).maybeSingle(),
     sb.from('restaurants').select('*').order('rid'), sb.from('blockers').select('*').order('log_date', { ascending: false }),
     sb.from('daily').select('*'), sb.from('kpi_months').select('*')]);
-  const err = [m, s, r, b, d, k].find(x => x.error);
+  const [ac, pl, fb, ct, rp] = await Promise.all([sb.from('activities').select('*').order('created_at', { ascending: false }),
+    sb.from('prelive').select('*').order('updated_at', { ascending: false }), sb.from('feedback').select('*').order('created_at', { ascending: false }),
+    sb.from('content').select('*'), sb.from('reports').select('*').order('created_at', { ascending: false })]);
+  const err = [m, s, r, b, d, k, ac, pl, fb, ct, rp].find(x => x.error);
   if (err) throw err.error;
   S.members = m.data; S.settings = s.data ? s.data.data : null; S.rests = r.data; S.blockers = b.data; S.daily = d.data; S.kpi = k.data;
+  S.acts = ac.data; S.prelive = pl.data; S.feedback = fb.data; S.content = ct.data; S.reports = rp.data;
   S.me = S.members.find(x => x.user_id === S.session.user.id) || null;
   if (!S.month) { const ms = C.periods(S.settings).filter(p => p.month); const cur = C.monthKey(asof()); S.month = (ms.find(p => p.month === cur) || ms[0]).month; }
 }
@@ -102,7 +106,7 @@ async function save(promise, ok) {
 function renderLogin(msg) {
   $('#app').innerHTML = `<div class="login">
     <div class="brand muted small" style="font-weight:700;letter-spacing:.08em">LOCAL FOR YOU</div>
-    <h1>Migration KPI</h1><p class="muted small">Restaurant System Migration · Dec 2026 – Jan 2027</p>
+    <h1>Restaurant Migration Tracker</h1><p class="muted small">Migration team workspace + KPI · Dec 2026 – Jan 2027</p>
     ${msg ? `<div class="note">${esc(msg)}</div>` : ''}
     <label>E-mail</label><input id="em" type="email" autocomplete="username">
     <label>Password</label><input id="pw" type="password" autocomplete="current-password">
@@ -110,7 +114,7 @@ function renderLogin(msg) {
       <button class="btn" id="signup">First-time Manager sign-up</button>
       <button class="btn p" id="signin">Sign in</button>
     </div>
-    <p class="muted small">Team members: ask the Manager to create your login (Team tab). The very first account created becomes the Manager.</p></div>`;
+    <p class="muted small">พนักงาน: ขอบัญชีล็อกอินจาก Manager (Team members: ask the Manager for your login). The very first account created becomes the Manager.</p></div>`;
   $('#signin').onclick = async () => {
     const { error } = await sb.auth.signInWithPassword({ email: $('#em').value.trim(), password: $('#pw').value });
     if (error) toast(error.message, true);
@@ -125,20 +129,31 @@ function renderLogin(msg) {
 }
 
 // ---------------- shell ----------------
-const TABS = [['dash', 'Dashboard'], ['tracker', 'Master Tracker'], ['blockers', 'Blocker & No-show Log'], ['daily', 'Daily Productivity'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['settings', 'Settings'], ['team', 'Team']];
+const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['tracker', 'รายชื่อร้าน (Tracker)'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
+  ['blockers', 'ปัญหา / No-show'], ['daily', 'บันทึกประจำวัน'], ['perf', 'Team Performance'], ['audit', 'Audit Reports'], ['feedback', 'Feedback & Tools']];
+const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['settings', 'KPI Settings'], ['team', 'Team & Logins']];
+const VIEWS = { home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
+  perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
 function render() {
   S.charts.forEach(c => c.destroy()); S.charts = [];
   if (!S.me) {
     $('#app').innerHTML = `<div class="login"><h1>Account not linked</h1><p>You are signed in as <b>${esc(S.session.user.email)}</b>, but this e-mail is not on the team list yet. Ask the Manager to add you in the Team tab.</p><button class="btn" id="out">Sign out</button></div>`;
     $('#out').onclick = () => sb.auth.signOut(); return;
   }
-  const override = S.settings.asof ? `<span class="badge b-warn">As-of override: ${fd(S.settings.asof)}</span>` : '';
-  $('#app').innerHTML = `<div class="top"><div><div class="brand">LOCAL FOR YOU</div><h1>Restaurant Migration · KPI</h1></div>${override}<div class="sp"></div>
+  const inKpi = KPI_TABS.some(t => t[0] === S.tab);
+  if (inKpi && !isMgr()) S.tab = 'home';
+  const kpiOn = inKpi && isMgr();
+  const override = kpiOn && S.settings.asof ? `<span class="badge b-warn">As-of override: ${fd(S.settings.asof)}</span>` : '';
+  $('#app').innerHTML = `<div class="top"><div><div class="brand">LOCAL FOR YOU</div><h1>Restaurant Migration Tracker</h1></div>${override}<div class="sp"></div>
+    <div class="acts"><button class="btn s" data-new="appointment">+ Add Appointment</button><button class="btn s" data-new="scratch">+ Build System</button><button class="btn s r" data-new="live">🔴 Record LIVE</button></div>
     <div class="who">${esc(S.me.name)} · ${esc(S.me.role)}${isMgr() ? ' ⭐' : ''}</div><button class="btn s" id="out">Sign out</button></div>
-    <nav class="tabs">${TABS.map(t => `<button data-tab="${t[0]}" class="${S.tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</nav><main id="main"></main>`;
+    <nav class="tabs">${STAFF_TABS.map(t => `<button data-tab="${t[0]}" class="${S.tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}
+      ${isMgr() ? `<button data-tab="${kpiOn ? S.tab : 'dash'}" class="kpitab ${kpiOn ? 'on' : ''}">🔒 KPI (Manager)</button>` : ''}</nav>
+    ${kpiOn ? `<nav class="tabs sub">${KPI_TABS.map(t => `<button data-tab="${t[0]}" class="${S.tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}</nav>` : ''}<main id="main"></main>`;
   $('#out').onclick = () => sb.auth.signOut();
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; render(); });
-  ({ dash: viewDash, tracker: viewTracker, blockers: viewBlockers, daily: viewDaily, weekly: viewWeekly, indiv: viewIndiv, settings: viewSettings, team: viewTeam }[S.tab])();
+  document.querySelectorAll('.top [data-new]').forEach(b => b.onclick = () => activityModal(b.dataset.new));
+  VIEWS[S.tab]();
 }
 
 // ---------------- dashboard ----------------
@@ -491,10 +506,11 @@ function viewTeam() {
   const months = C.periods(S.settings).filter(p => p.month); const dis = isMgr() ? '' : 'disabled';
   $('#main').innerHTML = `${isMgr() ? '' : '<div class="note">View only — the Manager manages the team.</div>'}
   <div class="card"><h2>Team & monthly targets <small>role = primary responsibility · everyone may do Live calls · targets differ per person</small></h2>
-  <div class="tw"><table><thead><tr><th>Code</th><th>Name</th><th>Role</th><th>Active</th><th>Login</th>${months.map(p => `<th>${esc(p.label)} targets<br><span class="small muted">setup / menu / live</span></th>`).join('')}<th></th></tr></thead><tbody>
+  <div class="tw"><table><thead><tr><th>Code</th><th>Name</th><th>Role</th><th>Active</th><th>Login</th><th>Daily targets<br><span class="small muted">LIVE / Scratch / IT / Appt</span></th>${months.map(p => `<th>${esc(p.label)} targets<br><span class="small muted">setup / menu / live</span></th>`).join('')}<th></th></tr></thead><tbody>
   ${S.members.map(m => `<tr><td><b>${esc(m.code)}</b></td><td><input data-mn="${m.id}" value="${esc(m.name)}" ${dis}></td>
     <td><select data-mr="${m.id}" ${dis}>${opts(L.ROLE, m.role)}</select></td><td><select data-ma="${m.id}" ${dis}>${opts(['Yes', 'No'], m.active ? 'Yes' : 'No')}</select></td>
     <td class="small">${m.user_id ? badge('✓ ' + (m.email || ''), 'good') : (isMgr() ? `<button class="btn s" data-login="${m.id}">Create login</button>` : badge('No login', 'grey'))}${m.user_id && isMgr() && !m.is_manager ? ` <button class="btn s" data-reset="${esc(m.email || '')}">Reset password</button>` : ''}</td>
+    <td class="inline" style="white-space:nowrap">${['live', 'scratch', 'it', 'appt'].map(k => `<input type="number" min="0" data-dt="${m.id}" data-k="${k}" value="${(m.daily || {})[k] ?? 0}" style="width:52px" ${dis}>`).join(' ')}</td>
     ${months.map(p => { const t = (m.targets || {})[p.month] || {}; return `<td class="inline" style="white-space:nowrap">${['setup', 'menu', 'live'].map(k => `<input type="number" data-t="${m.id}" data-mo="${p.month}" data-k="${k}" value="${t[k] ?? 0}" style="width:62px" ${dis || (m.is_manager ? 'disabled' : '')}>`).join(' ')}</td>`; }).join('')}
     <td>${isMgr() ? `<button class="btn s p" data-msv="${m.id}">Save</button>` : ''}</td></tr>`).join('')}</tbody></table></div>
   ${isMgr() ? `<div class="row" style="margin-top:12px"><div><label>New member code</label><input id="nc" placeholder="e.g. NEW1" style="width:120px"></div><div><label>Name</label><input id="nn" style="width:200px"></div>
@@ -507,7 +523,8 @@ function viewTeam() {
     document.querySelectorAll(`[data-t="${id}"]`).forEach(el => { const mo = el.dataset.mo; targets[mo] = targets[mo] || {}; targets[mo][el.dataset.k] = +el.value || 0; });
     const role = document.querySelector(`[data-mr="${id}"]`).value;
     if (m.user_id === S.session.user.id && role !== 'Manager') return toast('You cannot remove your own Manager role here', true);
-    await save(sb.from('members').update({ name: document.querySelector(`[data-mn="${id}"]`).value.trim(), role, is_manager: role === 'Manager', active: document.querySelector(`[data-ma="${id}"]`).value === 'Yes', targets }).eq('id', id), 'Saved');
+    const daily = {}; document.querySelectorAll(`[data-dt="${id}"]`).forEach(el => daily[el.dataset.k] = +el.value || 0);
+    await save(sb.from('members').update({ name: document.querySelector(`[data-mn="${id}"]`).value.trim(), role, is_manager: role === 'Manager', active: document.querySelector(`[data-ma="${id}"]`).value === 'Yes', targets, daily }).eq('id', id), 'Saved');
   });
   $('#nadd').onclick = async () => {
     const code = $('#nc').value.trim().toUpperCase(), name = $('#nn').value.trim(), role = $('#nr').value;
@@ -528,6 +545,362 @@ function viewTeam() {
     if (error || (data && data.error)) return toast((data && data.error) || error.message, true);
     toast('Password reset');
   });
+}
+
+// ================= STAFF WORKSPACE =================
+const KIND = {
+  appointment: { th: 'นัดหมาย', icon: '📅', key: 'appt' },
+  scratch: { th: 'สร้างตั้งแต่ต้น', icon: '🔨', key: 'scratch' },
+  it_handover: { th: 'ทำต่อจาก IT', icon: '💻', key: 'it' },
+  live: { th: 'เปิด LIVE', icon: '🔴', key: 'live' },
+};
+const HANDOVER = ['How to confirm order / Add Time / Check Details', 'How to Pause Service (ให้ร้านลองกดเอง)', 'How to check Booking', 'How to Sold Out Menu',
+  'Confirm Sound / confirm ร้านพิมพ์บิลออกแล้ว', 'แจ้งร้านแล้วว่าห้ามปิดแอป PushPrinter เด็ดขาด', 'แจ้งร้านว่าระบบใหม่เปิดใช้แล้ว ให้เปิดหน้ากล่องสีๆ ค้างไว้',
+  'Send Grand opening email', 'Cloudflare DNS: ลบ A Record/CNAME เก่า + เพิ่ม A Record www ➔ 35.238.2.132 (DNS only)',
+  'Landing page: Custom Domain www.(domain) + SSL สีเขียว แล้ว Save', 'Turn off GF และ Cancel Gloria Food Subscription', 'Send Dine-in QR Code to shipment process',
+  'อัปเดต Operation 486 (Sub-item "New System", Service, ชื่อ, Audit/Stage = Done, MIG Status)', 'ใส่ "Admin" ในฟิลด์ Cloudflare ของ MIG ใน 486'];
+const PRELIVE = [
+  { t: 'Setup Condition Fee (Min. Order, Delivery Fee, Area Fee)' }, { t: 'GST / Tax Calculation Verification' },
+  { t: 'Receipt Creation & New System Printer Setup' }, { t: 'Lunch Menu Operating Hours Verification' }, { t: 'SCAN MENU Functional Verification' },
+  { t: 'Order Confirmation Mode', opts: ['GF Auto confirm', 'GF Manual Confirm'], one: true },
+  { t: 'All Services Verification', opts: ['Pickup', 'Delivery', 'Uber', 'Table Reservation', 'Dine-in'] },
+  { t: 'Send Dine-in Order to CRM / Customer Data Export', opts: ['Dine-in → CRM: YES', 'Dine-in → CRM: NO', 'Customer export: YES', 'Customer export: NO'] },
+  { t: 'Payment Method Verification', opts: ['Pay at the Counter', 'Stripe'], optional: true },
+  { t: 'Test Orders (3 real orders + print)', opts: ['🛍️ Pickup order', '🛵 Delivery order', '🚗 Uber order'] },
+  { t: 'Website System & Domain Provider', opts: ['Add button with us', 'GF Web', 'Add button with other', 'Domain with us', 'Domain not with us'] },
+  { t: 'Cloudflare DNS: add 35.238.2.132 to A Record' }, { t: 'Google Search Console Integration' }, { t: 'Queue to LIVE (Ready to Launch)' }];
+const PL_REQ = PRELIVE.filter(x => !x.optional).length;
+const DAY_PLAN = [['07:00 – 08:00', 'Follow-up Non-responsive Stores', ['โทรตามคิว Priority ร้าน', 'อัปเดต Status ทันทีหลังโทร', 'ไม่รับสาย = ส่ง SMS/Email']],
+  ['08:00 – 12:00', 'System Setup (16 Steps)', ['สร้างระบบร้านใหม่ตามคิว', 'ทำ Test Order เสมอ', 'ห้ามขึ้น Ready ถ้ายังไม่ Test']],
+  ['12:00 – 13:00', 'Lunch Break (พักกลางวัน)', ['ไม่มีงาน / ไม่ตั้งนัด / ไม่รับสาย']],
+  ['13:00 – 14:00', 'Booking Calls & Stripe Connect', ['โทรจองนัด Migration', 'พาร้านเชื่อม Stripe ในสาย', 'ถามยี่ห้อ/รุ่นเครื่องปริ้นเตอร์']],
+  ['14:00 – 16:00', 'Setup Continuation & Daily Recap', ['ทำ System Setup ต่อ', 'ตรวจ Printer/IP/OS ร้านเก่า', 'สรุปรายงาน Daily Summary']]];
+
+const content = k => ((S.content || []).find(c => c.key === k) || {}).body || '';
+const dailyT = m => Object.assign({ live: 0, scratch: 0, it: 0, appt: 0 }, m.daily || {});
+const isOff = d => { d = C.parseD(d); const w = d.getDay(); return w === 0 || w === 6 || C.holidaySet(S.settings).has(C.iso(d)); };
+const restLabel = r => `${r.rid} · ${r.name}`;
+const restList = () => `<datalist id="restlist">${S.rests.map(r => `<option value="${esc(restLabel(r))}"></option>`).join('')}</datalist>`;
+function findRest(v) {
+  v = (v || '').trim(); if (!v) return null; const lv = v.toLowerCase();
+  return S.rests.find(r => restLabel(r).toLowerCase() === lv) || S.rests.find(r => r.rid.toLowerCase() === lv) || S.rests.find(r => (r.name || '').toLowerCase() === lv) || null;
+}
+function countActs(filter) {
+  const o = { live: 0, scratch: 0, it: 0, appt: 0 };
+  (S.acts || []).filter(filter).forEach(a => o[KIND[a.kind].key]++);
+  return o;
+}
+const meOnly = () => !isMgr();
+
+// --- feed into the Master Tracker (this is what the KPI reads) ---
+function feedPatch(a, r) {
+  const p = {};
+  if (a.kind === 'appointment') {
+    const ad = a.appt_at ? a.appt_at.slice(0, 10) : null;
+    p.booking = (r.booking === 'Booked' || r.booking === 'Rescheduled') && r.appt_date && ad && r.appt_date !== ad ? 'Rescheduled' : (r.booking === 'Rescheduled' ? 'Rescheduled' : 'Booked');
+    p.booked_on = r.booked_on || a.act_date; if (ad) p.appt_date = ad;
+    if (!r.live_agent) p.live_agent = a.member_code;
+  } else if (a.kind === 'scratch' || a.kind === 'it_handover') {
+    if (a.stages.includes('setup')) { p.setup_status = 'Completed'; p.setup_date = a.act_date; p.setup_owner = r.setup_owner || a.member_code; }
+    if (a.stages.includes('menu')) { p.menu_status = 'Completed'; p.menu_date = a.act_date; p.menu_owner = r.menu_owner || a.member_code; }
+  } else if (a.kind === 'live') {
+    const c = a.checklist || {};
+    Object.assign(p, { live_agent: a.member_code, actual_live: a.act_date, chk_install: c.chk_install, chk_printer: c.chk_printer, chk_test: c.chk_test, chk_booking: c.chk_booking });
+    p.mig_status = ['chk_install', 'chk_printer', 'chk_test', 'chk_booking'].every(k => c[k] === 'Yes' || c[k] === 'N/A') ? 'Live Completed' : 'Live In Progress';
+    if (r.booking !== 'Attended') p.booking = 'Attended';
+  }
+  return p;
+}
+
+function activityModal(kind, a) {
+  const isNew = !a;
+  const dflt = S.me.role === 'Menu & Website' ? ['menu'] : S.me.role === 'System Setup' ? ['setup'] : ['setup', 'menu'];
+  a = a || { kind, member_code: S.me.code, act_date: C.iso(C.today()), stages: dflt, checklist: {} };
+  kind = a.kind;
+  const r0 = S.rests.find(r => r.rid === a.rid);
+  const isBuild = kind === 'scratch' || kind === 'it_handover';
+  const chk = a.checklist || {};
+  const ckSel = (k, l) => `<div><label>${l} *</label><select data-ck="${k}">${opts(['Yes', 'N/A', 'No'], chk[k], true)}</select></div>`;
+  const title = kind === 'appointment' ? '📅 บันทึกนัดหมายร้านค้า (Appointment)' : kind === 'live' ? '🔴 บันทึกเปิด LIVE ร้านค้า (Record Store LIVE)' : '🔨 บันทึกสร้างระบบร้านอาหาร (Build System)';
+  openModal(`<h3>${isNew ? '' : 'แก้ไข · '}${title}</h3>${restList()}
+  <div class="fg">
+    <div><label>${kind === 'appointment' ? 'ผู้ทำนัดหมาย' : kind === 'live' ? 'ผู้เปิด LIVE' : 'ผู้สร้างระบบ'} *</label><select id="a_m" ${meOnly() ? 'disabled' : ''}>${memberOpts(a.member_code, false)}</select></div>
+    <div style="grid-column:span 2"><label>ร้านค้า (พิมพ์ ID หรือชื่อ แล้วเลือกจากรายการ) *</label><input id="a_r" list="restlist" value="${esc(r0 ? restLabel(r0) : a.store_name || '')}" placeholder="เช่น L4U-001 หรือ ชื่อร้าน"></div>
+    <div><label>${kind === 'appointment' ? 'วันที่ลงบันทึกนัด' : kind === 'live' ? 'วันที่เปิด LIVE' : 'วันที่สร้างระบบเสร็จ'} *</label><input id="a_d" type="date" value="${esc(a.act_date)}"></div>
+    ${kind === 'appointment' ? `<div><label>วันเวลานัดหมายกับลูกค้า *</label><input id="a_at" type="datetime-local" value="${esc(a.appt_at ? toLocalDT(a.appt_at) : '')}"></div>` : ''}
+  </div>
+  ${isBuild ? `<div class="sec">ประเภทงาน</div><div class="row">
+      <label class="pick"><input type="radio" name="a_k" value="scratch" ${kind === 'scratch' ? 'checked' : ''}> 🔨 สร้างตั้งแต่ต้น</label>
+      <label class="pick"><input type="radio" name="a_k" value="it_handover" ${kind === 'it_handover' ? 'checked' : ''}> 💻 ทำต่อจาก IT</label></div>
+    <div class="sec">ส่วนที่ทำเสร็จ (จะอัปเดตสถานะร้านใน Tracker และนับเข้า KPI)</div><div class="row">
+      <label class="pick"><input type="checkbox" data-st="setup" ${a.stages.includes('setup') ? 'checked' : ''}> System Setup เสร็จ</label>
+      <label class="pick"><input type="checkbox" data-st="menu" ${a.stages.includes('menu') ? 'checked' : ''}> Menu & Website เสร็จ</label></div>` : ''}
+  ${kind === 'live' ? `<div class="sec">Live checks (ต้องเป็น Yes หรือ N/A ครบ 4 ข้อ ถึงจะนับเป็น LIVE ใน KPI)</div><div class="fg">
+      ${ckSel('chk_install', 'ติดตั้งระบบ (Installation)')}${ckSel('chk_printer', 'เครื่องพิมพ์เชื่อมแล้ว (Printer)')}${ckSel('chk_test', 'Test Order')}${ckSel('chk_booking', 'Booking Test')}</div>
+    <div class="sec">Onboarding Verification Checklist (ก่อนส่งมอบร้าน) <span class="small muted" id="hv_c"></span></div>
+    <div class="cl">${HANDOVER.map((h, i) => `<label class="ci"><input type="checkbox" data-hv="${i}" ${(chk.handover || []).includes(i) ? 'checked' : ''}> <span>${i + 1}. ${esc(h)}</span></label>`).join('')}</div>` : ''}
+  <label>หมายเหตุ / รายละเอียด</label><textarea id="a_n">${esc(a.notes || '')}</textarea>
+  <div class="actions">${!isNew ? '<button class="btn r" id="del" style="margin-right:auto">ลบ</button>' : ''}<button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">บันทึก</button></div>`);
+  const hvc = () => { const e = $('#hv_c'); if (e) e.textContent = `${document.querySelectorAll('[data-hv]:checked').length} / ${HANDOVER.length} เรียบร้อย`; };
+  hvc(); document.querySelectorAll('[data-hv]').forEach(x => x.onchange = hvc);
+  $('#cx').onclick = closeModal;
+  if ($('#del')) $('#del').onclick = async () => {
+    if (!confirm('ลบรายการนี้? (สถานะร้านใน Tracker จะไม่ถูกย้อนกลับอัตโนมัติ — ถ้าต้องแก้ ให้แก้ที่หน้า Tracker)')) return;
+    closeModal(); await save(sb.from('activities').delete().eq('id', a.id), 'ลบแล้ว');
+  };
+  $('#sv').onclick = async () => {
+    const rv = $('#a_r').value.trim(); const r = findRest(rv);
+    const rec = { kind, member_code: $('#a_m').value, rid: r ? r.rid : null, store_name: r ? r.name : rv, act_date: $('#a_d').value, notes: $('#a_n').value.trim() || null, stages: [], checklist: {} };
+    if (isBuild) { rec.kind = (document.querySelector('[name="a_k"]:checked') || {}).value || 'scratch'; rec.stages = [...document.querySelectorAll('[data-st]:checked')].map(x => x.dataset.st); }
+    if (kind === 'appointment') { const v = $('#a_at').value; if (!v) return toast('กรุณาใส่วันเวลานัดหมาย', true); rec.appt_at = new Date(v).toISOString(); }
+    if (kind === 'live') {
+      document.querySelectorAll('[data-ck]').forEach(x => rec.checklist[x.dataset.ck] = x.value || null);
+      rec.checklist.handover = [...document.querySelectorAll('[data-hv]:checked')].map(x => +x.dataset.hv);
+      if (['chk_install', 'chk_printer', 'chk_test', 'chk_booking'].some(k => !rec.checklist[k])) return toast('กรุณาเลือก Live checks ให้ครบ 4 ข้อ', true);
+      if (['chk_install', 'chk_printer', 'chk_test', 'chk_booking'].some(k => rec.checklist[k] === 'No') && !confirm('มี Live check ที่เป็น "No" — ร้านนี้จะยังไม่นับเป็น LIVE ใน KPI จนกว่าจะแก้เป็น Yes/N/A บันทึกต่อไหม?')) return;
+    }
+    if (!rv || !rec.act_date) return toast('กรุณาใส่ร้านค้าและวันที่', true);
+    if (isBuild && !rec.stages.length) return toast('เลือกอย่างน้อย 1 ส่วนที่ทำเสร็จ (Setup หรือ Menu)', true);
+    if (!r && !confirm('ไม่พบร้านนี้ในรายชื่อร้าน (Tracker)\nบันทึกได้ แต่จะยังไม่นับเข้า KPI จนกว่าจะเพิ่มร้านนี้ใน Tracker แล้วแก้รายการนี้ให้เลือกร้านที่ถูกต้อง\n\nบันทึกต่อไหม?')) return;
+    closeModal();
+    const res = isNew ? await sb.from('activities').insert(rec) : await sb.from('activities').update(rec).eq('id', a.id);
+    if (res.error) return toast(res.error.message, true);
+    if (r) { const p = feedPatch(rec, r); if (Object.keys(p).length) { const u = await sb.from('restaurants').update(p).eq('rid', r.rid); if (u.error) toast('บันทึกแล้ว แต่ อัปเดต Tracker ไม่สำเร็จ: ' + u.error.message, true); } }
+    toast(r ? 'บันทึกแล้ว · อัปเดตร้าน ' + r.rid + ' ใน Tracker' : 'บันทึกแล้ว (ยังไม่เชื่อมกับร้านใน Tracker)');
+    await loadAll(); render();
+  };
+}
+function toLocalDT(isoStr) { const d = new Date(isoStr); const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
+const fmtDT = s => { if (!s) return ''; const d = new Date(s); return fd(d) + ' ' + d.toTimeString().slice(0, 5); };
+
+// --- Dashboard & Calendar ---
+function viewHome() {
+  const td = C.iso(C.today()); const day = S.selDate || td;
+  const team = S.members.filter(m => m.active);
+  const tgt = team.reduce((o, m) => { const t = dailyT(m); for (const k in o) o[k] += +t[k] || 0; return o; }, { live: 0, scratch: 0, it: 0, appt: 0 });
+  const cnt = countActs(a => a.act_date === td);
+  const big = (l, k, cls) => { const v = tgt[k] ? cnt[k] / tgt[k] : 0; return `<div class="kpi ${cls}"><div class="l">${l}</div><div class="v">${cnt[k]} <span class="small muted">/ ${tgt[k]} ร้าน (${pct(Math.min(v, 9))})</span></div><div class="bar"><i style="width:${Math.min(1, v) * 100}%"></i></div></div>`; };
+  const mcard = m => { const t = dailyT(m); const c = countActs(a => a.act_date === td && a.member_code === m.code);
+    const line = (l, k) => `<div class="ml"><span>${l}${t[k] ? ` (Target: ${t[k]})` : ''}</span><b>${c[k]}${t[k] ? ' / ' + t[k] : ''}</b></div><div class="bar thin"><i style="width:${t[k] ? Math.min(1, c[k] / t[k]) * 100 : (c[k] ? 100 : 0)}%"></i></div>`;
+    const done = ['live', 'scratch', 'it'].every(k => !t[k] || c[k] >= t[k]) && (t.live + t.scratch + t.it > 0);
+    return `<div class="card mc"><div class="row" style="align-items:center"><div style="flex:1"><h2 style="margin:0">${esc(m.name)}${m.is_manager ? ' ⭐' : ''}</h2><div class="small muted">${esc(m.role)}</div></div>${badge(done ? 'Target Met 🎉' : 'In Progress', done ? 'good' : 'blue')}</div>
+      ${line('🔴 LIVE Launch', 'live')}${line('🔨 New Build (Scratch)', 'scratch')}${line('💻 IT Handover', 'it')}${line('📅 Appointments', 'appt')}</div>`; };
+  // calendar
+  const [cy, cm] = (S.calMonth || td.slice(0, 7)).split('-').map(Number);
+  const first = new Date(cy, cm - 1, 1), days = new Date(cy, cm, 0).getDate();
+  let cells = ''; for (let i = 0; i < first.getDay(); i++) cells += '<div class="cd empty"></div>';
+  for (let dn = 1; dn <= days; dn++) {
+    const ds = C.iso(new Date(cy, cm - 1, dn)); const c = countActs(a => a.act_date === ds);
+    const off = isOff(ds); const hol = (S.settings.holidays || []).find(h => h.date === ds);
+    const met = !off && tgt.live && c.live >= tgt.live; const all = met && c.scratch >= tgt.scratch && c.it >= tgt.it;
+    const show = S.calF === 'live' ? met : S.calF === 'all' ? all : S.calF === 'pending' ? (!off && !all && ds <= td) : true;
+    cells += `<button class="cd ${off ? 'off' : ''} ${ds === td ? 'today' : ''} ${ds === day ? 'sel' : ''} ${all ? 'met' : ''} ${show ? '' : 'dim'}" data-day="${ds}"><div class="dn">${dn}</div>
+      ${off ? `<div class="small muted">☕ ${esc(hol ? (hol.name || 'วันหยุด') : 'วันหยุด')}</div>` + (c.live + c.scratch + c.it + c.appt ? `<div class="small">${c.live + c.scratch + c.it + c.appt} รายการ</div>` : '')
+        : `<div class="cl2">🔴 ${c.live}/${tgt.live}</div><div class="cl2">🔨 ${c.scratch}/${tgt.scratch}</div><div class="cl2">💻 ${c.it}/${tgt.it}</div>${c.appt ? `<div class="cl2">📅 ${c.appt}</div>` : ''}`}</button>`;
+  }
+  const dayActs = (S.acts || []).filter(a => a.act_date === day);
+  const actRow = a => { const can = isMgr() || a.member_code === S.me.code;
+    return `<tr><td>${KIND[a.kind].icon} ${KIND[a.kind].th}</td><td>${a.rid ? `<b>${esc(a.rid)}</b> ` : ''}${esc(a.store_name)}${a.rid ? '' : ' <span class="flag">⚠ ยังไม่เชื่อมกับ Tracker (ไม่นับ KPI)</span>'}</td><td>${esc(memberName(a.member_code))}</td>
+      <td class="small">${a.kind === 'appointment' ? 'นัด: ' + fmtDT(a.appt_at) : a.kind === 'live' ? liveTxt(a) : (a.stages || []).map(s => s === 'setup' ? 'Setup ✓' : 'Menu ✓').join(' · ')}</td><td class="small">${esc(a.notes || '')}</td>
+      <td>${can ? `<button class="btn s" data-act="${a.id}">แก้ไข</button>` : ''}</td></tr>`; };
+  const showGuide = S.guide !== false;
+  $('#main').innerHTML = `
+  <div class="card"><div class="small muted" style="font-weight:700;letter-spacing:.05em">DAILY TARGET PERFORMANCE · REAL-TIME</div>
+    <h2 style="font-size:20px;margin:4px 0">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} <small>(${new Date().toLocaleDateString('th-TH', { dateStyle: 'full' })})</small></h2>
+    ${isOff(td) ? '<div class="note">วันนี้เป็นวันหยุด — ไม่มีเป้าหมายงาน</div>' : ''}
+    <div class="grid">${big('1. Team LIVE Target 🔴', 'live', 'k-live')}${big('2. New Build (Scratch) 🔨', 'scratch', '')}${big('3. IT Handover 💻', 'it', '')}${big('4. Appointments 📅', 'appt', '')}</div></div>
+  <div class="mgrid">${team.map(mcard).join('')}</div>
+  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Daily Workflow Guide <small>07:00 – 16:00</small></h2><button class="btn s" id="tg">${showGuide ? 'Hide Guide' : 'Show Guide'}</button></div>
+    ${showGuide ? `<div class="plan">${DAY_PLAN.map((p, i) => `<div class="pi"><div class="small muted">${p[0]}</div><b>${i + 1}. ${esc(p[1])}</b><ul>${p[2].map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`).join('')}</div>
+    <div class="note" style="margin-top:12px"><b>กฎเหล็ก:</b> ทุกร้านต้องมี Status · Owner · Last Contact · Next Action · Follow-up Date · Appt Date · Expected Go Live · Blocker — ห้ามปล่อยร้านค้างใน Queue โดยไม่มี Next Action + Owner + Follow-up Date</div>` : ''}
+    <div class="sec">Active Blockers Pad (โน้ตปัญหาติดตาม — ทุกคนแก้ได้)</div>
+    <textarea id="pad" placeholder="คลิกเพื่อบันทึก blockers หรือ follow-up ประจำวัน...">${esc(content('pad'))}</textarea>
+    <div class="actions" style="margin-top:6px"><button class="btn s p" id="padsv">Save note</button></div></div>
+  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Migration Target Calendar (ปฏิทินเป้าหมาย) <small>กดวันที่เพื่อดูรายการ</small></h2>
+    <select id="calf" style="width:auto">${[['', 'All (ทั้งหมด)'], ['live', '🔴 LIVE Target Met'], ['all', '100% Targets Met'], ['pending', 'Pending Targets']].map(o => `<option value="${o[0]}" ${o[0] === (S.calF || '') ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>
+    <button class="btn s" id="cp">◀</button><b>${first.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</b><button class="btn s" id="cn">▶</button></div>
+    <div class="cal">${['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map(x => `<div class="ch">${x}</div>`).join('')}${cells}</div></div>
+  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Daily Activity Log · ${fd(day)} <small>${dayActs.length} รายการ</small></h2>
+    <button class="btn s" data-new="appointment">+ Add Appointment</button><button class="btn s" data-new="scratch">+ Build System</button><button class="btn s r" data-new="live">🔴 Record LIVE</button></div>
+    <div class="tw" style="margin-top:10px"><table><thead><tr><th>ประเภท</th><th>ร้าน</th><th>โดย</th><th>รายละเอียด</th><th>หมายเหตุ</th><th></th></tr></thead><tbody>
+    ${dayActs.map(actRow).join('') || '<tr><td colspan="6" class="muted">ยังไม่มีรายการในวันนี้</td></tr>'}</tbody></table></div></div>`;
+  $('#tg').onclick = () => { S.guide = !showGuide; render(); };
+  $('#padsv').onclick = () => save(sb.from('content').update({ body: $('#pad').value, updated_at: new Date().toISOString() }).eq('key', 'pad'), 'บันทึกโน้ตแล้ว');
+  $('#calf').onchange = e => { S.calF = e.target.value; render(); };
+  const shift = n => { const d = new Date(cy, cm - 1 + n, 1); S.calMonth = C.iso(d).slice(0, 7); render(); };
+  $('#cp').onclick = () => shift(-1); $('#cn').onclick = () => shift(1);
+  document.querySelectorAll('[data-day]').forEach(b => b.onclick = () => { S.selDate = b.dataset.day; render(); });
+  bindActButtons();
+}
+function liveTxt(a) { const c = a.checklist || {}; const ok = ['chk_install', 'chk_printer', 'chk_test', 'chk_booking'].every(k => c[k] === 'Yes' || c[k] === 'N/A');
+  return (ok ? badge('Checks ✓', 'good') : badge('Checks ไม่ครบ', 'warn')) + ` Handover ${(c.handover || []).length}/${HANDOVER.length}`; }
+function bindActButtons() {
+  document.querySelectorAll('[data-act]').forEach(b => b.onclick = () => activityModal(null, S.acts.find(a => String(a.id) === b.dataset.act)));
+  document.querySelectorAll('[data-new]').forEach(b => b.onclick = () => activityModal(b.dataset.new));
+}
+
+// --- Pre-Live Checklist ---
+function viewPrelive() {
+  const cur = S.pl || { checks: {}, inspector: S.me.code };
+  const ck = cur.checks || {};
+  const done = PRELIVE.filter((x, i) => ck['i' + i]).length;
+  const reqDone = PRELIVE.filter((x, i) => !x.optional && ck['i' + i]).length;
+  const r0 = S.rests.find(r => r.rid === cur.rid);
+  $('#main').innerHTML = `${restList()}<div class="two">
+  <div class="card"><h2>Pre-Live System Checklist <small>ตรวจความพร้อมก่อน LIVE · ${PRELIVE.length} ข้อ</small></h2>
+    <div class="fg"><div style="grid-column:span 2"><label>Store (ร้านค้า) *</label><input id="pl_r" list="restlist" value="${esc(r0 ? restLabel(r0) : cur.store_name || '')}"></div>
+      <div><label>Inspector (ผู้ตรวจ) *</label><select id="pl_i">${memberOpts(cur.inspector, false)}</select></div></div>
+    <label>Inspection Notes (หมายเหตุ)</label><textarea id="pl_n">${esc(cur.notes || '')}</textarea>
+    <div class="row" style="align-items:center;margin:10px 0"><div style="flex:1"><div class="small muted">Progress: ${reqDone} / ${PL_REQ} ข้อบังคับ (${pct(reqDone / PL_REQ)})</div><div class="bar"><i style="width:${reqDone / PL_REQ * 100}%"></i></div></div>
+      <button class="btn s" id="pl_all">Select all</button><button class="btn s" id="pl_new">New / Reset</button><button class="btn s" id="pl_cp">Copy summary</button><button class="btn p" id="pl_sv">Save Audit Record</button></div>
+    <div class="cl">${PRELIVE.map((x, i) => `<div class="ci2"><label class="ci"><input type="checkbox" data-pi="${i}" ${ck['i' + i] ? 'checked' : ''}> <span><b>${i + 1}.</b> ${esc(x.t)}${x.optional ? '' : ' <span class="req">*</span>'}</span></label>
+      ${x.opts ? `<div class="chips">${x.opts.map(o => `<label class="chip"><input type="${x.one ? 'radio' : 'checkbox'}" name="po${i}" data-po="${i}" value="${esc(o)}" ${(ck['o' + i] || []).includes(o) ? 'checked' : ''}> ${esc(o)}</label>`).join('')}</div>` : ''}</div>`).join('')}</div>
+    <p class="small muted">เมื่อติ๊กข้อบังคับครบ และร้านอยู่ใน Tracker ระบบจะเปลี่ยน Migration Status ของร้านเป็น "Ready to Live" ให้อัตโนมัติ</p></div>
+  <div class="card"><h2>Saved Pre-Live Audits <small>${(S.prelive || []).length} รายการ</small></h2>
+    ${(S.prelive || []).map(p => { const v = p.done / PL_REQ; return `<div class="sv"><div class="pc ${v >= 1 ? 'ok' : ''}">${pct(Math.min(1, v))}</div><div style="flex:1"><b>${esc(p.store_name)}</b>${p.rid ? ` <span class="small muted">${esc(p.rid)}</span>` : ''}
+      <div class="small muted">${v >= 1 ? '✓ Completed' : `⏳ Checked ${p.done}/${PL_REQ}`} · Inspector: ${esc(memberName(p.inspector))} · ${fmtDT(p.updated_at)}</div></div><button class="btn s" data-pl="${p.id}">Edit</button></div>`; }).join('') || '<p class="muted">ยังไม่มีรายการ</p>'}</div></div>`;
+  const collect = () => {
+    const checks = {}; document.querySelectorAll('[data-pi]').forEach(x => { if (x.checked) checks['i' + x.dataset.pi] = true; });
+    document.querySelectorAll('[data-po]:checked').forEach(x => { const k = 'o' + x.dataset.po; (checks[k] = checks[k] || []).push(x.value); });
+    const rv = $('#pl_r').value.trim(); const r = findRest(rv);
+    return { id: cur.id, rid: r ? r.rid : null, store_name: r ? r.name : rv, inspector: $('#pl_i').value, notes: $('#pl_n').value.trim() || null, checks, done: PRELIVE.filter((x, i) => !x.optional && checks['i' + i]).length, _r: r };
+  };
+  document.querySelectorAll('[data-pi],[data-po]').forEach(x => x.onchange = () => { const c = collect(); delete c._r; S.pl = c; render(); });
+  $('#pl_all').onclick = () => { const c = collect(); delete c._r; PRELIVE.forEach((x, i) => c.checks['i' + i] = true); c.done = PL_REQ; S.pl = c; render(); };
+  $('#pl_new').onclick = () => { S.pl = null; render(); };
+  $('#pl_cp').onclick = () => { const c = collect(); const t = `Pre-Live Audit: ${c.store_name}\nInspector: ${memberName(c.inspector)}\n` + PRELIVE.map((x, i) => `${c.checks['i' + i] ? '✅' : '⬜'} ${i + 1}. ${x.t}${c.checks['o' + i] ? ' — ' + c.checks['o' + i].join(', ') : ''}`).join('\n') + (c.notes ? `\nNotes: ${c.notes}` : '');
+    navigator.clipboard.writeText(t).then(() => toast('คัดลอกแล้ว'), () => toast('คัดลอกไม่ได้', true)); };
+  $('#pl_sv').onclick = async () => {
+    const c = collect(); const r = c._r; delete c._r;
+    if (!c.store_name) return toast('กรุณาใส่ชื่อร้าน', true);
+    if (!r && !confirm('ไม่พบร้านนี้ใน Tracker — บันทึกได้ แต่จะไม่อัปเดตสถานะร้าน บันทึกต่อไหม?')) return;
+    const id = c.id; delete c.id; c.updated_at = new Date().toISOString();
+    const res = id ? await sb.from('prelive').update(c).eq('id', id) : await sb.from('prelive').insert(c);
+    if (res.error) return toast(res.error.message, true);
+    const ready = r && c.done >= PL_REQ && (!r.mig_status || r.mig_status === 'Not Ready');
+    if (ready) await sb.from('restaurants').update({ mig_status: 'Ready to Live' }).eq('rid', r.rid);
+    S.pl = null; toast(ready ? 'บันทึกแล้ว · ' + r.rid + ' = Ready to Live' : 'บันทึกแล้ว'); await loadAll(); render();
+  };
+  document.querySelectorAll('[data-pl]').forEach(b => b.onclick = () => { S.pl = Object.assign({}, S.prelive.find(p => String(p.id) === b.dataset.pl)); render(); window.scrollTo(0, 0); });
+}
+
+// --- LIVE Process Flow ---
+function mini(txt) {
+  const link = s => esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+  let html = '', inList = false;
+  for (const line of txt.split('\n')) {
+    const l = line.trim();
+    if (l.startsWith('- ')) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${link(l.slice(2))}</li>`; continue; }
+    if (inList) { html += '</ul>'; inList = false; }
+    if (l.startsWith('## ')) html += `<h3 class="fh">${link(l.slice(3))}</h3>`; else if (l) html += `<p>${link(l)}</p>`;
+  }
+  return html + (inList ? '</ul>' : '');
+}
+function viewFlow() {
+  const body = content('live_flow');
+  $('#main').innerHTML = `<div class="card flow"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">LIVE PROJECT FLOW <small>ขั้นตอนแนะนำร้านค้าขณะอยู่ในสาย</small></h2>
+    ${isMgr() ? '<button class="btn s" id="fe">แก้ไขคู่มือ</button>' : ''}<button class="btn s r" data-new="live">🔴 Record LIVE</button></div>
+    <div id="fb">${mini(body) || '<p class="muted">ยังไม่มีเนื้อหา</p>'}</div>
+    <div class="sec">Onboarding Verification Checklist (ก่อนส่งมอบร้าน)</div><ol class="small">${HANDOVER.map(h => `<li>${esc(h)}</li>`).join('')}</ol>
+    <p class="small muted">ติ๊กเช็กลิสต์นี้ได้ตอนกด 🔴 Record LIVE — ข้อมูลจะบันทึกและนับเข้า KPI</p></div>`;
+  bindActButtons();
+  if ($('#fe')) $('#fe').onclick = () => {
+    $('#fb').innerHTML = `<p class="small muted">"## " = หัวข้อ, "- " = ข้อย่อย · คู่มือนี้เก็บในฐานข้อมูล (ไม่อยู่ในโค้ดสาธารณะ) เห็นได้เฉพาะทีมที่ล็อกอิน</p><textarea id="ft" style="min-height:420px">${esc(body)}</textarea><div class="actions"><button class="btn p" id="fs">Save</button></div>`;
+    $('#fs').onclick = () => save(sb.from('content').update({ body: $('#ft').value, updated_at: new Date().toISOString() }).eq('key', 'live_flow'), 'บันทึกคู่มือแล้ว');
+  };
+}
+
+// --- Team Performance ---
+function viewPerf() {
+  const months = [...new Set((S.acts || []).map(a => a.act_date.slice(0, 7)).concat([C.iso(C.today()).slice(0, 7)]))].sort().reverse();
+  const mo = S.perfMonth ?? '';
+  const inP = a => !mo || a.act_date.startsWith(mo);
+  $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Team Performance & Targets <small>ผลงานจากรายการที่บันทึก</small></h2>
+    <div><select id="pm" style="width:auto"><option value="">All time</option>${months.map(m => `<option ${m === mo ? 'selected' : ''}>${m}</option>`).join('')}</select></div></div></div>
+  <div class="mgrid">${S.members.filter(m => m.active).map(m => { const c = countActs(a => a.member_code === m.code && inP(a)); const t = dailyT(m);
+    const pl = (S.prelive || []).filter(p => p.inspector === m.code && (!mo || (p.updated_at || '').startsWith(mo)));
+    const k = (l, v, s) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+    return `<div class="card"><h2>${esc(m.name)}${m.is_manager ? ' ⭐' : ''} <small>${esc(m.role)} · Daily: LIVE ${t.live} • Scratch ${t.scratch} • IT ${t.it}</small></h2><div class="grid g3">
+      ${k('🔴 Live stores', c.live, 'ร้านที่เปิดแล้ว')}${k('🔨 Scratch setup', c.scratch, 'สร้างจากต้น')}${k('💻 IT handover', c.it, 'ทำต่อจาก IT')}
+      ${k('📅 Appointments', c.appt, 'นัดหมายทั้งหมด')}${k('✅ Pre-Live audits', pl.length, `ครบ 100%: ${pl.filter(p => p.done >= PL_REQ).length}`)}</div></div>`; }).join('')}</div>`;
+  $('#pm').onchange = e => { S.perfMonth = e.target.value; render(); };
+}
+
+// --- Audit Reports (PDF archive) ---
+function viewAudit() {
+  const url = content('recorder_url');
+  $('#main').innerHTML = `<div class="two"><div class="card"><h2>LFY Recorder Team Pack <small>เครื่องมือตรวจเว็บอัตโนมัติ (Mac Apple Silicon)</small></h2>
+    <p class="small">รันบนเครื่อง Mac ของทีม แล้วเปิด Web App ที่ <code>http://localhost:3210/</code> · หลักฐานอยู่ใน Central Drive (OPEN-CENTRAL-EVIDENCE.command)</p>
+    <div class="row">${url ? `<a class="btn p" href="${esc(url)}" target="_blank" rel="noopener">Download LFY Recorder (.zip)</a>` : '<span class="muted small">ยังไม่ได้ใส่ลิงก์ดาวน์โหลด</span>'}
+      <a class="btn" href="http://localhost:3210/" target="_blank" rel="noopener">Launch Web App (localhost:3210)</a>${isMgr() ? '<button class="btn s" id="eu">Edit download URL</button>' : ''}</div>
+    <p class="small muted">หมายเหตุ: ตัวตรวจเทียบเว็บด้วย Gemini AI ของแอปเดิมยังไม่ได้ย้ายมา — ใช้ LFY Recorder แล้วอัปโหลด PDF ผลตรวจไว้ที่นี่</p></div>
+  <div class="card"><h2>Upload Audit Reports (PDF) <small>อ่านชื่อร้าน + คะแนนจากชื่อไฟล์อัตโนมัติ</small></h2>
+    <input type="file" id="pf" accept="application/pdf,.pdf" multiple><p class="small muted">เช่น <code>Thai Spoon_92%.pdf</code> → ร้าน "Thai Spoon", คะแนน 92%</p></div></div>
+  <div class="card"><h2>Saved PDF Report Library <small>${(S.reports || []).length} ไฟล์</small></h2><div class="tw"><table><thead><tr><th>ร้าน</th><th>คะแนน</th><th>ไฟล์</th><th>โดย</th><th>วันที่</th><th></th></tr></thead><tbody>
+    ${(S.reports || []).map(r => `<tr><td><b>${esc(r.store_name)}</b></td><td>${esc(r.score || '')}</td><td class="small">${esc(r.file_name)}</td><td>${esc(memberName(r.uploaded_by))}</td><td class="small">${fmtDT(r.created_at)}</td>
+      <td style="white-space:nowrap"><button class="btn s" data-dl="${r.id}">เปิด</button> ${isMgr() || r.uploaded_by === S.me.code ? `<button class="btn s r" data-rd="${r.id}">ลบ</button>` : ''}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">ยังไม่มีไฟล์</td></tr>'}</tbody></table></div></div>`;
+  if ($('#eu')) $('#eu').onclick = async () => { const v = prompt('ลิงก์ดาวน์โหลด LFY Recorder (.zip):', url); if (v === null) return; await save(sb.from('content').update({ body: v.trim() }).eq('key', 'recorder_url'), 'Saved'); };
+  $('#pf').onchange = async e => {
+    const files = [...e.target.files]; let n = 0;
+    for (const f of files) {
+      const base = f.name.replace(/\.pdf$/i, ''); const sc = (base.match(/(\d{1,3}(?:\.\d+)?)\s*%/) || [])[1];
+      const store = base.replace(/[_-]?\(?\d{1,3}(?:\.\d+)?\s*%\)?/g, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim() || base;
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.pdf`;
+      const up = await sb.storage.from('audit-reports').upload(path, f, { contentType: 'application/pdf' });
+      if (up.error) { toast(f.name + ': ' + up.error.message, true); continue; }
+      const ins = await sb.from('reports').insert({ store_name: store, file_path: path, file_name: f.name, score: sc ? sc + '%' : null, uploaded_by: S.me.code });
+      if (ins.error) toast(ins.error.message, true); else n++;
+    }
+    toast(`อัปโหลดแล้ว ${n} ไฟล์`); await loadAll(); render();
+  };
+  document.querySelectorAll('[data-dl]').forEach(b => b.onclick = async () => {
+    const r = S.reports.find(x => String(x.id) === b.dataset.dl); const w = window.open('', '_blank');
+    const { data, error } = await sb.storage.from('audit-reports').createSignedUrl(r.file_path, 600);
+    if (error) { if (w) w.close(); return toast(error.message, true); } if (w) w.location = data.signedUrl; else location.href = data.signedUrl;
+  });
+  document.querySelectorAll('[data-rd]').forEach(b => b.onclick = async () => {
+    const r = S.reports.find(x => String(x.id) === b.dataset.rd); if (!confirm('ลบไฟล์ ' + r.file_name + '?')) return;
+    await sb.storage.from('audit-reports').remove([r.file_path]); await save(sb.from('reports').delete().eq('id', r.id), 'ลบแล้ว');
+  });
+}
+
+// --- Feedback & Tools ---
+const FB_CAT = ['Client Online Order', 'Internal Migration Helper'];
+function viewFeedback() {
+  const cat = S.fbCat || ''; const q = (S.fbQ || '').toLowerCase();
+  const list = (S.feedback || []).filter(f => (!cat || f.category === cat) && (!q || [f.title, f.detail, f.tags, f.submitter].join(' ').toLowerCase().includes(q)));
+  const cnt = c => (S.feedback || []).filter(f => !c || f.category === c).length;
+  $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Feedback & Internal Tools <small>ข้อเสนอแนะจากลูกค้า และเครื่องมือที่ทีมต้องการ</small></h2>
+    <button class="btn" id="fx">Export CSV</button><button class="btn" id="ft2">Export TXT</button><button class="btn p" id="fn">+ New Feedback / Request</button></div>
+    <div class="row" style="margin-top:10px">${[['', 'All Items'], [FB_CAT[0], '1. Client Online Order'], [FB_CAT[1], '2. Internal Migration Helper']].map(c => `<button class="btn s ${c[0] === cat ? 'p' : ''}" data-fc="${c[0]}">${c[1]} (${cnt(c[0])})</button>`).join('')}
+      <input id="fq" placeholder="Search feedback, tags, keywords..." value="${esc(S.fbQ || '')}" style="flex:1;min-width:200px"></div></div>
+  ${list.map(f => `<div class="card"><div class="row" style="align-items:center"><div style="flex:1"><b>${esc(f.title)}</b> ${badge(f.category === FB_CAT[0] ? 'Client Online Order' : 'Internal Helper', f.category === FB_CAT[0] ? 'blue' : 'grey')} ${badge(f.status, f.status === 'Done' ? 'good' : f.status === 'Rejected' ? 'bad' : f.status === 'In Review' ? 'warn' : 'grey')}
+    <div class="small muted">${esc(f.submitter || '')} · ${fmtDT(f.created_at)}</div></div>${isMgr() || f.created_by === S.session.user.id ? `<button class="btn s" data-fe="${f.id}">แก้ไข</button>` : ''}</div>
+    <p style="white-space:pre-wrap;margin:8px 0">${esc(f.detail || '')}</p>${(f.tags || '').split(',').map(t => t.trim()).filter(Boolean).map(t => `<span class="badge b-grey">#${esc(t)}</span> `).join('')}</div>`).join('') || '<div class="card muted">ไม่พบรายการ</div>'}`;
+  document.querySelectorAll('[data-fc]').forEach(b => b.onclick = () => { S.fbCat = b.dataset.fc; render(); });
+  $('#fq').oninput = e => { S.fbQ = e.target.value; const p = e.target.selectionStart; render(); const el = $('#fq'); el.focus(); el.setSelectionRange(p, p); };
+  $('#fn').onclick = () => fbModal(null);
+  document.querySelectorAll('[data-fe]').forEach(b => b.onclick = () => fbModal(S.feedback.find(f => String(f.id) === b.dataset.fe)));
+  const rows = () => [['Category', 'Title', 'Submitter', 'Description', 'Tags', 'Status', 'Created']].concat(list.map(f => [f.category, f.title, f.submitter, f.detail, f.tags, f.status, f.created_at]));
+  $('#fx').onclick = () => download('feedback.csv', toCsv(rows()));
+  $('#ft2').onclick = () => download('feedback.txt', list.map(f => `[${f.category}] ${f.title} (${f.status})\nBy: ${f.submitter || ''}\n${f.detail || ''}\nTags: ${f.tags || ''}\n`).join('\n'));
+}
+function fbModal(f) {
+  const isNew = !f; f = f || { category: FB_CAT[0], submitter: S.me.name, status: 'Open' };
+  openModal(`<h3>${isNew ? 'Log Feedback / Feature Request' : 'แก้ไข Feedback'}</h3><div id="ff">
+    <label>Category (หมวดหมู่) *</label><select name="category">${FB_CAT.map(c => `<option ${c === f.category ? 'selected' : ''}>${c}</option>`).join('')}</select>
+    <label>Feature / Title (หัวข้อเรื่อง) *</label><input name="title" value="${esc(f.title || '')}" placeholder="e.g., Support custom delivery fee rules...">
+    <label>Submitter / Store Name (ผู้ส่งเรื่อง / ร้านค้า) *</label><input name="submitter" value="${esc(f.submitter || '')}">
+    <label>Description (รายละเอียด) *</label><textarea name="detail">${esc(f.detail || '')}</textarea>
+    <label>Tags (คั่นด้วย comma)</label><input name="tags" value="${esc(f.tags || '')}" placeholder="Online Order, Modifier, LINE">
+    ${isMgr() ? `<label>Status</label><select name="status">${opts(['Open', 'In Review', 'Done', 'Rejected'], f.status)}</select>` : ''}</div>
+    <div class="actions">${!isNew ? '<button class="btn r" id="del" style="margin-right:auto">ลบ</button>' : ''}<button class="btn" id="cx">Cancel</button><button class="btn p" id="sv">Save Entry</button></div>`);
+  $('#cx').onclick = closeModal;
+  if ($('#del')) $('#del').onclick = async () => { if (confirm('ลบรายการนี้?')) { closeModal(); await save(sb.from('feedback').delete().eq('id', f.id), 'ลบแล้ว'); } };
+  $('#sv').onclick = async () => {
+    const d = formData($('#ff')); if (!d.title || !d.submitter || !d.detail) return toast('กรุณากรอกช่องที่มี * ให้ครบ', true);
+    closeModal(); await save(isNew ? sb.from('feedback').insert(d) : sb.from('feedback').update(d).eq('id', f.id), 'Saved');
+  };
 }
 
 // ---------------- boot ----------------
