@@ -579,7 +579,7 @@ const PRELIVE = [
   { t: 'Payment Method Verification', opts: ['Pay at the Counter', 'Stripe'], optional: true },
   { t: 'Test Orders (3 real orders + print)', opts: ['🛍️ Pickup order', '🛵 Delivery order', '🚗 Uber order'] },
   { t: 'Website System & Domain Provider', opts: ['Add button with us', 'GF Web', 'Add button with other', 'Domain with us', 'Domain not with us'] },
-  { t: 'Cloudflare DNS: add 35.238.2.132 to A Record' }, { t: 'Google Search Console Integration' }, { t: 'Queue to LIVE (Ready to Launch)' }];
+  { t: 'Cloudflare DNS: add 35.238.2.132 to A Record', link: 'cloudflare_url', linkT: 'Cloudflare' }, { t: 'Google Search Console Integration', link: 'gsc_url', linkT: 'Search Console' }, { t: 'Queue to LIVE (Ready to Launch)' }];
 const PL_REQ = PRELIVE.filter(x => !x.optional).length;
 const DAY_PLAN = [['07:00 – 08:00', 'Follow-up Non-responsive Stores', ['โทรตามคิว Priority ร้าน', 'อัปเดต Status ทันทีหลังโทร', 'ไม่รับสาย = ส่ง SMS/Email']],
   ['08:00 – 12:00', 'System Setup (16 Steps)', ['สร้างระบบร้านใหม่ตามคิว', 'ทำ Test Order เสมอ', 'ห้ามขึ้น Ready ถ้ายังไม่ Test']],
@@ -685,7 +685,8 @@ function activityModal(kind, a, pre) {
       <div class="ls"><label class="ci" style="flex:1"><input type="checkbox" id="af_howto" ${chk.howto ? 'checked' : ''}> <span>ส่ง How-to (response.io) + อีเมลวิธีการใช้งานให้ร้านแล้ว</span></label><button type="button" class="btn s" id="af_cpmsg">📋 Copy ข้อความแจ้งร้าน</button></div>
       <div class="ls"><span>เว็บไซต์ร้านเป็นแบบไหน? *</span><span class="seg"><label><input type="radio" name="af_site" value="CW" ${chk.site === 'CW' ? 'checked' : ''}><b>🌐 CW</b></label><label><input type="radio" name="af_site" value="IT" ${chk.site === 'IT' ? 'checked' : ''}><b>🛠️ Template โดย IT</b></label></span></div>
       <div id="af_cw" class="subbox" style="${chk.site === 'CW' ? '' : 'display:none'}">
-        <label class="ci"><input type="checkbox" id="af_ton" ${chk.ton ? 'checked' : ''}> <span>แจ้ง <b>คุณต้น</b> ให้ LIVE website แล้ว</span></label>
+        <label class="ci"><input type="checkbox" id="af_ton" ${chk.ton ? 'checked' : ''}> <span>แจ้ง <b>คุณต้น</b> ให้ LIVE website แล้ว (Cloudflare DNS → 35.238.2.132 · Custom domain + SSL · Search Console)</span></label>
+        <div class="row">${content('cloudflare_url') ? `<a class="btn s" href="${esc(content('cloudflare_url'))}" target="_blank" rel="noopener">☁️ Cloudflare</a>` : ''}${content('gsc_url') ? `<a class="btn s" href="${esc(content('gsc_url'))}" target="_blank" rel="noopener">🔎 Search Console</a>` : ''}</div>
         <label class="ci"><input type="checkbox" id="af_now" ${chk.told_now ? 'checked' : ''}> <span>บอกร้านแล้วว่า <b>ใช้ระบบใหม่ได้ทันที</b></span></label></div>
       <div id="af_it" class="subbox" style="${chk.site === 'IT' ? '' : 'display:none'}">
         <label class="ci"><input type="checkbox" id="af_24" ${chk.told_24h ? 'checked' : ''}> <span>บอกร้านแล้วว่า <b>พร้อมใช้พรุ่งนี้ (ภายใน 24 ชม.)</b></span></label>
@@ -980,6 +981,7 @@ function viewPrelive() {
     <div class="row" style="align-items:center;margin:10px 0"><div style="flex:1"><div class="small muted">Progress: ${reqDone} / ${PL_REQ} ข้อบังคับ (${pct(reqDone / PL_REQ)})</div><div class="bar"><i style="width:${reqDone / PL_REQ * 100}%"></i></div></div>
       <button class="btn s" id="pl_all">Select all</button><button class="btn s" id="pl_new">New / Reset</button><button class="btn s" id="pl_cp">Copy summary</button><button class="btn p" id="pl_sv">Save Audit Record</button></div>
     <div class="cl">${PRELIVE.map((x, i) => `<div class="ci2"><label class="ci"><input type="checkbox" data-pi="${i}" ${ck['i' + i] ? 'checked' : ''}> <span><b>${i + 1}.</b> ${esc(x.t)}${x.optional ? '' : ' <span class="req">*</span>'}</span></label>
+      ${x.link && content(x.link) ? `<div style="margin:4px 0 0 24px"><a class="btn s" href="${esc(content(x.link))}" target="_blank" rel="noopener">🔗 เปิด ${esc(x.linkT)}</a></div>` : ''}
       ${x.opts ? `<div class="chips">${x.opts.map(o => `<label class="chip"><input type="${x.one ? 'radio' : 'checkbox'}" name="po${i}" data-po="${i}" value="${esc(o)}" ${(ck['o' + i] || []).includes(o) ? 'checked' : ''}> ${esc(o)}</label>`).join('')}</div>` : ''}</div>`).join('')}</div>
     <p class="small muted">เมื่อติ๊กข้อบังคับครบ และร้านอยู่ใน Tracker ระบบจะเปลี่ยน Migration Status ของร้านเป็น "Ready to Live" ให้อัตโนมัติ</p></div>
   <div class="card"><h2>Saved Pre-Live Audits <small>${(S.prelive || []).length} รายการ</small></h2>
@@ -1053,6 +1055,14 @@ const FLOW = [
   { k: 'booking', t: 'ส่ง Test booking + Pause service', d: ['ส่ง Test booking ให้ร้านกดรับในแท็บ Bookings', 'แนะนำ Pause Services (ปุ่ม ⏸ มุมขวาบน): เลือก Service · Duration (20 / 30 / 60 นาที / Rest of the Day) · Reason แล้วกด Confirm', 'แนะนำ Order history: ออเดอร์ที่ completed แล้วจะไปอยู่ที่นั่น'] },
   { k: 'done', t: 'จบสาย', d: ['หน้า Orders เปิดค้างไว้ และต้องขึ้น 🟢 "Connected to push server"', 'แถบล่าง: Orders · Bookings · More', 'เครื่องพิมพ์พร้อมขายจริง ✅'] },
 ];
+function tonTasks() {
+  const cf = content('cloudflare_url'), gsc = content('gsc_url');
+  return `<div class="ton"><div class="spt">🧑‍💻 สิ่งที่คุณต้นต้องทำเพื่อ LIVE web</div><ol>
+    <li><b>Cloudflare DNS:</b> ลบ A Record เก่าที่ไม่ใช่ <code>35.238.2.132</code> และ CNAME เก่าออกให้หมด → เพิ่ม A Record <code>www.(domain)</code> → IPv4 <code>35.238.2.132</code> (ตั้งเป็น <b>DNS only</b>) <button class="btn s" data-cp="35.238.2.132">📋 Copy IP</button></li>
+    <li><b>Landing page ระบบใหม่:</b> เลือก Custom Domain ใส่ <code>www.(domain)</code> → กด SSL certificate จนขึ้นสีเขียว (Your domain is live) → Save</li>
+    <li><b>Google Search Console:</b> เพิ่ม / ตรวจโดเมนร้าน และส่ง sitemap</li></ol>
+    <div class="row">${cf ? `<a class="btn s" href="${esc(cf)}" target="_blank" rel="noopener">☁️ Cloudflare</a>` : ''}${gsc ? `<a class="btn s" href="${esc(gsc)}" target="_blank" rel="noopener">🔎 Google Search Console</a>` : ''}</div></div>`;
+}
 function flowImgs() { try { return JSON.parse(content('flow_images') || '{}'); } catch { return {}; } }
 async function viewFlow() {
   const imgs = flowImgs(); const paths = Object.values(imgs).filter(Boolean);
@@ -1075,7 +1085,7 @@ async function viewFlow() {
         <div class="row"><button class="btn p s" id="cpmsg">📋 Copy ข้อความแจ้งร้าน</button>${isMgr() ? '<button class="btn s" id="edmsg">แก้ไขข้อความ</button>' : ''}</div>
         <pre class="msg">${esc(content('howto_msg'))}</pre></div></div>
       <div class="ac"><div class="an">B</div><div><b>เว็บไซต์ร้านเป็นแบบไหน?</b>
-        <div class="split"><div class="sp cw"><div class="spt">🌐 เว็บ CW</div><ul><li>แจ้ง <b>คุณต้น</b> ทุกครั้งเพื่อ LIVE website</li><li>บอกร้าน: <b>ใช้ระบบใหม่ได้ทันที</b></li></ul></div>
+        <div class="split"><div class="sp cw"><div class="spt">🌐 เว็บ CW</div><ul><li>แจ้ง <b>คุณต้น</b> ทุกครั้งเพื่อ LIVE website</li><li>บอกร้าน: <b>ใช้ระบบใหม่ได้ทันที</b></li></ul>${tonTasks()}</div>
           <div class="sp it"><div class="spt">🛠️ เว็บ Template สร้างโดย IT</div><ul><li>บอกร้าน: <b>พร้อมใช้พรุ่งนี้ (ภายใน 24 ชม.)</b></li><li>แจ้งใน Monday IT board ให้อัปเดตปุ่ม <b>Online Order</b> และ <b>Table Reservation</b></li></ul>${it ? `<a class="btn s" href="${esc(it)}" target="_blank" rel="noopener">🔗 Monday IT board</a>` : ''}</div></div></div></div>
       <div class="ac"><div class="an">C</div><div><b>อัปเดต 486 Monday</b> ${content('monday_486') ? `<a class="btn s" href="${esc(content('monday_486'))}" target="_blank" rel="noopener">🔗 เปิด 486 board</a>` : ''}
         <div class="split"><div class="sp ok"><div class="spt">✅ เรียบร้อยทุกอย่าง</div><ul><li>เปลี่ยน Status เป็น <b>Completed</b></li></ul></div>

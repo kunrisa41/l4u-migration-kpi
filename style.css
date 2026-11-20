@@ -182,3 +182,5 @@ pre.msg{white-space:pre-wrap;background:#F8FAFC;border:1px solid var(--line);bor
 .gal figcaption{font-size:12px;margin-top:6px;color:#334155}
 .sheetframe{width:100%;height:560px;border:1px solid var(--line);border-radius:10px;margin-top:10px;background:#fff}
 .sheetframe.big{height:calc(100vh - 160px)}
+.ton{background:#fff;border:1px dashed #93C5FD;border-radius:10px;padding:8px 10px;margin-top:8px;font-size:13px}
+.ton ol{margin:6px 0;padding-left:18px;line-height:1.7}
