@@ -809,7 +809,7 @@ function recorderCard(compact) {
       ${f ? `<button class="btn p" id="rdl">⬇️ Download Team Pack ${esc(f.version || '')}</button>` : (ext ? `<a class="btn p" href="${esc(ext)}" target="_blank" rel="noopener">⬇️ Download Team Pack</a>` : '')}
       <a class="btn t" href="http://localhost:3210/" target="_blank" rel="noopener">▶️ เปิด LFY Recorder</a>
       ${drive ? `<a class="btn" href="${esc(drive)}" target="_blank" rel="noopener">📁 MIG Audit Check (ผลตรวจ / วิดีโอ)</a>` : ''}
-      ${isMgr() ? `<label class="btn s" style="margin:0;cursor:pointer">⬆️ Upload new version (.zip)<input type="file" id="rup" accept=".zip" style="display:none"></label><button class="btn s" id="rdr">Edit Drive link</button>` : ''}</div>
+      ${isMgr() ? `<label class="btn s" style="margin:0;cursor:pointer">⬆️ Upload new version (.zip)<input type="file" id="rup" accept=".zip" style="display:none"></label>` : ''}</div>
     ${open ? `<div class="two" style="margin-top:12px"><div><div class="sec" style="margin-top:0">ติดตั้งครั้งแรก (ครั้งเดียวต่อ Mac)</div><ol class="small steps">
       <li>กด <b>⬇️ Download Team Pack</b> ไฟล์ .zip จะไปอยู่ที่โฟลเดอร์ Downloads</li>
       <li>ดับเบิลคลิกไฟล์ .zip เพื่อแตกไฟล์</li>
@@ -843,7 +843,6 @@ function bindRecorder() {
     await save(sb.from('content').update({ body: JSON.stringify({ path, name: file.name, version, at: new Date().toISOString() }), updated_at: new Date().toISOString() }).eq('key', 'recorder_file'), 'อัปโหลดเวอร์ชัน ' + (version || file.name) + ' แล้ว');
     if (old && old.path) sb.storage.from('tools').remove([old.path]);
   };
-  if ($('#rdr')) $('#rdr').onclick = async () => { const v = prompt('ลิงก์โฟลเดอร์ MIG Audit Check (Google Drive):', content('mig_drive')); if (v === null) return; await save(sb.from('content').update({ body: v.trim() }).eq('key', 'mig_drive'), 'Saved'); };
 }
 
 // --- Pre-Live Checklist ---
