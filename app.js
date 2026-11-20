@@ -104,7 +104,7 @@ async function loadAll() {
 let reloadTimer;
 function subscribe() {
   sb.channel('kpi-all').on('postgres_changes', { event: '*', schema: 'public' }, () => {
-    clearTimeout(reloadTimer); reloadTimer = setTimeout(async () => { try { await loadAll(); render(); } catch (e) { console.error(e); } }, 400);
+    clearTimeout(reloadTimer); reloadTimer = setTimeout(async () => { try { const y = window.scrollY; await loadAll(); render(); setTimeout(() => window.scrollTo(0, y), 250); } catch (e) { console.error(e); } }, 400);
   }).subscribe();
 }
 async function save(promise, ok) {
@@ -1227,7 +1227,7 @@ function viewPrelive() {
     ${(S.prelive || []).map(p => { const v = p.done / PL_REQ; return `<div class="sv"><div class="pc ${v >= 1 ? 'ok' : ''}">${pct(Math.min(1, v))}</div><div style="flex:1"><b>${esc(p.store_name)}</b>${p.rid ? ` <span class="small muted">${esc(p.rid)}</span>` : ''}
       <div class="small muted">${v >= 1 ? '✓ Completed' : `⏳ Checked ${p.done}/${PL_REQ}`} · ${p.inspector ? 'Inspector: ' + esc(memberName(p.inspector)) : '🤖 LFY Recorder'} · ${fmtDT(p.updated_at)}${(p.checks || {}).auto_run ? ' · <span class="auto ok" style="padding:0 6px">🤖 Recorder</span>' : ''}</div></div><button class="btn s" data-pl="${p.id}">Edit</button></div>`; }).join('') || '<p class="muted">ยังไม่มีรายการ</p>'}</div></div>`;
   const collect = () => {
-    const checks = {}; ['auto', 'auto_run', 'auto_at', 'old_system'].forEach(k => { if (ck[k] !== undefined) checks[k] = ck[k]; });
+    const checks = {}; ['auto', 'auto_run', 'auto_at', 'old_system', 'flow'].forEach(k => { if (ck[k] !== undefined) checks[k] = ck[k]; });
     document.querySelectorAll('[data-pi]').forEach(x => { if (x.checked) checks['i' + x.dataset.pi] = true; });
     document.querySelectorAll('[data-po]:checked').forEach(x => { const k = 'o' + x.dataset.po; (checks[k] = checks[k] || []).push(x.value); });
     const rv = $('#pl_r').value.trim(); const r = findRest(rv);
@@ -1280,9 +1280,6 @@ const MOCK = {
   done: P(`<div class="mk-c"><div class="mk-big">🎉</div><b>LIVE แล้ว!</b><div class="small muted">หน้ารับออเดอร์เปิดค้าง · เครื่องพิมพ์พร้อม</div><div class="mk-btn g">จบสาย</div></div>`),
 };
 const REAL = { pair: ['img/pair.jpg'], theme: ['img/theme.jpg'], audio: ['img/audio.jpg'], addp: ['img/addp.jpg'], order: ['img/order.jpg', 'img/order2.jpg'], booking: ['img/booking.jpg'], done: ['img/done.jpg'] };
-const GALLERY = [['img/app-icon.png', 'ไอคอนแอป PushPrinter Nitro (ให้ร้านหาไอคอนนี้)'], ['img/pair.jpg', 'หน้า Login: Login by QR / Login by Pairing Code'],
-  ['img/done.jpg', 'หน้า Orders + Connected to push server'], ['img/order.jpg', 'Order review: ACCEPT − / + เวลา'], ['img/order2.jpg', 'Decline order? (แท็บเล็ต)'],
-  ['img/booking.jpg', 'Pause Services'], ['img/addp.jpg', 'Printers (กด ＋ เพื่อเพิ่ม)'], ['img/theme.jpg', 'Settings › Appearance (Theme / Text size)'], ['img/audio.jpg', 'Settings › Audio (Test Order / Test Booking)']];
 const FLOW = [
   { k: 'call', t: 'ติดต่อร้าน', d: ['โทรหาร้านตามเวลานัด แนะนำตัวและบอกว่าจะเปิดระบบรับออเดอร์ใหม่ด้วยกันในสาย'] },
   { k: 'store', t: 'ให้ร้านดาวน์โหลด PushPrinter Nitro', d: ['ให้ร้านเปิด Play Store / App Store ค้นหา "PushPrinter" แล้วกด Install'], link: 'pushprinter_url', linkT: 'ลิงก์ Play Store' },
@@ -1311,7 +1308,7 @@ function flowStorePick() {
   const list = plStores(); const sel = S.flowStore || '';
   const p = list.find(x => x.store_name === sel);
   const isLiveDone = n => (S.acts || []).some(a => a.kind === 'live' && a.store_name.trim().toLowerCase() === n.trim().toLowerCase());
-  return `<div class="ac"><div class="an">D</div><div><b>เลือกร้านที่ LIVE แล้วบันทึก</b> <span class="small muted">รายชื่อร้านมาจาก Pre-Live Checklist เท่านั้น</span>
+  return `<div class="ac" id="fpick"><div class="an">E</div><div><b>บันทึกผล LIVE</b> ${flowProg()} <span class="small muted">รายชื่อร้านมาจาก Pre-Live Checklist เท่านั้น</span>
     ${list.length ? `<div class="row" style="margin-top:8px;align-items:center"><select id="fsel" style="min-width:260px;flex:1;max-width:420px"><option value="">— เลือกชื่อร้าน —</option>
       ${list.map(x => `<option value="${esc(x.store_name)}" ${x.store_name === sel ? 'selected' : ''}>${esc(x.store_name)}${x.done >= PL_REQ ? ' ✓ Pre-Live ครบ' : ` (Pre-Live ${x.done}/${PL_REQ})`}${isLiveDone(x.store_name) ? ' · 🔴 LIVE แล้ว' : ''}</option>`).join('')}</select>
       </div>
@@ -1321,12 +1318,13 @@ function flowStorePick() {
     : `<p class="small muted" style="margin:6px 0">ยังไม่มีร้านใน Pre-Live Checklist — ทำ Pre-Live Checklist ของร้านก่อน แล้วชื่อร้านจะขึ้นที่นี่</p>`}</div></div>`;
 }
 function bindFlowPick() {
-  if ($('#fsel')) $('#fsel').onchange = e => { S.flowStore = e.target.value; const y = window.scrollY; render(); window.scrollTo(0, y); };
+  if ($('#fsel')) $('#fsel').onchange = e => { S.flowStore = e.target.value; S.fTk = null; const y = window.scrollY; render(); window.scrollTo(0, y); };
   if ($('#fpl')) $('#fpl').onclick = e => { e.preventDefault(); const p = plStores().find(x => x.store_name === S.flowStore); S.pl = Object.assign({}, p); S.tab = 'prelive'; render(); window.scrollTo(0, 0); };
   if ($('#fok')) $('#fok').onclick = () => {
     const p = plStores().find(x => x.store_name === S.flowStore); if (!p) return;
     if (p.done < PL_REQ && !confirm(`Pre-Live Checklist ของร้านนี้ยังไม่ครบ (${p.done}/${PL_REQ}) จะบันทึก LIVE ต่อไหม?`)) return;
-    activityModal('live', null, { store_name: p.store_name, rid: p.rid, member_code: S.me.code, checklist: { from_prelive: p.id, m486: 'Completed', chk_install: 'Yes', chk_printer: 'Yes', chk_test: 'Yes', chk_booking: 'Yes', setup_app: 'Yes' } });
+    const miss = FLOW_KEYS().filter(k => !fT(k)); if (miss.length && !confirm(`ยังไม่ได้ติ๊ก ${miss.length} ข้อในขั้นตอน (1–10, A–D) จะบันทึก LIVE ต่อไหม?`)) return;
+    activityModal('live', null, { store_name: p.store_name, rid: p.rid, member_code: S.me.code, checklist: { flow: Object.assign({}, fTicks()), flow_done: FLOW_KEYS().length - miss.length, flow_total: FLOW_KEYS().length, from_prelive: p.id, m486: 'Completed', chk_install: 'Yes', chk_printer: 'Yes', chk_test: 'Yes', chk_booking: 'Yes', setup_app: 'Yes' } });
     const inp = $('#a_r'); if (inp) { inp.readOnly = true; inp.removeAttribute('list'); inp.classList.add('locked'); }
   };
   if ($('#fno')) $('#fno').onclick = () => {
@@ -1348,6 +1346,40 @@ function bindFlowPick() {
     };
   };
 }
+// ---- per-store tick boxes for steps 1–10 and A–D (saved on the store's Pre-Live record) ----
+const OLD_SYS = [
+  { k: 'd1', t: 'Setup › Services & opening hours', d: 'ปิดทุก service ของระบบเก่า: Pickup · Delivery · Table reservation · On premise · Scheduled orders', img: 'img/old_services.jpg' },
+  { k: 'd2', t: 'PartnerNet › รายชื่อร้าน › กดเปิดร้าน', d: 'กด <b>Cancel</b> ทั้ง 2 อันที่ <b>Sales Optimized Website</b> และ <b>Online Payments</b>', img: 'img/old_partner.jpg' },
+  { k: 'd3', t: 'Other (•••) › General › Notifications', d: 'ที่อีเมลร้าน ปิด toggle <b>ทั้งหมด</b> ให้เป็นสีเทา (ไม่ต้องให้ระบบเก่าส่งอีเมลหาร้านอีก)', img: 'img/old_notif.jpg' },
+  { k: 'd4', t: 'Setup › Taking orders › Alert call', d: 'ลบ <b>เบอร์โทร</b> ออกจากช่อง Phone number แล้วกด Next / Save (ระบบเก่าจะได้ไม่โทรหาร้าน)', img: 'img/old_alert.jpg' }];
+const FLOW_KEYS = () => [...FLOW.map(s => s.k), 'a1', 'a2', 'b1', 'b2', 'c1', ...OLD_SYS.map(x => x.k)];
+const flowRec = () => plStores().find(x => x.store_name === S.flowStore);
+const fTicks = () => { const p = flowRec(); return (S.fTk && S.fTk.store === S.flowStore) ? S.fTk.v : ((p && p.checks && p.checks.flow) || {}); };
+const fT = k => !!fTicks()[k];
+function tk(k, label) { const on = !!flowRec(); return `<label class="tk ${fT(k) ? 'on' : ''}" ${on ? '' : 'title="เลือกร้านที่กำลัง LIVE ด้านบนก่อน"'}><input type="checkbox" data-tk="${k}" ${fT(k) ? 'checked' : ''} ${on ? '' : 'disabled'}><span>${label}</span></label>`; }
+function flowProg() { if (!flowRec()) return ''; const all = FLOW_KEYS(), n = all.filter(fT).length; return badge(`ติ๊กแล้ว ${n}/${all.length}`, n === all.length ? 'good' : 'warn'); }
+function flowTop() {
+  const list = plStores(); const sel = S.flowStore || '';
+  return `<div class="flowtop"><span>🏪 กำลัง LIVE ร้าน:</span><select id="fsel2"><option value="">— เลือกชื่อร้าน (จาก Pre-Live Checklist) —</option>${list.map(x => `<option value="${esc(x.store_name)}" ${x.store_name === sel ? 'selected' : ''}>${esc(x.store_name)}</option>`).join('')}</select>
+    ${flowRec() ? `<span id="fprog">${flowProg()}</span><button class="btn s" id="tkall">✓ ติ๊กทั้งหมด</button>` : '<span class="small" style="color:#CBD5E1">เลือกร้านก่อน แล้วติ๊กแต่ละขั้นได้ ระบบเก็บไว้กับร้านนั้น</span>'}</div>`;
+}
+function oldSysBlock() {
+  return `<div class="ac" id="oldsys"><div class="an">D</div><div><b>ปิดระบบร้านเก่า (Gloria Food / PartnerNet)</b> <span class="small muted">ทำหลัง LIVE สำเร็จ ให้ร้านไม่ได้รับออเดอร์จากระบบเก่าซ้ำ</span>
+    <div class="oldgrid">${OLD_SYS.map((x, i) => `<div class="oldst"><div><div class="small muted">D${i + 1}</div><b>${esc(x.t)}</b><p class="small" style="margin:4px 0 8px">${x.d}</p>${tk(x.k, 'ทำแล้ว')}</div>
+      <img src="${x.img}" alt="${esc(x.t)}" data-zoom="${x.img}" class="real"></div>`).join('')}</div></div></div>`;
+}
+let tkTimer;
+function bindTicks() {
+  const pick = e => { S.flowStore = e.target.value; S.fTk = null; const y = window.scrollY; render(); window.scrollTo(0, y); };
+  if ($('#fsel2')) $('#fsel2').onchange = pick;
+  const saveTicks = () => { clearTimeout(tkTimer); const p = flowRec(); if (!p) return; const v = Object.assign({}, fTicks());
+    tkTimer = setTimeout(async () => { const ck = Object.assign({}, p.checks || {}, { flow: v }); const { error } = await sb.from('prelive').update({ checks: ck }).eq('id', p.id); if (error) toast(error.message, true); else p.checks = ck; }, 600); };
+  const apply = () => { document.querySelectorAll('[data-tk]').forEach(c => { c.checked = fT(c.dataset.tk); c.closest('.tk').classList.toggle('on', c.checked); });
+    FLOW.forEach((s, i) => { const el = $('#st' + i); if (el) { el.classList.toggle('tkd', fT(s.k)); el.querySelector('.fnum').textContent = fT(s.k) ? '✓' : i + 1; } });
+    if ($('#fprog')) $('#fprog').innerHTML = flowProg(); const h = document.querySelector('#fpick .badge'); if (h) h.outerHTML = flowProg(); };
+  document.querySelectorAll('[data-tk]').forEach(c => c.onchange = () => { const v = Object.assign({}, fTicks()); v[c.dataset.tk] = c.checked; S.fTk = { store: S.flowStore, v }; apply(); saveTicks(); });
+  if ($('#tkall')) $('#tkall').onclick = () => { const v = {}; FLOW_KEYS().forEach(k => v[k] = true); S.fTk = { store: S.flowStore, v }; apply(); saveTicks(); };
+}
 function flowImgs() { try { return JSON.parse(content('flow_images') || '{}'); } catch { return {}; } }
 async function viewFlow() {
   const imgs = flowImgs(); const paths = Object.values(imgs).filter(Boolean);
@@ -1358,30 +1390,32 @@ async function viewFlow() {
       <h2 style="margin:2px 0;color:#fff;font-size:20px"><img src="img/app-icon.png" alt="" style="width:30px;height:30px;vertical-align:middle;margin-right:6px">LIVE PROJECT FLOW <small style="color:#CBD5E1">ขั้นตอนพาร้านเปิดระบบขณะอยู่ในสาย</small></h2>
       <div style="color:#E2E8F0">🚀 เป้าหมายจบสาย: <b>หน้ารับออเดอร์เปิดค้าง + เครื่องปริ้น Test print สำเร็จ + รับ Test order ได้</b></div></div>
       <button class="btn r" data-new="live">🔴 Record LIVE</button></div>
-    <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">หลังวางสาย</a><a href="#after" class="fchip a">D. เลือกร้าน & บันทึก LIVE</a><a href="#feedback" class="fchip a">E. Feedback & Tools</a><a href="#gallery" class="fchip a">🖼️ รูปทั้งหมด</a></div></div>
+    <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">A–C หลังวางสาย</a><a href="#oldsys" class="fchip a">D. ปิดระบบร้านเก่า</a><a href="#fpick" class="fchip a">E. บันทึก LIVE</a><a href="#feedback" class="fchip a">F. Feedback & Tools</a></div>
+    ${flowTop()}</div>
   <div class="flowgrid">${FLOW.map((s, i) => { const p = imgs[s.k]; const up = p && urls[p]; const list = up ? [up] : (REAL[s.k] || []); const u = list[0];
-    return `<div class="card fstep" id="st${i}"><div class="fnum">${i + 1}</div><div class="fbody"><h3>${esc(s.t)}</h3><ul>${s.d.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+    return `<div class="card fstep ${fT(s.k) ? 'tkd' : ''}" id="st${i}"><div class="fnum">${fT(s.k) ? '✓' : i + 1}</div><div class="fbody"><h3>${esc(s.t)}</h3>${tk(s.k, 'ทำขั้นนี้แล้ว')}<ul>${s.d.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
       ${s.link && content(s.link) ? `<a class="btn s" href="${esc(content(s.link))}" target="_blank" rel="noopener">🔗 ${esc(s.linkT)}</a> <button class="btn s" data-cp="${esc(content(s.link))}">📋 Copy ลิงก์ส่งให้ร้าน</button>` : ''}
       ${isMgr() ? `<div style="margin-top:8px"><label class="btn s" style="margin:0;cursor:pointer">📷 ${u ? 'เปลี่ยนรูป' : 'ใส่รูปจริง'}<input type="file" accept="image/*" data-img="${s.k}" style="display:none"></label>${up ? ` <button class="btn s" data-imgdel="${s.k}">ใช้รูปเดิม</button>` : ''}</div>` : ''}</div>
       <div class="fpic">${u ? list.map((x, j) => `<img src="${esc(x)}" alt="${esc(s.t)}" class="real ${j ? 'extra' : ''}" data-zoom="${esc(x)}">`).join('') + '<div class="small muted" style="text-align:center">กดรูปเพื่อขยาย</div>' : MOCK[s.k]}</div></div>`; }).join('')}</div>
   <div class="card" id="after"><h2>📨 หลังวางสาย (MIG ต้องทำทุกร้าน)</h2>
     <div class="after">
-      <div class="ac"><div class="an">A</div><div><b>ส่ง How-to ให้ร้าน</b><ul><li>ส่ง How-to จาก <b>response.io</b> ที่เกี่ยวข้องกับร้าน</li><li>ส่ง <b>อีเมลวิธีการใช้งาน</b> — ใช้ข้อความสำเร็จรูปด้านล่าง (อังกฤษ + ไทย)</li></ul>
+      <div class="ac"><div class="an">A</div><div><b>ส่ง How-to ให้ร้าน</b><div class="tks">${tk('a1', 'ส่ง How-to จาก <b>response.io</b> ที่เกี่ยวข้องกับร้านแล้ว')}${tk('a2', 'ส่ง <b>อีเมลวิธีการใช้งาน</b> แล้ว — ใช้ข้อความสำเร็จรูปด้านล่าง (อังกฤษ + ไทย)')}</div>
         <div class="row"><button class="btn p s" id="cpmsg">📋 Copy ข้อความแจ้งร้าน</button>${isMgr() ? '<button class="btn s" id="edmsg">แก้ไขข้อความ</button>' : ''}</div>
         <pre class="msg">${esc(content('howto_msg'))}</pre></div></div>
       <div class="ac"><div class="an">B</div><div><b>เว็บไซต์ร้านเป็นแบบไหน?</b>
         <div class="split"><div class="sp cw"><div class="spt">🌐 เว็บ CW</div><ul><li>แจ้ง <b>คุณต้น</b> ทุกครั้งเพื่อ LIVE website</li><li>บอกร้าน: <b>ใช้ระบบใหม่ได้ทันที</b></li></ul>${tonTasks()}</div>
-          <div class="sp it"><div class="spt">🛠️ เว็บ Template สร้างโดย IT</div><ul><li>บอกร้าน: <b>พร้อมใช้พรุ่งนี้ (ภายใน 24 ชม.)</b></li><li>แจ้งใน Monday IT board ให้อัปเดตปุ่ม <b>Online Order</b> และ <b>Table Reservation</b></li></ul>${it ? `<a class="btn s" href="${esc(it)}" target="_blank" rel="noopener">🔗 Monday IT board</a>` : ''}</div></div></div></div>
+          <div class="sp it"><div class="spt">🛠️ เว็บ Template สร้างโดย IT</div><ul><li>บอกร้าน: <b>พร้อมใช้พรุ่งนี้ (ภายใน 24 ชม.)</b></li><li>แจ้งใน Monday IT board ให้อัปเดตปุ่ม <b>Online Order</b> และ <b>Table Reservation</b></li></ul>${it ? `<a class="btn s" href="${esc(it)}" target="_blank" rel="noopener">🔗 Monday IT board</a>` : ''}</div></div>
+        <div class="tks">${tk('b1', 'แจ้งคุณต้น (เว็บ CW) หรือแจ้ง Monday IT board (เว็บ IT) แล้ว')}${tk('b2', 'บอกร้านแล้วว่าใช้ระบบใหม่ได้เมื่อไหร่ (ทันที / ภายใน 24 ชม.)')}</div></div></div>
       <div class="ac"><div class="an">C</div><div><b>อัปเดต 486 Monday</b> ${content('monday_486') ? `<a class="btn s" href="${esc(content('monday_486'))}" target="_blank" rel="noopener">🔗 เปิด 486 board</a>` : ''}
         <div class="split"><div class="sp ok"><div class="spt">✅ เรียบร้อยทุกอย่าง</div><ul><li>เปลี่ยน Status เป็น <b>Completed</b></li></ul></div>
-          <div class="sp q"><div class="spt">⏳ ยังไม่เรียบร้อย</div><ul><li>คงสถานะ <b>Queue to go live</b></li><li>ตอนกด Record LIVE ให้ใส่ <b>"ต้องตามเรื่องอะไร"</b></li><li>ระบบแจ้งเตือนเข้า <b>Google Chat</b> ให้เอง และขึ้นในกล่อง "ต้องตามงานต่อ" หน้า Dashboard จนกว่าจะกดเสร็จ</li></ul></div></div></div></div>
+          <div class="sp q"><div class="spt">⏳ ยังไม่เรียบร้อย</div><ul><li>คงสถานะ <b>Queue to go live</b></li><li>ตอนกด Record LIVE ให้ใส่ <b>"ต้องตามเรื่องอะไร"</b></li><li>ระบบแจ้งเตือนเข้า <b>Google Chat</b> ให้เอง และขึ้นในกล่อง "ต้องตามงานต่อ" หน้า Dashboard จนกว่าจะกดเสร็จ</li></ul></div></div>
+        <div class="tks">${tk('c1', 'อัปเดต 486 Monday แล้ว (Completed หรือ Queue to go live)')}</div></div></div>
+      ${oldSysBlock()}
       ${flowStorePick()}
-    </div></div>
-  <div class="card" id="gallery"><h2>🖼️ รูปหน้าจอแอป PushPrinter Nitro ทั้งหมด <small>กดรูปเพื่อขยาย · ใช้ประกอบการอธิบายร้านหรือส่งให้ร้านดูได้</small></h2>
-    <div class="gal">${GALLERY.map(g => `<figure><img src="${g[0]}" alt="${esc(g[1])}" data-zoom="${g[0]}"><figcaption>${esc(g[1])}<br><a href="${g[0]}" download class="small">⬇️ ดาวน์โหลด</a></figcaption></figure>`).join('')}</div></div>`;
-  bindActButtons(); bindFlowPick();
+    </div></div>`;
+  bindActButtons(); bindFlowPick(); bindTicks();
   const fw = document.createElement('div'); fw.className = 'card fbwrap'; fw.id = 'feedback';
-  fw.innerHTML = '<div class="row" style="align-items:center;gap:12px"><div class="an">E</div><div><b style="font-size:16px">Feedback & Tools</b> <span class="small muted">ข้อเสนอแนะจากร้าน (Online Order) และเครื่องมือที่ทีมอยากได้ — เจอระหว่าง LIVE ก็บันทึกที่นี่</span></div></div><div id="fbbox"></div>';
+  fw.innerHTML = '<div class="row" style="align-items:center;gap:12px"><div class="an">F</div><div><b style="font-size:16px">Feedback & Tools</b> <span class="small muted">ข้อเสนอแนะจากร้าน (Online Order) และเครื่องมือที่ทีมอยากได้ — เจอระหว่าง LIVE ก็บันทึกที่นี่</span></div></div><div id="fbbox"></div>';
   $('#after').after(fw); viewFeedback();
   if (S.scrollFb) { S.scrollFb = false; fw.scrollIntoView(); }
   $('#cpmsg').onclick = () => navigator.clipboard.writeText(content('howto_msg')).then(() => toast('คัดลอกข้อความแล้ว — วางในอีเมล / แชตส่งร้านได้เลย'));

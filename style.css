@@ -209,3 +209,15 @@ input.locked{background:#F1F5F9;font-weight:700}
 table.issues{width:100%;background:#fff;border-collapse:collapse}table.issues td,table.issues th{padding:4px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 .actorgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:14px 0}
 .actorgrid .btn{padding:14px 10px;text-align:center;line-height:1.4}
+
+.flowtop{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.08);color:#fff}
+.flowtop select{width:auto;min-width:260px;max-width:420px}
+.tk{display:flex;gap:8px;align-items:flex-start;margin:6px 0;padding:6px 10px;border:1px dashed var(--line);border-radius:8px;cursor:pointer;font-size:13px;background:#fff}
+.tk input{width:18px;height:18px;margin:0;flex:none;accent-color:#16A34A}
+.tk.on{border-style:solid;border-color:#86EFAC;background:#F0FDF4}
+.tk input:disabled+span{color:#94A3B8}
+.tks{margin-top:6px}
+.fstep.tkd{border-color:#86EFAC;background:#FAFFFB}.fstep.tkd .fnum{background:#16A34A}
+.oldgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(460px,1fr));gap:12px;margin-top:10px}
+.oldst{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.oldst img{width:100%;max-height:340px;object-fit:contain;object-position:top;background:#F8FAFC;border-radius:8px;border:1px solid var(--line);cursor:zoom-in}
