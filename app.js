@@ -150,7 +150,6 @@ function render() {
   const kpiOn = inKpi && isMgr();
   const override = kpiOn && S.settings.asof ? `<span class="badge b-warn">As-of override: ${fd(S.settings.asof)}</span>` : '';
   $('#app').innerHTML = `<div class="top"><div><div class="brand">LOCAL FOR YOU</div><h1>Restaurant Migration Tracker</h1></div>${override}<div class="sp"></div>
-    <div class="acts"><button class="btn s" data-new="appointment">+ Add Appointment</button><button class="btn s r" data-new="live">🔴 Record LIVE</button></div>
     <div class="who">${esc(S.me.name)} · ${esc(S.me.role)}${isMgr() ? ' ⭐' : ''}</div><button class="btn s" id="out">Sign out</button></div>
     <nav class="tabs">${STAFF_TABS.map(t => `<button data-tab="${t[0]}" class="${S.tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('')}
       ${isMgr() ? `<button data-tab="${kpiOn ? S.tab : 'dash'}" class="kpitab ${kpiOn ? 'on' : ''}">🔒 KPI (Manager)</button>` : ''}</nav>
@@ -882,7 +881,6 @@ function viewHome() {
   const apRow = a => `<tr class="clk" data-act="${a.id}"><td><b>🇹🇭 ${hhmm(a.appt_at)}</b>${(a.checklist || {}).tz && a.checklist.tz !== 'Asia/Bangkok' ? `<div class="small muted">${tzFlag(a.checklist.tz)} ${tzName(a.checklist.tz)} ${fmtHm(a.appt_at, a.checklist.tz)}</div>` : ''}</td><td><b>${esc(a.store_name)}</b>${a.contact ? `<div class="small muted">${esc(a.contact)}</div>` : ''}</td><td>${esc(memberName(a.member_code))}</td>
     <td>${stBadge(a.status)}</td><td class="small">${a.status === 'No-show' || a.status === 'Problem' ? esc([a.issue_category, a.issue_detail].filter(Boolean).join(' — ')) : ''}${a.notes ? `<div class="muted">${esc(a.notes)}</div>` : ''}</td><td><button class="btn s">เปิด</button></td></tr>`;
   const lvRow = a => `<tr class="clk" data-act="${a.id}"><td>🔴</td><td><b>${esc(a.store_name)}</b></td><td>${esc(memberName(a.member_code))}</td><td>${liveTxt(a)}</td><td class="small">${esc(a.notes || '')}</td><td><button class="btn s">เปิด</button></td></tr>`;
-  const showGuide = S.guide === true;
   const fus = lives.filter(a => a.followup && !a.followup_done_at).sort((x, y) => x.act_date.localeCompare(y.act_date));
   const fuCard = fus.length ? `<div class="card fucard"><h2>⏳ ต้องตามงานต่อหลัง LIVE <small>${fus.length} ร้าน · 486 Monday = Queue to go live · แจ้ง Google Chat ทุกเช้า 07:30 จนกว่าจะกดเสร็จ</small></h2>
     <div class="tw"><table><thead><tr><th>ร้าน</th><th>ต้องตามเรื่อง</th><th>โดย</th><th>LIVE เมื่อ</th><th></th></tr></thead><tbody>
@@ -892,7 +890,7 @@ function viewHome() {
   $('#main').innerHTML = `${goalCard()}${fuCard}
   <div class="card"><div class="row" style="align-items:flex-start"><div style="flex:1"><div class="small muted" style="font-weight:700;letter-spacing:.05em">DAILY TARGET PERFORMANCE · REAL-TIME</div>
     <h2 style="font-size:20px;margin:4px 0">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} <small>(${new Date().toLocaleDateString('th-TH', { dateStyle: 'full' })})</small></h2></div>
-      <div class="callbtn"><button class="btn p" id="hcall">📞 บันทึกการโทรประจำวัน</button><div class="small muted">บันทึกร้านที่โทรติดต่อวันนี้ (ไม่รับสาย / ได้นัด / โทรกลับ)<br>ดูสรุปและส่งเข้า Chat ได้ที่ Team Performance</div></div></div>
+      <div class="callbtn"><div class="row" style="justify-content:flex-end;gap:6px"><button class="btn p" id="hcall">📞 บันทึกการโทรประจำวัน</button><button class="btn" data-new="appointment">+ Add Appointment</button><button class="btn r" data-new="live">🔴 Record LIVE</button></div><div class="small muted">บันทึกร้านที่โทรติดต่อวันนี้ (ไม่รับสาย / ได้นัด / โทรกลับ)<br>ดูสรุปและส่งเข้า Chat ได้ที่ Team Performance</div></div></div>
     ${isOff(td) ? '<div class="note">วันนี้เป็นวันหยุด — ไม่มีเป้าหมายงาน</div>' : ''}
     <div class="grid">${big('🔴 Team LIVE วันนี้' + (G ? ` (เป้า ${G.dayMin}–${G.dayMax})` : ''), cnt.live, tgt.live, 'k-live')}${big('📅 ลงนัดใหม่วันนี้', cnt.appt, tgt.appt, '')}
       ${big('🗓️ นัดของวันนี้', todayAp.length, 0, '', `รอ ${todayAp.filter(a => a.status === 'Scheduled' || a.status === 'Rescheduled').length} · LIVE ${todayAp.filter(a => a.status === 'LIVE Completed').length}`)}
@@ -909,18 +907,16 @@ function viewHome() {
     ${dayAp.map(apRow).join('') || '<tr><td colspan="6" class="muted">ไม่มีนัดในวันนี้</td></tr>'}</tbody></table></div>
     ${dayLv.length ? `<div class="sec">LIVE ที่บันทึกวันนี้</div><div class="tw"><table><tbody>${dayLv.map(lvRow).join('')}</tbody></table></div>` : ''}</div>
   ${recorderCard(true)}
-  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Daily Workflow Guide <small>07:00 – 16:00</small></h2><button class="btn s" id="tg">${showGuide ? 'Hide Guide' : 'Show Guide'}</button></div>
-    ${showGuide ? `<div class="plan">${DAY_PLAN.map((p, i) => `<div class="pi"><div class="small muted">${p[0]}</div><b>${i + 1}. ${esc(p[1])}</b><ul>${p[2].map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`).join('')}</div>` : ''}
-    <div class="sec">Active Blockers Pad (โน้ตปัญหาติดตาม — ทุกคนแก้ได้)</div>
+  ${recLog()}
+  <div class="card"><h2>📝 Active Blockers Pad <small>โน้ตปัญหาติดตาม — ทุกคนแก้ได้</small></h2>
     <textarea id="pad" placeholder="คลิกเพื่อบันทึก blockers หรือ follow-up ประจำวัน...">${esc(content('pad'))}</textarea>
     <div class="actions" style="margin-top:6px"><button class="btn s p" id="padsv">Save note</button></div></div>`;
-  $('#tg').onclick = () => { S.guide = !showGuide; render(); };
   $('#padsv').onclick = () => save(sb.from('content').update({ body: $('#pad').value, updated_at: new Date().toISOString() }).eq('key', 'pad'), 'บันทึกโน้ตแล้ว');
   $('#calf').onchange = e => { S.calF = e.target.value; render(); };
   const shift = n => { const d = new Date(cy, cm - 1 + n, 1); S.calMonth = C.iso(d).slice(0, 7); render(); };
   $('#cp').onclick = () => shift(-1); $('#cn').onclick = () => shift(1); $('#ct').onclick = () => { S.calMonth = null; S.selDate = null; render(); };
   document.querySelectorAll('[data-day]').forEach(b => b.onclick = e => { if (e.target.closest('[data-act]')) return; S.selDate = b.dataset.day; render(); });
-  bindActButtons(); bindRecorder(); bindSheet();
+  bindActButtons(); bindRecorder(); bindSheet(); bindRecLog();
   $('#hcall').onclick = () => { S.dailyDate = C.iso(C.today()); callModal(null); };
   document.querySelectorAll('[data-fudone]').forEach(b => b.onclick = async () => {
     const a = S.acts.find(x => String(x.id) === b.dataset.fudone); if (!confirm(`ตามงานร้าน ${a.store_name} เสร็จแล้ว และอัปเดต 486 Monday เป็น Completed แล้ว?`)) return;
@@ -977,6 +973,32 @@ function bindSheet() {
     };
     openModal(draw()); bind();
   };
+}
+function recLog() {
+  const runs = S.runs || []; const q = (S.rlQ || '').toLowerCase();
+  const list = runs.filter(r => !q || r.store_name.toLowerCase().includes(q)).slice(0, S.rlAll ? 300 : 15);
+  const pctB = v => v === null || v === undefined ? '<span class="muted">–</span>' : `<b style="color:${v >= 100 ? 'var(--goodT)' : v >= 90 ? 'var(--warnT)' : 'var(--badT)'}">${v}%</b>`;
+  const row = r => { const bad = (r.checks || []).filter(c => c.status === 'FAIL' || c.status === 'REVIEW'); const open = S.rlOpen === r.id;
+    const groups = {}; bad.forEach(c => { (groups[c.area || 'อื่นๆ'] = groups[c.area || 'อื่นๆ'] || []).push(c); });
+    return `<tr class="clk" data-rl="${r.id}"><td class="small">${fmtDT(r.created_at)}</td><td><b>${esc(r.store_name)}</b></td><td class="small">${esc(r.mode || '')}</td><td class="small">${esc(r.operator || '')}</td>
+      <td class="num">${pctB(r.menu_percent)}${r.items_need_fixing ? `<div class="small">ต้องแก้ ${r.items_need_fixing}</div>` : ''}</td><td class="num">${pctB(r.backend_percent)}${bad.length ? `<div class="small">${bad.length} จุด</div>` : ''}</td><td class="num">${pctB(r.overall_percent)}</td>
+      <td>${bad.length || r.items_need_fixing ? badge('ต้องแก้', 'bad') : badge('✓ ผ่าน', 'good')}</td><td class="small">${open ? '▲' : '▼'}</td></tr>
+      ${open ? `<tr><td colspan="9" style="background:#F8FAFC">${bad.length ? Object.entries(groups).map(([g, l]) => `<div class="sec" style="margin-top:6px">${esc(g)} (${l.length})</div><table class="small issues"><thead><tr><th></th><th>รายการ</th><th>OLD / ต้องเป็น</th><th>NEW ตอนนี้</th><th>ต้องทำ</th></tr></thead><tbody>
+        ${l.slice(0, 80).map(c => `<tr><td>${c.status === 'FAIL' ? '❌' : '❓'}</td><td><b>${esc(c.field)}</b></td><td>${esc(c.old)}</td><td>${esc(c.new)}</td><td>${esc(c.action)}</td></tr>`).join('')}</tbody></table>`).join('')
+        : '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงทุกจุดที่ตรวจ</p>'}${r.items_need_fixing ? `<p class="small">🍽️ เมนู: ต้องแก้ ${r.items_need_fixing} รายการ — ดูรายละเอียดใน Compare Report (PDF) ใน MIG Audit Check</p>` : ''}
+        <div class="row" style="margin-top:6px"><button class="btn s" data-rlpl="${esc(r.store_name)}">เปิด Pre-Live ของร้านนี้</button>${content('mig_drive') ? `<a class="btn s" href="${esc(content('mig_drive'))}" target="_blank" rel="noopener">📁 PDF / วิดีโอใน MIG Audit Check</a>` : ''}</div></td></tr>` : ''}`; };
+  return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🧪 Log การตรวจเช็ค (LFY Recorder) <small>คะแนน + สิ่งที่ต้องแก้ ส่งมาเองทุกครั้งที่ตรวจเสร็จ (V18.28 ขึ้นไป)</small></h2>
+      <input id="rlq" placeholder="ค้นหาชื่อร้าน" value="${esc(S.rlQ || '')}" style="width:220px"></div>
+    <div class="tw" style="margin-top:10px"><table><thead><tr><th>วันที่</th><th>ร้าน</th><th>โหมด</th><th>โดย</th><th class="num">เมนู</th><th class="num">หลังบ้าน</th><th class="num">รวม</th><th>ผล</th><th></th></tr></thead><tbody>
+    ${list.map(row).join('') || '<tr><td colspan="9" class="muted">ยังไม่มีผลตรวจ — ใช้ LFY Recorder V18.28 แล้วผลจะขึ้นที่นี่เอง</td></tr>'}</tbody></table></div>
+    ${runs.length > 15 && !S.rlAll ? `<div class="actions"><button class="btn s" id="rlall">แสดงทั้งหมด (${runs.length})</button></div>` : ''}</div>`;
+}
+function bindRecLog() {
+  document.querySelectorAll('[data-rl]').forEach(t => t.onclick = () => { const id = +t.dataset.rl; S.rlOpen = S.rlOpen === id ? null : id; const y = window.scrollY; render(); window.scrollTo(0, y); });
+  document.querySelectorAll('[data-rlpl]').forEach(b => b.onclick = e => { e.stopPropagation(); const n = b.dataset.rlpl.trim().toLowerCase(); const p = (S.prelive || []).find(x => x.store_name.trim().toLowerCase() === n);
+    S.pl = p ? Object.assign({}, p) : { store_name: b.dataset.rlpl, checks: {}, inspector: S.me.code }; S.tab = 'prelive'; render(); window.scrollTo(0, 0); });
+  if ($('#rlq')) $('#rlq').oninput = e => { S.rlQ = e.target.value; const p = e.target.selectionStart; render(); const el = $('#rlq'); el.focus(); el.setSelectionRange(p, p); };
+  if ($('#rlall')) $('#rlall').onclick = () => { S.rlAll = true; render(); };
 }
 function goalCard() {
   const st = S.settings, G = st.goal; if (!G) return '';

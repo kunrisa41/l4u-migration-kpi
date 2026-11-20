@@ -203,3 +203,4 @@ input.locked{background:#F1F5F9;font-weight:700}
 .autobox{margin:6px 0 0 24px}.autobox ul{margin:4px 0;padding-left:18px;line-height:1.5}
 .auto{display:inline-block;font-size:12px;font-weight:700;border-radius:99px;padding:2px 10px}
 .auto.ok{background:var(--good);color:var(--goodT)}.auto.bad{background:var(--bad);color:var(--badT)}.auto.rev{background:var(--warn);color:var(--warnT)}
+table.issues{width:100%;background:#fff;border-collapse:collapse}table.issues td,table.issues th{padding:4px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
