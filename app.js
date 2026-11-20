@@ -175,7 +175,8 @@ function viewDash() {
     const mk = p.month || C.monthKey(p.start);
     const kr = S.kpi.find(k => k.month === mk && k.member_code === m.code);
     const res = kr && kr.finalized && kr.snapshot ? kr.snapshot : C.individual(st, m, mk, S.rests, S.blockers, kr, a);
-    return `<tr><td>${esc(m.name)}</td><td>${esc(m.role)}</td><td class="num">${out('setup')}</td><td class="num">${out('menu')}</td><td class="num">${out('live')}</td>
+    const apN = (S.acts || []).filter(x => x.kind === 'appointment' && x.member_code === m.code && (() => { const d = C.parseD(apptDay(x)); return d >= p.start && d <= p.end; })());
+    return `<tr><td>${esc(m.name)}</td><td>${esc(m.role)}</td><td class="num">${apN.length}</td><td class="num">${apN.filter(x => x.status === 'No-show').length}</td><td class="num">${out('live')}</td>
       <td class="num">${pct(res.achievement)}</td><td class="num"><b>${res.score ?? '–'}</b></td><td class="small muted">${esc(mk)}${kr && kr.finalized ? ' · finalized' : ''}</td></tr>`;
   }).join('');
   const cats = Object.entries(D.cats).map(([c, v]) => `<tr><td>${esc(c)}</td><td class="num">${v.logged}</td><td class="num">${v.emp}</td><td class="num">${v.ext}</td><td class="num">${v.open}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No blockers logged</td></tr>';
@@ -186,22 +187,18 @@ function viewDash() {
     <div class="sp" style="flex:1"></div>
     <div><div class="small muted">As of ${fd(a)}</div><span class="badge ${statusCls}" style="font-size:14px;padding:6px 14px">${s.status}</span></div>
   </div>
-  ${D.inTracker < D.total && !S.memberFilter ? `<div class="note">The tracker has ${D.inTracker} restaurants vs the ${D.total} target — import the remaining restaurants (Master Tracker ▸ Import CSV).</div>` : ''}
   <div class="card"><h2>Project overview <small>all time</small></h2><div class="grid">
-    ${card('Total restaurants', D.total, 'project scope')}${card('Fully built', D.fully, 'setup + menu + marketing')}${card('Remaining to build', Math.max(0, D.total - D.fully))}
-    ${card('Ready to Live', D.readyToLive, 'built, not yet Live')}${card('Appointments booked', D.booked, 'booked + rescheduled')}${card('Live completed', D.live, 'verified checklist only')}
-    ${card('Remaining to Live', Math.max(0, D.total - D.live))}${card('Forecast (Live)', fc(s.fcL), 'build: ' + fc(s.fcB))}</div>
-    <div class="row" style="margin-top:14px;gap:24px"><div style="flex:1;min-width:260px"><label>Build progress</label>${prog(D.fully, '')}</div><div style="flex:1;min-width:260px"><label>Live progress</label>${prog(D.live, 'live')}</div></div></div>
+    ${card('Go-Live target', D.total, 'project scope')}${card('Live completed', D.live, 'verified checklist only')}${card('Remaining to Live', Math.max(0, D.total - D.live))}
+    ${card('Appointments booked', D.booked, 'booked + rescheduled')}${card('Open problems', S.blockers.filter(b => b.status !== 'Resolved').length, 'ปัญหา / No-show ที่ยังไม่เสร็จ')}${card('Forecast (Live)', fc(s.fcL), 'at current pace')}</div>
+    <div style="margin-top:14px"><label>Live progress</label>${prog(D.live, 'live')}</div></div>
   <div class="card"><h2>Selected period <small>${esc(p.label)} · ${fd(p.start)} – ${fd(p.end)}</small></h2><div class="grid">
-    ${card('Built in period', D.builtP, 'target ' + D.buildTargetP)}${card('Live in period', D.liveP, 'target ' + D.liveTargetP)}
-    ${card('No-show rate', pct(D.noShowRate), D.noShows + ' no-shows')}${card('Marketing pending', D.mktPending, 'now')}${card('Technical blockers', D.techOpen, 'open, incl. printer')}
+    ${card('Live in period', D.liveP, 'target ' + D.liveTargetP)}${card('No-show rate', pct(D.noShowRate), D.noShows + ' no-shows')}${card('Technical blockers', D.techOpen, 'open, incl. printer')}
     ${card('Required run rate', n1(s.reqL), 'Lives per effective day')}</div></div>
-  <div class="charts"><div class="card"><h2>Weekly build — target vs actual</h2><div class="chartbox"><canvas id="c1"></canvas></div></div>
-    <div class="card"><h2>Weekly Live — target vs actual</h2><div class="chartbox"><canvas id="c2"></canvas></div></div>
+  <div class="charts"><div class="card"><h2>Weekly Live — target vs actual</h2><div class="chartbox"><canvas id="c2"></canvas></div></div>
     <div class="card"><h2>Cumulative Live</h2><div class="chartbox"><canvas id="c3"></canvas></div></div>
     <div class="card"><h2>Country breakdown</h2><div class="chartbox"><canvas id="c4"></canvas></div></div></div>
   <div class="card"><h2>Individual performance <small>output in period · score for the month of the period start</small></h2>
-    <div class="tw"><table><thead><tr><th>Employee</th><th>Role</th><th class="num">Setups</th><th class="num">Menu builds</th><th class="num">Lives</th><th class="num">Month achievement</th><th class="num">Score (1-5)</th><th></th></tr></thead><tbody>${indiv}</tbody></table></div></div>
+    <div class="tw"><table><thead><tr><th>Employee</th><th>Role</th><th class="num">Appointments</th><th class="num">No-shows</th><th class="num">Lives</th><th class="num">Month achievement</th><th class="num">Score (1-5)</th><th></th></tr></thead><tbody>${indiv}</tbody></table></div></div>
   <div class="charts"><div class="card"><h2>Blockers & no-shows <small>in period · employee-controlled vs external</small></h2>
     <div class="tw"><table><thead><tr><th>Category</th><th class="num">Logged</th><th class="num">Employee</th><th class="num">External</th><th class="num">Open now</th></tr></thead><tbody>${cats}</tbody></table></div></div>
     <div class="card"><h2>Overdue follow-ups <small>${D.overdueFU.length}</small></h2><div class="tw" style="max-height:300px"><table><thead><tr><th>Restaurant</th><th>Next follow-up</th><th>Owner</th><th>Blocker</th></tr></thead><tbody>
@@ -211,10 +208,9 @@ function viewDash() {
   if (window.Chart) {
     const labels = W.rows.map(r => r.label);
     const mk = (id, cfg) => S.charts.push(new Chart(document.getElementById(id), Object.assign({ options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } }, cfg)));
-    mk('c1', { type: 'bar', data: { labels, datasets: [{ label: 'Target', data: W.rows.map(r => r.build), backgroundColor: '#CBD5E1' }, { label: 'Actual', data: W.rows.map(r => r.ba), backgroundColor: '#0F766E' }] } });
     mk('c2', { type: 'bar', data: { labels, datasets: [{ label: 'Target', data: W.rows.map(r => r.live), backgroundColor: '#CBD5E1' }, { label: 'Actual', data: W.rows.map(r => r.la), backgroundColor: '#1D4ED8' }] } });
     mk('c3', { type: 'line', data: { labels, datasets: [{ label: 'Cumulative target', data: W.rows.map(r => r.cl), borderColor: '#94A3B8' }, { label: 'Cumulative actual', data: W.rows.map(r => r.start <= a ? r.cla : null), borderColor: '#1D4ED8' }] } });
-    mk('c4', { type: 'bar', data: { labels: D.countries.map(c => c.country), datasets: [{ label: 'Restaurants', data: D.countries.map(c => c.total), backgroundColor: '#CBD5E1' }, { label: 'Fully built', data: D.countries.map(c => c.built), backgroundColor: '#0F766E' }, { label: 'Live', data: D.countries.map(c => c.live), backgroundColor: '#1D4ED8' }] }, options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+    mk('c4', { type: 'bar', data: { labels: D.countries.map(c => c.country), datasets: [{ label: 'Restaurants', data: D.countries.map(c => c.total), backgroundColor: '#CBD5E1' }, { label: 'Live', data: D.countries.map(c => c.live), backgroundColor: '#1D4ED8' }] }, options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
   }
 }
 
@@ -231,6 +227,7 @@ function trackerRows() {
       case 'built': return x.bs === 'Fully Built';
       case 'ready': return x.bs === 'Fully Built' && !x.live && r.mig_status !== 'Cancelled' && r.mig_status !== 'On Hold';
       case 'live': return x.live;
+      case 'notlive': return !x.live && r.mig_status !== 'Cancelled';
       case 'blocked': return x.bs === 'Blocked' || !!r.blocker;
       case 'flags': return x.flags.length > 0;
       default: return true;
@@ -242,20 +239,17 @@ function viewTracker() {
   const sm = (k, r) => r[k] === 'Completed' ? badge('Done', 'good') : r[k] === 'Blocked' ? badge('Blocked', 'bad') : r[k] === 'In Progress' ? badge('In progress', 'blue') : badge('Not started', 'grey');
   $('#main').innerHTML = `<div class="card"><div class="row">
     <div style="flex:1;min-width:200px"><label>Search</label><input id="q" value="${esc(S.q)}" placeholder="ID, name, country"></div>
-    <div><label>Show</label><select id="flt">${[['all', 'All'], ['notbuilt', 'Not fully built'], ['built', 'Fully built'], ['ready', 'Ready to Live'], ['live', 'Live completed'], ['blocked', 'Blocked / blocker'], ['flags', 'Needs attention']].map(o => `<option value="${o[0]}" ${o[0] === S.filter ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></div>
+    <div><label>Show</label><select id="flt">${[['all', 'All'], ['notlive', 'Not Live yet'], ['live', 'Live completed'], ['blocked', 'Has problem / blocker'], ['flags', 'Needs attention']].map(o => `<option value="${o[0]}" ${o[0] === S.filter ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></div>
     <div><label>Owner</label><select id="own">${memberOpts(S.owner)}</select></div>
     <button class="btn p" id="add">+ Restaurant</button><button class="btn" id="imp">Import CSV</button><button class="btn" id="exp">Export CSV</button></div>
     <p class="small muted">${rows.length} of ${S.rests.length} restaurants · Live is counted only when Migration Status = Live Completed, Actual Live Date set and all 4 Live checks are Yes / N/A.</p>
-  <div class="tw"><table><thead><tr><th>ID</th><th>Restaurant</th><th>Country</th><th>Setup</th><th>Menu</th><th>Marketing</th><th>Build status</th><th>Booking</th><th>Appt</th><th>Migration</th><th>Next FU</th><th>Owners (S / M / L)</th><th>Quick</th></tr></thead><tbody>
+  <div class="tw"><table><thead><tr><th>ID</th><th>Restaurant</th><th>Country</th><th>Booking</th><th>Appt</th><th>Migration</th><th>Problem / blocker</th><th>Next FU</th><th>Live agent</th><th>Quick</th></tr></thead><tbody>
   ${rows.map(({ r, bs, live, flags }) => `<tr>
     <td><a href="#" data-edit="${esc(r.rid)}"><b>${esc(r.rid)}</b></a></td><td>${esc(r.name)}${flags.map(f => `<span class="flag">⚠ ${esc(f)}</span>`).join('')}</td><td>${esc(r.country || '')}</td>
-    <td>${sm('setup_status', r)}</td><td>${sm('menu_status', r)}</td><td class="small">${esc(r.mkt_status || '')}</td><td>${bsBadge(bs)}</td>
     <td>${r.booking === 'No-show' ? badge('No-show', 'bad') : esc(r.booking || '')}</td><td class="small">${fd(r.appt_date)}</td>
-    <td>${live ? badge('LIVE ✓', 'good') : esc(r.mig_status || '')}</td><td class="small">${fd(r.next_fu)}</td>
-    <td class="small">${esc(memberName(r.setup_owner))} / ${esc(memberName(r.menu_owner))} / ${esc(memberName(r.live_agent))}</td>
-    <td style="white-space:nowrap"><button class="btn s" data-q="setup" data-rid="${esc(r.rid)}" ${r.setup_status === 'Completed' ? 'disabled' : ''}>✓ Setup</button>
-      <button class="btn s" data-q="menu" data-rid="${esc(r.rid)}" ${r.menu_status === 'Completed' ? 'disabled' : ''}>✓ Menu</button>
-      <button class="btn s r" data-q="live" data-rid="${esc(r.rid)}" ${live ? 'disabled' : ''}>Live</button></td></tr>`).join('') || '<tr><td colspan="13" class="muted">No restaurants yet — add one or import a CSV.</td></tr>'}
+    <td>${live ? badge('LIVE ✓', 'good') : esc(r.mig_status || '')}</td><td class="small">${esc(r.blocker || '')}</td><td class="small">${fd(r.next_fu)}</td>
+    <td class="small">${esc(memberName(r.live_agent))}</td>
+    <td style="white-space:nowrap"><button class="btn s r" data-q="live" data-rid="${esc(r.rid)}" ${live ? 'disabled' : ''}>Live</button></td></tr>`).join('') || '<tr><td colspan="10" class="muted">No restaurants yet — add one or import a CSV.</td></tr>'}
   </tbody></table></div></div>`;
   $('#q').oninput = e => { S.q = e.target.value; const pos = e.target.selectionStart; render(); const el = $('#q'); el.focus(); el.setSelectionRange(pos, pos); };
   $('#flt').onchange = e => { S.filter = e.target.value; render(); };
@@ -284,9 +278,6 @@ function restaurantModal(r, focusLive) {
   const m = (name, label) => `<div><label>${label}</label><select name="${name}">${memberOpts(r[name])}</select></div>`;
   openModal(`<h3>${isNew ? 'New restaurant' : esc(r.rid) + ' · ' + esc(r.name)}</h3>
   <div id="rf"><div class="fg">${isNew ? f('rid', 'Restaurant ID *') : `<input type="hidden" name="rid" value="${esc(r.rid)}">`}${f('name', 'Restaurant name *')}${s('country', 'Country', S.settings.countries || ['Australia'])}${m('case_owner', 'Assigned case owner')}</div>
-  <div class="sec">Build</div><div class="fg">${m('setup_owner', 'System setup owner')}${s('setup_status', 'System setup status', L.STAGE)}${f('setup_date', 'Setup completed date', 'date')}
-    ${m('menu_owner', 'Menu & website owner')}${s('menu_status', 'Menu & website status', L.STAGE)}${f('menu_date', 'Menu completed date', 'date')}
-    ${s('mkt_status', 'Marketing status', L.MKT)}${f('target_build', 'Target build date', 'date')}</div>
   <div class="sec">Booking</div><div class="fg">${s('booking', 'Booking status', L.BOOK)}${f('booked_on', 'Appointment booked on', 'date')}${f('appt_date', 'Appointment date', 'date')}</div>
   <div class="sec" id="livesec">Live / migration</div><div class="fg">${m('live_agent', 'Live agent')}${s('mig_status', 'Migration status', L.MIG)}${f('target_live', 'Target Live date', 'date')}${f('actual_live', 'Actual Live date', 'date')}
     ${s('chk_install', 'Live check: Installation', L.CHK)}${s('chk_printer', 'Live check: Printer connected', L.CHK)}${s('chk_test', 'Live check: Test order', L.CHK)}${s('chk_booking', 'Live check: Booking test', L.CHK)}</div>
@@ -507,17 +498,17 @@ function viewWeekly() {
   const fc = x => x instanceof Date ? fd(x) : (x || 'Not enough data yet');
   const tot = (k) => W.rows.reduce((t, r) => t + r[k], 0);
   $('#main').innerHTML = `<div class="card"><h2>Weekly KPI <small>targets are provisional project targets — Manager edits them in Settings · as of ${fd(a)}</small></h2>
-  <div class="tw"><table><thead><tr><th>#</th><th>Week</th><th class="num">Working days</th><th class="num">Build target</th><th class="num">Build actual</th><th class="num">Build %</th><th class="num">Cum. build T / A</th><th class="num">Build var.</th><th>Build</th>
+  <div class="tw"><table><thead><tr><th>#</th><th>Week</th><th class="num">Working days</th>
   <th class="num">Live target</th><th class="num">Live actual</th><th class="num">Live %</th><th class="num">Cum. live T / A</th><th class="num">Live var.</th><th>Live</th></tr></thead><tbody>
-  ${W.rows.map(r => `<tr><td>${r.i}</td><td>${esc(r.label)}</td><td class="num">${r.wd}</td><td class="num">${r.build}</td><td class="num"><b>${r.ba}</b></td><td class="num">${pct(r.bp)}</td><td class="num">${r.cb} / ${r.cba}</td><td class="num">${varc(r.bvar)}</td><td>${st(r.bst)}</td>
+  ${W.rows.map(r => `<tr><td>${r.i}</td><td>${esc(r.label)}</td><td class="num">${r.wd}</td>
     <td class="num">${r.live}</td><td class="num"><b>${r.la}</b></td><td class="num">${pct(r.lp)}</td><td class="num">${r.cl} / ${r.cla}</td><td class="num">${varc(r.lvar)}</td><td>${st(r.lst)}</td></tr>`).join('')}
-  <tr style="font-weight:700"><td></td><td>Total</td><td class="num">${tot('wd')}</td><td class="num">${tot('build')}</td><td class="num">${tot('ba')}</td><td></td><td></td><td></td><td></td><td class="num">${tot('live')}</td><td class="num">${tot('la')}</td><td></td><td></td><td></td><td></td></tr>
+  <tr style="font-weight:700"><td></td><td>Total</td><td class="num">${tot('wd')}</td><td class="num">${tot('live')}</td><td class="num">${tot('la')}</td><td></td><td></td><td></td><td></td></tr>
   </tbody></table></div></div>
   <div class="card"><h2>Project summary & forecast</h2><div class="grid">
-  ${[['Project status', `<span class="badge status-${s.status.split(' ')[0]}" style="font-size:15px">${s.status}</span>`, 'vs targets pro-rated to today'], ['Remaining to build', s.remB], ['Remaining to Live', s.remL],
-     ['Business days left', s.bdLeft, 'Mon–Fri minus holidays'], ['Effective days left', n1(s.effLeft), `scenario: ${S.settings.effDays} effective days`], ['Required build / day', n1(s.reqB), 'per effective day'],
-     ['Required Live / day', n1(s.reqL), 'per effective day'], ['Current build rate', n1(s.rateB), 'per business day'], ['Current Live rate', n1(s.rateL), 'per business day'],
-     ['Forecast build done', fc(s.fcB)], ['Forecast Live done', fc(s.fcL)], ['Progress vs expected', `${pct(s.progB)} / ${pct(s.progL)}`, `build / live · expected ${n1(s.expB)} / ${n1(s.expL)}`]]
+  ${[['Project status', `<span class="badge status-${s.status.split(' ')[0]}" style="font-size:15px">${s.status}</span>`, 'vs targets pro-rated to today'], ['Remaining to Live', s.remL],
+     ['Business days left', s.bdLeft, 'Mon–Fri minus holidays'], ['Effective days left', n1(s.effLeft), `scenario: ${S.settings.effDays} effective days`], 
+     ['Required Live / day', n1(s.reqL), 'per effective day'], ['Current Live rate', n1(s.rateL), 'per business day'],
+     ['Forecast Live done', fc(s.fcL)], ['Progress vs expected', pct(s.progL), `expected ${n1(s.expL)} Lives by today`]]
      .map(c => `<div class="kpi"><div class="l">${c[0]}</div><div class="v" style="font-size:20px">${c[1]}</div><div class="s">${c[2] || ''}</div></div>`).join('')}</div></div>`;
 }
 
@@ -532,7 +523,7 @@ function viewIndiv() {
     const stg = k => { const x = res.stages[k]; return x.counted ? `${x.out} / ${n1(x.adj)}${x.relief ? `<div class="small muted">relief −${x.relief}</div>` : ''}` : (x.out ? `<span class="muted small">${x.out} support</span>` : '–'); };
     const dis = !isMgr() || kr.finalized ? 'disabled' : '';
     const sc = res.score;
-    return `<tr><td><b>${esc(m.name)}</b><div class="small muted">${esc(m.role)}</div></td><td class="num">${stg('setup')}</td><td class="num">${stg('menu')}</td><td class="num">${stg('live')}</td>
+    return `<tr><td><b>${esc(m.name)}</b><div class="small muted">${esc(m.role)}</div></td><td class="num">${stg('live')}</td>
       <td class="num"><b>${pct(res.achievement)}</b></td><td class="num">${pct(res.taskRate)}</td><td class="num">${pct(res.onTimeRate)}</td><td class="num">${pct(res.fuRate)}</td><td class="num">${pct(res.docRate)}</td><td class="num">${pct(res.composite)}</td>
       <td class="num">${sc === null || sc === undefined ? badge('Insufficient data', 'grey') : badge(sc, sc >= 4 ? 'good' : sc === 3 ? 'warn' : 'bad')}</td>
       <td class="inline"><input data-adj="${m.code}" value="${esc(kr.adj_pct ?? '')}" placeholder="%" ${dis}><input data-rsn="${m.code}" value="${esc(kr.adj_reason ?? '')}" placeholder="reason" style="width:130px" ${dis}></td>
@@ -543,10 +534,10 @@ function viewIndiv() {
   }).join('');
   const th = st.thresholds;
   $('#main').innerHTML = `<div class="card"><div class="row"><div><label>Month</label><select id="mon">${months.map(p => `<option value="${p.month}" ${p.month === mk ? 'selected' : ''}>${esc(p.label)}</option>`).join('')}</select></div>
-    <p class="small muted" style="flex:1">Each person is measured on their own assigned targets (Team tab) — never identical Live quotas. Output vs adjusted target is weighted by standard minutes (setup ${st.minutes.setup}, menu ${st.minutes.menu}, live ${st.minutes.live}). Adjusted target = target × (1 − adjustment %) − documented external blockers.
+    <p class="small muted" style="flex:1">Each person is measured on their own assigned targets (Team tab) — never identical Live quotas. Output = verified Lives vs the person's monthly Live target. Adjusted target = target × (1 − adjustment %) − documented external blockers.
     Score basis: <b>${esc(st.basis)}</b> · 5 ≥ ${pct(th.t5)}, 4 ≥ ${pct(th.t4)}, 3 ≥ ${pct(th.t3)}, 2 ≥ ${pct(th.t2)}, else 1. Combined = existing 7-category score × ${pct(1 - st.migWeight)} + migration score/5×100 × ${pct(st.migWeight)}.</p></div>
-  <div class="tw"><table><thead><tr><th>Employee</th><th class="num">Setups out / adj. target</th><th class="num">Menu builds</th><th class="num">Lives</th><th class="num">Output vs target</th><th class="num">Task completion</th><th class="num">On-time</th><th class="num">Follow-up</th><th class="num">Documentation</th><th class="num">Composite</th><th class="num">Migration score</th><th>Adjustment % / reason</th><th>Existing 7-cat score</th><th class="num">Combined</th><th>State</th><th></th></tr></thead>
-  <tbody>${rows || '<tr><td colspan="16" class="muted">No scored team members — set roles in the Team tab.</td></tr>'}</tbody></table></div></div>`;
+  <div class="tw"><table><thead><tr><th>Employee</th><th class="num">Lives / adj. target</th><th class="num">Output vs target</th><th class="num">Task completion</th><th class="num">On-time</th><th class="num">Follow-up</th><th class="num">Documentation</th><th class="num">Composite</th><th class="num">Migration score</th><th>Adjustment % / reason</th><th>Existing 7-cat score</th><th class="num">Combined</th><th>State</th><th></th></tr></thead>
+  <tbody>${rows || '<tr><td colspan="14" class="muted">No scored team members — set roles in the Team tab.</td></tr>'}</tbody></table></div></div>`;
   $('#mon').onchange = e => { S.month = e.target.value; render(); };
   const rec = code => ({ month: mk, member_code: code, adj_pct: +document.querySelector(`[data-adj="${code}"]`).value || 0, adj_reason: document.querySelector(`[data-rsn="${code}"]`).value.trim() || null,
     existing_score: document.querySelector(`[data-ex="${code}"]`).value === '' ? null : +document.querySelector(`[data-ex="${code}"]`).value });
@@ -566,19 +557,18 @@ function viewSettings() {
   const st = S.settings; const dis = isMgr() ? '' : 'disabled';
   const f = (k, l, t = 'text', v) => `<div><label>${l}</label><input data-s="${k}" type="${t}" value="${esc(v ?? st[k] ?? '')}" ${dis}></div>`;
   $('#main').innerHTML = `${isMgr() ? '' : '<div class="note">View only — the Manager can change settings.</div>'}
-  <div class="card"><h2>Project</h2><div class="fg">${f('start', 'Project start', 'date')}${f('end', 'Project end', 'date')}${f('total', 'Total restaurants', 'number')}${f('buildTarget', 'Build target during project', 'number')}
+  <div class="card"><h2>Project</h2><div class="fg">${f('start', 'Project start', 'date')}${f('end', 'Project end', 'date')}${f('total', 'Go-Live target (restaurants)', 'number')}
     ${f('effDays', 'Effective working days (scenario)', 'number')}${f('asof', 'As-of date override (blank = today)', 'date')}</div></div>
-  <div class="card"><h2>Weekly targets <small>provisional project targets, not individual quotas</small></h2><div class="tw"><table><thead><tr><th>Label</th><th>Start</th><th>End</th><th>Build target</th><th>Live target</th></tr></thead><tbody>
+  <div class="card"><h2>Weekly targets <small>provisional project targets, not individual quotas</small></h2><div class="tw"><table><thead><tr><th>Label</th><th>Start</th><th>End</th><th>Live target</th></tr></thead><tbody>
     ${st.weeks.map((w, i) => `<tr><td><input data-w="${i}" data-wk="label" value="${esc(w.label)}" ${dis}></td><td><input type="date" data-w="${i}" data-wk="start" value="${w.start}" ${dis}></td><td><input type="date" data-w="${i}" data-wk="end" value="${w.end}" ${dis}></td>
-    <td><input type="number" data-w="${i}" data-wk="build" value="${w.build}" ${dis}></td><td><input type="number" data-w="${i}" data-wk="live" value="${w.live}" ${dis}></td></tr>`).join('')}</tbody></table></div>
-    <p class="small muted">Totals: build ${st.weeks.reduce((a, w) => a + (+w.build || 0), 0)} · live ${st.weeks.reduce((a, w) => a + (+w.live || 0), 0)}</p></div>
+    <td><input type="number" data-w="${i}" data-wk="live" value="${w.live}" ${dis}></td></tr>`).join('')}</tbody></table></div>
+    <p class="small muted">Total Live target: ${st.weeks.reduce((a, w) => a + (+w.live || 0), 0)}</p></div>
   <div class="card"><h2>Holidays <small>one per line: YYYY-MM-DD name</small></h2><textarea id="hol" style="min-height:110px" ${dis}>${esc((st.holidays || []).map(h => h.date + ' ' + (h.name || '')).join('\n'))}</textarea></div>
   <div class="card"><h2>Scoring</h2><div class="fg">${f('t5', 'Score 5 if ≥ (0-1)', 'number', st.thresholds.t5)}${f('t4', 'Score 4 if ≥', 'number', st.thresholds.t4)}${f('t3', 'Score 3 if ≥', 'number', st.thresholds.t3)}${f('t2', 'Score 2 if ≥ (else 1)', 'number', st.thresholds.t2)}
     <div><label>Score basis</label><select data-s="basis" ${dis}>${opts(['Target Achievement', 'Composite'], st.basis)}</select></div>${f('migWeight', 'Migration KPI weight in overall evaluation (0-1)', 'number')}
     ${f('cw_output', 'Composite weight: output vs target', 'number', st.compWeights.output)}${f('cw_tasks', 'Composite: task completion', 'number', st.compWeights.tasks)}${f('cw_ontime', 'Composite: on-time', 'number', st.compWeights.ontime)}
     ${f('cw_followup', 'Composite: follow-up', 'number', st.compWeights.followup)}${f('cw_docs', 'Composite: documentation', 'number', st.compWeights.docs)}
     ${f('onTrack', 'Project On Track if ≥ (0-1)', 'number', st.status.onTrack)}${f('atRisk', 'At Risk if ≥ (else Behind)', 'number', st.status.atRisk)}
-    ${f('m_setup', 'Standard minutes: setup', 'number', st.minutes.setup)}${f('m_menu', 'Standard minutes: menu & website', 'number', st.minutes.menu)}${f('m_live', 'Standard minutes: Live call', 'number', st.minutes.live)}
     ${f('countries', 'Countries (comma separated)', 'text', (st.countries || []).join(', '))}</div>
     <p class="small muted">Thresholds and levels are proposals, not confirmed HR policy. No score triggers disciplinary action automatically.</p>
     ${isMgr() ? '<div class="actions"><button class="btn p" id="ssv">Save settings</button></div>' : ''}</div>`;
@@ -586,12 +576,12 @@ function viewSettings() {
   $('#ssv').onclick = async () => {
     const g = k => { const el = document.querySelector(`[data-s="${k}"]`); return el ? el.value.trim() : ''; };
     const num = k => +g(k);
-    const weeks = st.weeks.map((w, i) => { const o = {}; document.querySelectorAll(`[data-w="${i}"]`).forEach(el => o[el.dataset.wk] = ['build', 'live'].includes(el.dataset.wk) ? +el.value || 0 : el.value); return o; });
+    const weeks = st.weeks.map((w, i) => { const o = { build: 0 }; document.querySelectorAll(`[data-w="${i}"]`).forEach(el => o[el.dataset.wk] = ['build', 'live'].includes(el.dataset.wk) ? +el.value || 0 : el.value); return o; });
     const hol = $('#hol').value.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const d = normDate(l.split(/\s+/)[0]); return d ? { date: d, name: l.split(/\s+/).slice(1).join(' ') } : null; }).filter(Boolean);
-    const data = Object.assign({}, st, { start: g('start'), end: g('end'), total: num('total'), buildTarget: num('buildTarget'), effDays: num('effDays'), asof: g('asof') || '', weeks, holidays: hol,
+    const data = Object.assign({}, st, { start: g('start'), end: g('end'), total: num('total'), buildTarget: 0, effDays: num('effDays'), asof: g('asof') || '', weeks, holidays: hol,
       thresholds: { t5: num('t5'), t4: num('t4'), t3: num('t3'), t2: num('t2') }, basis: g('basis'), migWeight: num('migWeight'),
       compWeights: { output: num('cw_output'), tasks: num('cw_tasks'), ontime: num('cw_ontime'), followup: num('cw_followup'), docs: num('cw_docs') },
-      status: { onTrack: num('onTrack'), atRisk: num('atRisk') }, minutes: { setup: num('m_setup'), menu: num('m_menu'), live: num('m_live') },
+      status: { onTrack: num('onTrack'), atRisk: num('atRisk') }, minutes: st.minutes,
       countries: g('countries').split(',').map(x => x.trim()).filter(Boolean) });
     if (!C.parseD(data.start) || !C.parseD(data.end)) return toast('Project dates are required', true);
     await save(sb.from('settings').update({ data, updated_at: new Date().toISOString() }).eq('id', 1), 'Settings saved');
@@ -603,12 +593,12 @@ function viewTeam() {
   const months = C.periods(S.settings).filter(p => p.month); const dis = isMgr() ? '' : 'disabled';
   $('#main').innerHTML = `${isMgr() ? '' : '<div class="note">View only — the Manager manages the team.</div>'}
   <div class="card"><h2>Team & monthly targets <small>role = primary responsibility · everyone may do Live calls · targets differ per person</small></h2>
-  <div class="tw"><table><thead><tr><th>Code</th><th>Name</th><th>Role</th><th>Active</th><th>Login</th><th>Daily targets<br><span class="small muted">LIVE / นัดใหม่</span></th>${months.map(p => `<th>${esc(p.label)} targets<br><span class="small muted">setup / menu / live</span></th>`).join('')}<th></th></tr></thead><tbody>
+  <div class="tw"><table><thead><tr><th>Code</th><th>Name</th><th>Role</th><th>Active</th><th>Login</th><th>Daily targets<br><span class="small muted">LIVE / นัดใหม่</span></th>${months.map(p => `<th>${esc(p.label)}<br><span class="small muted">LIVE target</span></th>`).join('')}<th></th></tr></thead><tbody>
   ${S.members.map(m => `<tr><td><b>${esc(m.code)}</b></td><td><input data-mn="${m.id}" value="${esc(m.name)}" ${dis}></td>
     <td><select data-mr="${m.id}" ${dis}>${opts(L.ROLE, m.role)}</select></td><td><select data-ma="${m.id}" ${dis}>${opts(['Yes', 'No'], m.active ? 'Yes' : 'No')}</select></td>
     <td class="small">${m.user_id ? badge('✓ ' + (m.email || ''), 'good') : (isMgr() ? `<button class="btn s" data-login="${m.id}">Create login</button>` : badge('No login', 'grey'))}${m.user_id && isMgr() && !m.is_manager ? ` <button class="btn s" data-reset="${esc(m.email || '')}">Reset password</button>` : ''}</td>
     <td class="inline" style="white-space:nowrap">${['live', 'appt'].map(k => `<input type="number" min="0" data-dt="${m.id}" data-k="${k}" value="${(m.daily || {})[k] ?? 0}" style="width:52px" ${dis}>`).join(' ')}</td>
-    ${months.map(p => { const t = (m.targets || {})[p.month] || {}; return `<td class="inline" style="white-space:nowrap">${['setup', 'menu', 'live'].map(k => `<input type="number" data-t="${m.id}" data-mo="${p.month}" data-k="${k}" value="${t[k] ?? 0}" style="width:62px" ${dis || (m.is_manager ? 'disabled' : '')}>`).join(' ')}</td>`; }).join('')}
+    ${months.map(p => { const t = (m.targets || {})[p.month] || {}; return `<td class="inline" style="white-space:nowrap">${['live'].map(k => `<input type="number" data-t="${m.id}" data-mo="${p.month}" data-k="${k}" value="${t[k] ?? 0}" style="width:70px" ${dis || (m.is_manager ? 'disabled' : '')}>`).join(' ')}</td>`; }).join('')}
     <td>${isMgr() ? `<button class="btn s p" data-msv="${m.id}">Save</button>` : ''}</td></tr>`).join('')}</tbody></table></div>
   ${isMgr() ? `<div class="row" style="margin-top:12px"><div><label>New member code</label><input id="nc" placeholder="e.g. NEW1" style="width:120px"></div><div><label>Name</label><input id="nn" style="width:200px"></div>
     <div><label>Role</label><select id="nr">${opts(L.ROLE, 'Live Specialist')}</select></div><button class="btn t" id="nadd">+ Add member</button></div>` : ''}

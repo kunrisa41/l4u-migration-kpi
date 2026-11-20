@@ -77,14 +77,11 @@ export function reliefSet(blockers, asof) {
 export function restaurantFlags(r, ctx) {
   const f = [];
   if (r.mig_status === 'Live Completed' && !isLive(r)) f.push('Live checklist/date incomplete – NOT counted as Live');
-  if (buildStatus(r) === 'Fully Built' && !builtDate(r)) f.push('Enter setup & menu completed dates');
   if (r.blocker && !ctx.loggedRids.has(r.rid)) f.push('Blocker not logged');
   const nf = parseD(r.next_fu);
   if (nf && nf < ctx.asof && !isLive(r)) f.push('Follow-up overdue');
   const tl = parseD(r.target_live);
   if (tl && tl < ctx.asof && !isLive(r) && r.mig_status !== 'Cancelled') f.push('Past target Live date');
-  const tb = parseD(r.target_build);
-  if (tb && tb < ctx.asof && buildStatus(r) !== 'Fully Built' && r.mig_status !== 'Cancelled') f.push('Past target build date');
   return f;
 }
 
