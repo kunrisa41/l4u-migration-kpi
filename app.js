@@ -1381,7 +1381,7 @@ function flowTop() {
 const flyerPost = () => content('flyer_post').replace('{domain}', S.flyDom || '-----------domain name-----------').replace('{discount}', S.flyPct || '____');
 function flyerBlock() {
   const u = content('flyer_url');
-  return `<div class="ac" id="flyers"><div class="an">E</div><div><b>Create & Send Flyers</b> <span class="small muted">ทำใบปลิวใหม่ให้ตรงกับระบบสั่งอาหารใหม่ แล้วส่งให้ร้าน</span>
+  return `<div class="ac" id="flyers"><div class="an">B</div><div><b>Create & Send Flyers</b> <span class="small muted">ทำใบปลิวใหม่ให้ตรงกับระบบสั่งอาหารใหม่ แล้วส่งให้ร้าน</span>
     <div class="flygrid">
       <div class="flyc"><div class="spt">1️⃣ สร้างใบปลิว</div><p class="small" style="margin:4px 0 8px">เปิดเครื่องมือสร้าง Flyers ใส่ข้อมูลร้าน / โดเมน / ส่วนลด แล้วดาวน์โหลดรูปใบปลิว</p>
         ${u ? `<a class="btn p s" href="${esc(u)}" target="_blank" rel="noopener">🎨 เปิด Create Flyers</a>` : ''}${tk('e1', 'สร้างใบปลิวของร้านนี้แล้ว')}</div>
@@ -1404,7 +1404,7 @@ function bindFlyers() {
     $('#cx').onclick = closeModal; $('#sv').onclick = async () => { const v = $('#hm').value; closeModal(); await save(sb.from('content').update({ body: v }).eq('key', k), 'บันทึกข้อความแล้ว'); }; });
 }
 function oldSysBlock() {
-  return `<div class="ac" id="oldsys"><div class="an">D</div><div><b>ปิดระบบร้านเก่า (Gloria Food / PartnerNet)</b> <span class="small muted">ทำหลัง LIVE สำเร็จ ให้ร้านไม่ได้รับออเดอร์จากระบบเก่าซ้ำ</span>
+  return `<div class="ac" id="oldsys"><div class="an">E</div><div><b>ปิดระบบร้านเก่า (Gloria Food / PartnerNet)</b> <span class="small muted">ทำหลัง LIVE สำเร็จ ให้ร้านไม่ได้รับออเดอร์จากระบบเก่าซ้ำ</span>
     <div class="oldgrid">${OLD_SYS.map((x, i) => `<div class="oldst"><div><div class="small muted">D${i + 1}</div><b>${esc(x.t)}</b><p class="small" style="margin:4px 0 8px">${x.d}</p>${tk(x.k, 'ทำแล้ว')}</div>
       <img src="${x.img}" alt="${esc(x.t)}" data-zoom="${x.img}" class="real"></div>`).join('')}</div></div></div>`;
 }
@@ -1430,7 +1430,7 @@ async function viewFlow() {
       <h2 style="margin:2px 0;color:#fff;font-size:20px"><img src="img/app-icon.png" alt="" style="width:30px;height:30px;vertical-align:middle;margin-right:6px">LIVE PROJECT FLOW <small style="color:#CBD5E1">ขั้นตอนพาร้านเปิดระบบขณะอยู่ในสาย</small></h2>
       <div style="color:#E2E8F0">🚀 เป้าหมายจบสาย: <b>หน้ารับออเดอร์เปิดค้าง + เครื่องปริ้น Test print สำเร็จ + รับ Test order ได้</b></div></div>
       <button class="btn r" data-new="live">🔴 Record LIVE</button></div>
-    <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">A–C หลังวางสาย</a><a href="#oldsys" class="fchip a">D. ปิดระบบร้านเก่า</a><a href="#flyers" class="fchip a">E. Flyers</a><a href="#fpick" class="fchip a">F. บันทึก LIVE</a><a href="#feedback" class="fchip a">G. Feedback & Tools</a></div>
+    <div class="fsteps">${FLOW.map((s, i) => `<a href="#st${i}" class="fchip">${i + 1}. ${esc(s.t)}</a>`).join('')}<a href="#after" class="fchip a">A. How-to</a><a href="#flyers" class="fchip a">B. Flyers</a><a href="#after" class="fchip a">C–D เว็บ / 486</a><a href="#oldsys" class="fchip a">E. ปิดระบบร้านเก่า</a><a href="#fpick" class="fchip a">F. บันทึก LIVE</a><a href="#feedback" class="fchip a">G. Feedback & Tools</a></div>
     ${flowTop()}</div>
   <div class="flowpairs">${[0, 2, 4, 6, 8].map(st => { const pair = FLOW.slice(st, st + 2);
     const pic = (s) => { const p = imgs[s.k]; const up = p && urls[p]; const list = up ? [up] : (REAL[s.k] || []); return { list, up }; };
@@ -1453,16 +1453,16 @@ async function viewFlow() {
         <details class="small" style="margin-top:8px"><summary>ข้อความสำเร็จรูป (ใช้เมื่อส่งทางแชต / ไม่ได้ใช้ Gmail)</summary>
         <div class="row" style="margin-top:6px"><button class="btn p s" id="cpmsg">📋 Copy ข้อความแจ้งร้าน</button>${isMgr() ? '<button class="btn s" id="edmsg">แก้ไขข้อความ</button>' : ''}</div>
         <pre class="msg">${esc(content('howto_msg'))}</pre></details></div></div>
-      <div class="ac"><div class="an">B</div><div><b>เว็บไซต์ร้านเป็นแบบไหน?</b>
+      ${flyerBlock()}
+      <div class="ac"><div class="an">C</div><div><b>เว็บไซต์ร้านเป็นแบบไหน?</b>
         <div class="split"><div class="sp cw"><div class="spt">🌐 เว็บ CW</div><ul><li>แจ้ง <b>คุณต้น</b> ทุกครั้งเพื่อ LIVE website</li><li>บอกร้าน: <b>ใช้ระบบใหม่ได้ทันที</b></li></ul>${tonTasks()}</div>
           <div class="sp it"><div class="spt">🛠️ เว็บ Template สร้างโดย IT</div><ul><li>บอกร้าน: <b>พร้อมใช้พรุ่งนี้ (ภายใน 24 ชม.)</b></li><li>แจ้งใน Monday IT board ให้อัปเดตปุ่ม <b>Online Order</b> และ <b>Table Reservation</b></li></ul>${it ? `<a class="btn s" href="${esc(it)}" target="_blank" rel="noopener">🔗 Monday IT board</a>` : ''}</div></div>
         <div class="tks">${tk('b1', 'แจ้งคุณต้น (เว็บ CW) หรือแจ้ง Monday IT board (เว็บ IT) แล้ว')}${tk('b2', 'บอกร้านแล้วว่าใช้ระบบใหม่ได้เมื่อไหร่ (ทันที / ภายใน 24 ชม.)')}</div></div></div>
-      <div class="ac"><div class="an">C</div><div><b>อัปเดต 486 Monday</b> ${content('monday_486') ? `<a class="btn s" href="${esc(content('monday_486'))}" target="_blank" rel="noopener">🔗 เปิด 486 board</a>` : ''}
+      <div class="ac"><div class="an">D</div><div><b>อัปเดต 486 Monday</b> ${content('monday_486') ? `<a class="btn s" href="${esc(content('monday_486'))}" target="_blank" rel="noopener">🔗 เปิด 486 board</a>` : ''}
         <div class="split"><div class="sp ok"><div class="spt">✅ เรียบร้อยทุกอย่าง</div><ul><li>เปลี่ยน Status เป็น <b>Completed</b></li></ul></div>
           <div class="sp q"><div class="spt">⏳ ยังไม่เรียบร้อย</div><ul><li>คงสถานะ <b>Queue to go live</b></li><li>ตอนกด Record LIVE ให้ใส่ <b>"ต้องตามเรื่องอะไร"</b></li><li>ระบบแจ้งเตือนเข้า <b>Google Chat</b> ให้เอง และขึ้นในกล่อง "ต้องตามงานต่อ" หน้า Dashboard จนกว่าจะกดเสร็จ</li></ul></div></div>
         <div class="tks">${tk('c1', 'อัปเดต 486 Monday แล้ว (Completed หรือ Queue to go live)')}</div></div></div>
       ${oldSysBlock()}
-      ${flyerBlock()}
       ${flowStorePick()}
     </div></div>`;
   bindActButtons(); bindFlowPick(); bindTicks(); bindFlyers();
