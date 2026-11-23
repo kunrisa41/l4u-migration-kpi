@@ -1,5 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import * as C from './calc.js';
+import { defaultsCard, bindDefaults } from './defaults.js';
 
 const SB_URL = 'https://fpmlikgwjijgylszeiba.supabase.co';
 const SB_KEY = 'sb_publishable_G7d7dT7BRpkATd7I1GfBrw_NC3A4B-7';
@@ -1112,7 +1113,9 @@ function gLoginUrl(u) { return 'https://accounts.google.com/AccountChooser?Email
 function sheetCard() {
   const list = embeds(); if (!list.length && !isMgr()) return '';
   S.emb = S.emb || {};
-  return list.map((e, i) => { const st = S.emb[i] || {}; const mode = st.mode || 'view'; const open = st.open !== false; const src = embedSrc(e.u, mode);
+  return list.map((e, i) => { const st = S.emb[i] || {}; const mode = st.mode || 'view'; const open = st.open !== false;
+    if (isDefaultsEmbed(e)) { const ds = embedSrc(e.u, 'view'); return defaultsCard(dctx(), e, Object.assign({}, st, { i, iframe: ds ? `<div class="sheetwrap"><iframe class="sheetframe" src="${esc(ds)}" loading="eager"></iframe><div class="sheetgut">⇕</div></div>` : '<p class="muted">ไม่มีลิงก์ Google Doc</p>' })); }
+    const src = embedSrc(e.u, mode);
     return `<div class="card sheetcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${esc(e.t)} <small>แก้ไขตรงนี้ได้เลย · อัปเดต real-time กับ Google</small></h2>
       ${src ? `<span class="seg"><label><input type="radio" name="em${i}" data-em="${i}" value="edit" ${mode === 'edit' ? 'checked' : ''}><b>✏️ แก้ไข</b></label><label><input type="radio" name="em${i}" data-em="${i}" value="view" ${mode === 'view' ? 'checked' : ''}><b>👁️ ดูอย่างเดียว</b></label></span>
       <button class="btn s" data-ebig="${i}">${st.big ? '↙️ ย่อ' : '↗️ ขยาย'}</button><a class="btn s" href="${esc(e.u)}" target="_blank" rel="noopener">เปิดในแท็บใหม่</a>` : ''}
@@ -1123,7 +1126,10 @@ function sheetCard() {
       ${isMgr() ? '<span style="flex:1"></span><button class="btn s" id="emanage">⚙️ จัดการเอกสารบน Dashboard</button>' : ''}</div>
       <p class="small muted" style="margin:6px 0 0">ขึ้น "You need access" = เบราว์เซอร์ใช้บัญชี Google อื่นอยู่ → กด <b>ล็อกอิน Google (ครั้งแรก)</b> เลือก/ล็อกอินบัญชีด้านบนในแท็บใหม่ แล้วกลับมากด <b>🔄 โหลดเอกสารใหม่</b> · ทำครั้งเดียว เบราว์เซอร์จำไว้</p></div>`;
 }
+const isDefaultsEmbed = e => /default/i.test(e.t || '') && /document\/d\//.test(e.u || '') || e.native === 'defaults';
+function dctx() { return { esc, toast, openModal, closeModal, content, isMgr, render, loadAll, sb: () => sb, me: () => (S.me && (S.me.code || S.me.name)) || '' }; }
 function bindSheet() {
+  bindDefaults(dctx(), m => { const i = embeds().findIndex(isDefaultsEmbed); S.emb[i] = Object.assign({}, S.emb[i], { mode: m }); const y = window.scrollY; render(); window.scrollTo(0, y); });
   document.querySelectorAll('.sheetframe').forEach(f => {
     f.onmouseenter = () => document.documentElement.classList.add('noscroll');
     f.onmouseleave = () => document.documentElement.classList.remove('noscroll');

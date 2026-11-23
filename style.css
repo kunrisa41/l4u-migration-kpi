@@ -266,3 +266,55 @@ html.noscroll,html.noscroll body{overflow:hidden;overscroll-behavior:none}
 .tool.off{opacity:.55;justify-content:space-between;cursor:default;border-style:dashed}.tool.off small{font-weight:400;color:#94A3B8}
 .tedit{max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:6px}
 .trow{display:grid;grid-template-columns:150px 1fr 1.6fr auto auto auto;gap:6px;align-items:center}
+
+/* ---- Default Settings (native, NEW-admin look) ---- */
+.cwset{display:grid;grid-template-columns:210px 1fr;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;background:#F5F6F8;height:600px}
+.cwnav{background:#1F2A44;padding:10px 8px;display:flex;flex-direction:column;gap:4px;overflow:auto}
+.cwnav button{all:unset;cursor:pointer;color:#CBD5E1;padding:9px 12px;border-radius:8px;font-weight:600;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+.cwnav button small{background:rgba(255,255,255,.12);border-radius:10px;padding:0 7px;font-size:11px}
+.cwnav button:hover{background:rgba(255,255,255,.08);color:#fff}
+.cwnav button.on{background:#fff;color:#1F2A44}
+.cwnav button.on small{background:#E2E8F0}
+.cwnav button.add{color:#99F6E4;font-weight:500}
+.cwmain{overflow:auto;overscroll-behavior:contain;padding:14px 18px 40px}
+.cwtop{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.cwtop>div:first-child{flex:1}
+.cwcrumb{font-size:18px;font-weight:700;color:#1F2A44}
+.cwsub{font-size:12.5px;color:#64748B}
+.cwq{width:220px}
+.cwacc{background:#fff;border:1px solid #E5E7EB;border-radius:10px;margin-bottom:10px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.cwhead{display:flex;align-items:center;gap:8px;padding:13px 16px;cursor:pointer;font-weight:700;color:#111827;font-size:15px}
+.cwhead>span:first-child{flex:1}
+.cwacc.open .cwhead{border-bottom:1px solid #EEF0F3}
+.chev{color:#94A3B8}
+.cwbody{padding:4px 16px 12px}
+.cwrow{display:grid;grid-template-columns:1fr minmax(180px,300px) auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px dashed #EEF0F3}
+.cwrow:last-of-type{border-bottom:0}
+.cwlab b{font-size:13.5px;color:#1F2937}
+.cwhelp{font-size:12px;color:#6B7280;margin-top:2px}
+.cwctl{display:flex;justify-content:flex-end}
+.cwin{width:100%;padding:7px 10px;border:1px solid #D1D5DB;border-radius:7px;background:#fff;font:inherit;font-size:13.5px}
+.cwin:disabled{background:#F9FAFB;color:#111827;opacity:1;cursor:default;-webkit-text-fill-color:#111827}
+.cwta{min-height:70px;resize:vertical}
+.cwnum{display:flex;align-items:center;gap:6px;width:100%}
+.cwnum em{font-style:normal;font-size:12px;color:#6B7280;white-space:nowrap}
+.cwsw{display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin:0}
+.cwsw input{display:none}
+.cwsw i{width:40px;height:22px;border-radius:12px;background:#CBD5E1;position:relative;transition:.15s}
+.cwsw i::after{content:'';position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.cwsw input:checked+i{background:#16A34A}
+.cwsw input:checked+i::after{left:21px}
+.cwsw input:disabled+i{cursor:default}
+.cwsw b{font-size:12px;color:#475569;min-width:26px}
+.cwtag{font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px}
+.cwtag.old{background:#E0F2FE;color:#075985}
+.cwtag.man{background:#FEF3C7;color:#92400E}
+.cwed{display:inline-flex;gap:2px}
+.cwed .lnk,.cwaddf{background:none;border:0;cursor:pointer;color:#2563EB;font-size:13px;padding:2px 4px}
+.cwaddf{margin-top:6px}
+.cwset:not(.editing) .cwrow{grid-template-columns:1fr minmax(180px,300px)}
+.cwset.editing .cwacc{border-color:#93C5FD}
+.dsave{position:sticky;bottom:8px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#F1F5F9;border:1px solid #CBD5E1;border-radius:10px;padding:8px 12px;font-size:13px}
+.dsave.on{background:#FFFBEB;border-color:#F59E0B}
+ol.steps li{margin:3px 0}
+@media (max-width:800px){.cwset{grid-template-columns:1fr;height:auto}.cwnav{flex-direction:row;overflow:auto}.cwrow{grid-template-columns:1fr}}
