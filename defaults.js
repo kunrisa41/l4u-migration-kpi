@@ -126,7 +126,8 @@ export function defaultsCard(ctx, emb, st) {
   const q = norm(D.q), nCh = D.dirty ? diffSpecs(D.saved, D.spec).length : 0;
   const dis = edit ? '' : 'disabled';
   const path = (s, p, f) => `${tab.k}|${s.k}|${p.k}|${f ? f.k : ''}`;
-  const ctl = (f, pa) => { if (!f.dv) return ctl0(f, pa);
+  const ctl = (f, pa) => f.g ? `<div class="cxg">${ctl1(f, pa)}</div>` : ctl1(f, pa);
+  const ctl1 = (f, pa) => { if (!f.dv) return ctl0(f, pa);
     if (f.t === 'toggle') return `<div class="cxdvrow">${ctl0(f, pa)}<span>${esc(f.dv)}</span></div>`;
     if (!edit && (f.t === 'list')) return `<div class="cxlist">${esc(f.dv)}</div>`;
     if (!edit && ['text', 'number', 'select'].includes(f.t)) return `<input class="cxin" type="text" value="${esc(f.dv)}" disabled>`;
