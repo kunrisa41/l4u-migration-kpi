@@ -132,6 +132,7 @@ export function defaultsCard(ctx, emb, st) {
     if (f.t === 'select' && f.ui === 'buttons') return `<div class="cxbtns">${f.o.map(o => `<button type="button" class="${o === f.v ? 'on' : ''}" data-dbtn="${pa}" data-val="${esc(o)}" ${dis}>${esc(o)}</button>`).join('')}</div>`;
     if (f.t === 'select') { const o = f.o && f.o.length ? f.o : (/timezone/i.test(f.l) ? TZ : []); const list = o.includes(f.v) || f.v === '' ? o : [f.v, ...o];
       return `<div class="cxsel"><select class="cxin" ${a}>${f.v === '' ? '<option value="">Select from the dropdown or type to search...</option>' : ''}${list.map(x => `<option ${x === f.v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>`; }
+    if (f.t === 'multi' && !(f.o || []).length && (f.v || []).length) return `<div class="cxmulti">${f.v.map(o => `<label class="cxchip on">${esc(o)}</label>`).join('')}</div>`;
     if (f.t === 'multi') return `<div class="cxmulti">${(f.o || []).map(o => `<label class="cxchip ${(f.v || []).includes(o) ? 'on' : ''}"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}>${esc(o)}${(f.v || []).includes(o) ? ' ×' : ''}</label>`).join('')}${!(f.v || []).length ? '<span class="cxph">Select from the dropdown or type to search...</span>' : ''}</div>`;
     if (f.t === 'checks' && f.ui === 'switchbox') return `<div class="cxbox">${(f.o || []).map(o => `<div class="cxboxrow"><label class="cxsw"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><i></i></label><span>${esc(o)}</span><b class="cxdrag">✥</b></div>`).join('')}</div>${f.reset ? '<button type="button" class="cxgrey" disabled>Reset</button>' : ''}`;
     if (f.t === 'printers') return `<div class="cxpbtns"><button type="button" class="cxbtnp" disabled>Create Printer</button><button type="button" class="cxbtnp" disabled>Update Status</button></div><div class="cxplist">${(f.v || []).map(k => { const ps = tab.secs.find(x => x.k === k); if (!ps) return ''; const nm = ((ps.panes[0].f.find(x => x.l === 'Name') || {}).v) || ps.s;
@@ -144,6 +145,7 @@ export function defaultsCard(ctx, emb, st) {
     if (f.t === 'checks') return `<div class="cxchecks">${(f.o || []).map(o => `<label><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><span>${esc(o)}</span></label>`).join('')}</div>`;
     if (f.t === 'textarea') return `<textarea class="cxin cxta ${f.rich ? 'rich' : ''}" ${a}>${esc(f.v)}</textarea>`;
     if (f.t === 'list') return `<div class="cxlist">${esc(f.v || '—')}</div>`;
+    if (f.secret) return `<input class="cxin" type="text" value="${esc(content(f.secret) || '')}" data-dsecret="${esc(f.secret)}" ${edit && ctx.isMgr() ? '' : 'disabled'}>`;
     return `<input class="cxin" type="${f.t === 'number' ? 'number' : 'text'}" value="${esc(f.v)}" ${f.ph ? `placeholder="${esc(f.ph)}"` : ''} ${a}>`;
   };
   const grp = (f, pa, pane) => { const md = MODE[f.m];
@@ -215,6 +217,7 @@ export function bindDefaults(ctx, setMode) {
   $$('[data-dint]').forEach(b => b.onclick = () => { const { f } = at(b.dataset.dint); f.v = !f.v; mark(ctx); });
   $$('[data-dcopy]').forEach(b => b.onclick = async e => { e.stopPropagation(); const { f } = at(b.dataset.dcopy); try { await navigator.clipboard.writeText(String(f.v)); toast('คัดลอกแล้ว — ไปวางในระบบได้เลย'); } catch { toast('คัดลอกไม่ได้ — เลือกข้อความแล้วกด Cmd+C', true); } });
   $$('[data-dbtn]').forEach(b => b.onclick = () => { const { f } = at(b.dataset.dbtn); setV(f, b.dataset.val); mark(ctx); });
+  $$('[data-dsecret]').forEach(x => x.onchange = async () => { const { error } = await ctx.sb().from('content').upsert({ key: x.dataset.dsecret, body: x.value.trim(), updated_at: new Date().toISOString() }); ctx.toast(error ? 'บันทึกรหัสไม่สำเร็จ: ' + error.message : 'บันทึกรหัส Default แล้ว'); if (!error) await ctx.loadAll(); });
   $$('[data-dmul]').forEach(x => x.onchange = () => { const { f } = at(x.dataset.dmul); const v = new Set(f.v || []); x.checked ? v.add(x.value) : v.delete(x.value); setV(f, (f.o || []).filter(o => v.has(o))); mark(ctx); });
   $$('[data-ddelf]').forEach(b => b.onclick = () => { const { p, fi, f } = at(b.dataset.ddelf); if (!confirm(`ลบ "${f.l}"?`)) return; p.f.splice(fi, 1); mark(ctx); });
   $$('[data-dren]').forEach(b => b.onclick = () => { const { s } = at(b.dataset.dren); const v = prompt('ชื่อหัวข้อ', s.s); if (v && v.trim()) { s.s = v.trim(); mark(ctx); } });
