@@ -406,3 +406,8 @@ ol.steps li{margin:3px 0}
 .cxta.code,.cxgrp textarea{font-family:inherit}
 .cxm.skp{background:#EDE9FE;color:#5B21B6;font-weight:600}
 .cxgrp.m-skip{opacity:.7}
+/* Default card: same right-hand scroll lane as the Stripe sheet; page never slides sideways */
+html,body{overflow-x:clip}
+.dwrap{margin-top:0}
+.dwrap .cxpage{flex:1;min-width:0}
+.dwrap .sheetgut{height:640px;box-sizing:border-box}
