@@ -386,3 +386,19 @@ ol.steps li{margin:3px 0}
 .cxchecks input:disabled{opacity:1}
 .cxswl{display:inline-flex;align-items:center;gap:8px;font-size:14px}
 .cxtop{max-width:980px}
+/* v2.1: account-level nav + full width + no sideways sliding */
+.dcard{overflow:hidden;min-width:0}
+.cxpage{height:640px;max-height:none;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;padding:0 0 22px}
+.cxpage>*:not(.cxnav){margin-left:22px;margin-right:22px}
+.cxtop,.cxcard{max-width:none}
+.cxcard{min-width:0}
+.cxnav{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:22px;background:#fff;height:56px;padding:0 22px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:18px;font-size:15px;overflow-x:auto;scrollbar-width:none}
+.cxnav span{cursor:pointer;white-space:nowrap;color:#383838}
+.cxnav span.on{color:#273B91}
+.cxnav .cxlogo{display:inline-flex;flex-direction:column;line-height:1;cursor:default;color:#3D8BD9;letter-spacing:.18em;margin-right:6px}
+.cxnav .cxlogo b{font-size:13px;font-weight:400}.cxnav .cxlogo small{font-size:9px}
+.cxitabs{flex-wrap:wrap}
+.cxchecks:has(.cxswl){gap:10px 22px}
+.cxchecks.col{flex-direction:column;gap:0;border:1px solid #E6E6E6;border-radius:3px}
+.cxchecks.col .cxswl{padding:7px 12px;border-bottom:1px solid #F0F0F0}
+.cxchecks.col .cxswl:last-child{border-bottom:0}

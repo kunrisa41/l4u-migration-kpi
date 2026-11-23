@@ -89,7 +89,7 @@ function apply_(changes, by) {
 
 // ---------- UI: 1:1 copy of NEW admin › Settings (structure read from the real admin, 23 Nov 2026) ----------
 const TZ = (() => { try { return Intl.supportedValuesOf('timeZone'); } catch { return []; } })();
-let D = { spec: null, saved: null, tab: 'system', open: {}, pane: {}, q: '', dirty: false };
+let D = { spec: null, saved: null, area: 'Restaurants', tab: 'system', open: {}, pane: {}, q: '', dirty: false };
 const clone = o => JSON.parse(JSON.stringify(o));
 const MODE = { old: ['↔ ตาม OLD', 'old'], manual: ['✋ ทำเอง', 'man'], unset: ['ยังไม่กำหนด Default', 'uns'] };
 
@@ -99,7 +99,7 @@ export function getSpec(content) {
 }
 const secs = t => t.secs.filter(s => !s.cat);
 function* each(spec) { for (const t of spec.tabs) for (const s of secs(t)) for (const p of s.panes) for (const f of p.f) yield { t, s, p, f }; }
-export function flatten(spec) { return [...each(spec)].map(({ t, s, p, f }) => ({ section: `${t.t} › ${s.s}`, group: p.p || s.s, label: f.l, value: showVal(f), note: [f.n, f.h].filter(Boolean).join(' · '), key: f.k })); }
+export function flatten(spec) { return [...each(spec)].map(({ t, s, p, f }) => ({ section: `${t.t || t.area} › ${s.s}`, group: p.p || s.s, label: f.l, value: showVal(f), note: [f.n, f.h].filter(Boolean).join(' · '), key: f.k })); }
 function showVal(f) {
   if (f.m === 'old') return 'ตาม OLD'; if (f.m === 'manual') return 'ทำเอง (' + (f.n || 'ต่อร้าน') + ')';
   if (f.t === 'toggle') return f.v ? 'ON' : 'OFF';
@@ -116,7 +116,11 @@ export function defaultsCard(ctx, emb, st) {
   const { esc, content } = ctx;
   if (!D.spec || (!D.dirty && D.src !== content('defaults_spec'))) { D.spec = clone(getSpec(content)); D.saved = clone(D.spec); D.src = content('defaults_spec'); }
   const mode = st.mode || 'view', edit = mode === 'edit', sync = getSync(content);
-  const tab = D.spec.tabs.find(t => t.k === D.tab) || D.spec.tabs[0]; if (!tab) return '';
+  const areaOf = t => t.area || 'Restaurants';
+  const areas = [...new Set(D.spec.tabs.map(areaOf))];
+  if (!areas.includes(D.area)) D.area = areas[0];
+  const atabs = D.spec.tabs.filter(t => areaOf(t) === D.area);
+  const tab = atabs.find(t => t.k === D.tab) || atabs[0]; if (!tab) return ''; D.tab = tab.k;
   const q = norm(D.q), nCh = D.dirty ? diffSpecs(D.saved, D.spec).length : 0;
   const dis = edit ? '' : 'disabled';
   const path = (s, p, f) => `${tab.k}|${s.k}|${p.k}|${f ? f.k : ''}`;
@@ -127,7 +131,7 @@ export function defaultsCard(ctx, emb, st) {
     if (f.t === 'select') { const o = f.o && f.o.length ? f.o : (/timezone/i.test(f.l) ? TZ : []); const list = o.includes(f.v) || f.v === '' ? o : [f.v, ...o];
       return `<div class="cxsel"><select class="cxin" ${a}>${f.v === '' ? '<option value="">Select from the dropdown or type to search...</option>' : ''}${list.map(x => `<option ${x === f.v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>`; }
     if (f.t === 'multi') return `<div class="cxmulti">${(f.o || []).map(o => `<label class="cxchip ${(f.v || []).includes(o) ? 'on' : ''}"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}>${esc(o)}${(f.v || []).includes(o) ? ' ×' : ''}</label>`).join('')}${!(f.v || []).length ? '<span class="cxph">Select from the dropdown or type to search...</span>' : ''}</div>`;
-    if (f.t === 'checks' && f.ui === 'switches') return `<div class="cxchecks">${(f.o || []).map(o => `<span class="cxswl"><label class="cxsw"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><i></i></label>${esc(o)}</span>`).join('')}</div>`;
+    if (f.t === 'checks' && f.ui === 'switches') return `<div class="cxchecks${f.col ? ' col' : ''}">${(f.o || []).map(o => `<span class="cxswl"><label class="cxsw"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><i></i></label>${esc(o)}</span>`).join('')}</div>`;
     if (f.t === 'checks') return `<div class="cxchecks">${(f.o || []).map(o => `<label><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><span>${esc(o)}</span></label>`).join('')}</div>`;
     if (f.t === 'textarea') return `<textarea class="cxin cxta ${f.rich ? 'rich' : ''}" ${a}>${esc(f.v)}</textarea>`;
     if (f.t === 'list') return `<div class="cxlist">${esc(f.v || '—')}</div>`;
@@ -151,8 +155,9 @@ export function defaultsCard(ctx, emb, st) {
   }).join('');
   const syncLine = sync && sync.url ? `<span class="small" style="color:var(--goodT)">🔗 เชื่อม Google Doc แล้ว</span> <button class="btn s" id="dpull">📥 ดึงค่าจาก Google Doc</button>` : `<span class="small muted">ยังไม่เชื่อม Google Doc${ctx.isMgr() ? '' : ' (Manager ตั้งค่า)'}</span>`;
   const legend = '<span class="cxm old">↔ ตาม OLD</span> คัดลอกจากระบบเดิม · <span class="cxm man">✋ ทำเอง</span> ใส่เองทุกร้าน · <span class="cxm uns">ยังไม่กำหนด Default</span> ปล่อยตามระบบ · ไม่มีป้าย = ค่า Default ของ LFY';
-  const page = `<div class="cxpage ${edit ? 'editing' : ''}"><div class="cxtop"><h1>Settings</h1><input class="cxq" id="dq" placeholder="🔎 ค้นหาการตั้งค่า" value="${esc(D.q)}"></div>
-    <div class="cxcard"><div class="cxtabs">${D.spec.tabs.map(t => `<span class="${t.k === tab.k ? 'on' : ''}" data-dtab="${t.k}">${esc(t.t)}</span>`).join('')}</div>${rows}</div>
+  const nav = `<div class="cxnav"><span class="cxlogo"><b>LOCAL</b><small>FOR YOU</small></span>${areas.map(a => `<span class="${a === D.area ? 'on' : ''}" data-darea="${esc(a)}">${esc(a)}</span>`).join('')}</div>`;
+  const page = `<div class="cxpage ${edit ? 'editing' : ''}">${nav}<div class="cxtop"><h1>${esc(D.area === 'Restaurants' ? 'Settings' : (tab.h1 || D.area))}</h1><input class="cxq" id="dq" placeholder="🔎 ค้นหาการตั้งค่า" value="${esc(D.q)}"></div>
+    ${D.area === 'Restaurants' ? '' : ''}<div class="cxcard">${atabs.length > 1 || tab.t ? `<div class="cxtabs">${atabs.map(t => `<span class="${t.k === tab.k ? 'on' : ''}" data-dtab="${t.k}">${esc(t.t)}</span>`).join('')}</div>` : ''}${rows}</div>
     <div class="cxlegend">${legend}</div></div>`;
   return `<div class="card sheetcard dcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${esc(emb.t)} <small>ค่ามาตรฐานตอนตั้งร้านใหม่ · หน้าตาเหมือนหน้า Settings ของ NEW</small></h2>
       <span class="seg"><label><input type="radio" name="dmode" data-dmode="edit" ${mode === 'edit' ? 'checked' : ''}><b>✏️ แก้ไข</b></label><label><input type="radio" name="dmode" data-dmode="view" ${mode === 'view' ? 'checked' : ''}><b>👁️ ดูอย่างเดียว</b></label><label><input type="radio" name="dmode" data-dmode="doc" ${mode === 'doc' ? 'checked' : ''}><b>📄 Google Doc</b></label></span>
@@ -178,6 +183,7 @@ export function bindDefaults(ctx, setMode) {
   if (!document.querySelector('.dcard')) return;
   $$('[data-dmode]').forEach(x => x.onchange = () => { if (D.dirty && x.dataset.dmode !== 'edit' && !confirm('มีการแก้ไขที่ยังไม่บันทึก — ทิ้งการแก้ไข?')) return ctx.render(); if (x.dataset.dmode !== 'edit') { D.dirty = false; D.spec = null; } setMode(x.dataset.dmode); });
   $$('[data-dtab]').forEach(b => b.onclick = () => { D.tab = b.dataset.dtab; keep(ctx); });
+  $$('[data-darea]').forEach(b => b.onclick = () => { D.area = b.dataset.darea; D.tab = ''; keep(ctx); });
   $$('[data-dacc]').forEach(h => h.onclick = e => { if (e.target.closest('.lnk')) return; D.open[h.dataset.dacc] = !D.open[h.dataset.dacc]; keep(ctx); });
   $$('[data-dpane]').forEach(b => b.onclick = () => { const [k, i] = b.dataset.dpane.split('|'); D.pane[k] = +i; keep(ctx); });
   const dq = $i('dq'); if (dq) dq.oninput = e => { D.q = e.target.value; const p = e.target.selectionStart; ctx.render(); const el = $i('dq'); el.focus(); el.setSelectionRange(p, p); };
@@ -234,7 +240,7 @@ export function bindDefaults(ctx, setMode) {
       if (x.f.m === 'old' || x.f.m === 'manual' || x.f.t === 'list') return;
       if (norm(showVal(x.f)) !== norm(row.value)) diffs.push({ x, row }); });
     openModal(`<h3>📥 ค่าจาก Google Doc: ${esc(r.title)}</h3><p class="small muted">อ่านเจอ ${r.rows.length} บรรทัด · ติ๊กอันที่ต้องการเอามาใส่ใน Dashboard</p>
-      ${diffs.length ? `<div class="sec">ค่าไม่ตรงกัน (${diffs.length})</div><table class="small"><thead><tr><th></th><th>ช่อง</th><th>Dashboard</th><th>Google Doc</th></tr></thead><tbody>${diffs.map((d, i) => `<tr><td><input type="checkbox" data-pd="${i}" checked></td><td><b>${esc(d.x.f.l)}</b><div class="muted">${esc(d.x.t.t)} › ${esc(d.x.s.s)}${d.x.p.p ? ' › ' + esc(d.x.p.p) : ''}</div></td><td>${esc(showVal(d.x.f))}</td><td><b>${esc(d.row.value)}</b></td></tr>`).join('')}</tbody></table>` : '<p class="small" style="color:var(--goodT)">✅ ค่าที่มีทั้งสองที่ตรงกันหมด</p>'}
+      ${diffs.length ? `<div class="sec">ค่าไม่ตรงกัน (${diffs.length})</div><table class="small"><thead><tr><th></th><th>ช่อง</th><th>Dashboard</th><th>Google Doc</th></tr></thead><tbody>${diffs.map((d, i) => `<tr><td><input type="checkbox" data-pd="${i}" checked></td><td><b>${esc(d.x.f.l)}</b><div class="muted">${esc(d.x.t.t || d.x.t.area)} › ${esc(d.x.s.s)}${d.x.p.p ? ' › ' + esc(d.x.p.p) : ''}</div></td><td>${esc(showVal(d.x.f))}</td><td><b>${esc(d.row.value)}</b></td></tr>`).join('')}</tbody></table>` : '<p class="small" style="color:var(--goodT)">✅ ค่าที่มีทั้งสองที่ตรงกันหมด</p>'}
       ${extra.length ? `<div class="sec">มีใน Doc แต่ไม่มีในหน้า Settings (${extra.length}) — เพิ่มเป็นหมายเหตุที่หัวข้อ "จาก Google Doc"</div><table class="small"><tbody>${extra.map((e, i) => `<tr><td><input type="checkbox" data-pe="${i}"></td><td>${esc(e.head)}</td><td><b>${esc(e.label)}</b></td><td>${esc(e.value)}</td></tr>`).join('')}</tbody></table>` : ''}
       <div class="actions"><button class="btn" id="cx">ปิด</button> <button class="btn p" id="ok">ใส่ค่าที่ติ๊ก (แล้วกดบันทึก)</button></div>`);
     $i('cx').onclick = closeModal;
