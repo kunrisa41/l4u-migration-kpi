@@ -103,9 +103,11 @@ async function loadAll() {
   if (!S.month) { const ms = C.periods(S.settings).filter(p => p.month); const cur = C.monthKey(asof()); S.month = (ms.find(p => p.month === cur) || ms[0]).month; }
 }
 let reloadTimer;
+// While the Default Settings page is on screen, background updates do not redraw the page (it stays where you are until you act or refresh)
+function defaultsOnScreen() { const b = document.querySelector('.cxpage'); if (!b || document.hidden) return false; const r = b.getBoundingClientRect(); return r.bottom > 0 && r.top < window.innerHeight; }
 function subscribe() {
   sb.channel('kpi-all').on('postgres_changes', { event: '*', schema: 'public' }, () => {
-    clearTimeout(reloadTimer); reloadTimer = setTimeout(async () => { try { const y = window.scrollY; await loadAll(); render(); setTimeout(() => window.scrollTo(0, y), 250); } catch (e) { console.error(e); } }, 400);
+    clearTimeout(reloadTimer); reloadTimer = setTimeout(async () => { try { const y = window.scrollY; await loadAll(); if (defaultsOnScreen()) return; render(); setTimeout(() => window.scrollTo(0, y), 250); } catch (e) { console.error(e); } }, 400);
   }).subscribe();
 }
 async function save(promise, ok) {

@@ -199,7 +199,7 @@ export function defaultsCard(ctx, emb, st) {
 }
 
 function at(pa) { const [tk, sk, pk, fk] = pa.split('|'); const t = D.spec.tabs.find(x => x.k === tk); const s = t.secs.find(x => x.k === sk); const p = pk ? s.panes.find(x => x.k === pk) : null; const fi = p && fk ? p.f.findIndex(x => x.k === fk) : -1; return { t, s, p, f: fi >= 0 ? p.f[fi] : null, fi }; }
-function keep(ctx) { const y = window.scrollY; const b = document.querySelector('.cxpage'); const sy = b ? b.scrollTop : 0; ctx.render(); window.scrollTo(0, y); const b2 = document.querySelector('.cxpage'); if (b2) b2.scrollTop = sy; }
+function keep(ctx) { const y = window.scrollY; const sy = D.sy || 0; ctx.render(); window.scrollTo(0, y); const b2 = document.querySelector('.cxpage'); if (b2) b2.scrollTop = sy; }
 function mark(ctx) { D.dirty = true; keep(ctx); }
 const setV = (f, v) => { f.v = v; if (f.m === 'unset') delete f.m; };
 
@@ -210,10 +210,11 @@ async function callDoc(sync, payload) {
 
 export function bindDefaults(ctx, setMode) {
   const { esc, toast, openModal, closeModal, content } = ctx; const $$ = s => document.querySelectorAll(s), $i = s => document.getElementById(s);
+  { const b = document.querySelector('.cxpage'); if (b) { if (D.sy) b.scrollTop = D.sy; b.addEventListener('scroll', () => { D.sy = b.scrollTop; }, { passive: true }); } }
   if (!document.querySelector('.dcard')) return;
   $$('[data-dmode]').forEach(x => x.onchange = () => { if (D.dirty && x.dataset.dmode !== 'edit' && !confirm('มีการแก้ไขที่ยังไม่บันทึก — ทิ้งการแก้ไข?')) return ctx.render(); if (x.dataset.dmode !== 'edit') { D.dirty = false; D.spec = null; } setMode(x.dataset.dmode); });
-  $$('[data-dtab]').forEach(b => b.onclick = () => { D.tab = b.dataset.dtab; D.modal = null; keep(ctx); });
-  $$('[data-darea]').forEach(b => b.onclick = () => { D.area = b.dataset.darea; D.tab = ''; D.modal = null; keep(ctx); });
+  $$('[data-dtab]').forEach(b => b.onclick = () => { D.tab = b.dataset.dtab; D.modal = null; D.sy = 0; keep(ctx); });
+  $$('[data-darea]').forEach(b => b.onclick = () => { D.area = b.dataset.darea; D.tab = ''; D.modal = null; D.sy = 0; keep(ctx); });
   $$('[data-dacc]').forEach(h => h.onclick = e => { if (e.target.closest('.lnk')) return; D.open[h.dataset.dacc] = !D.open[h.dataset.dacc]; keep(ctx); });
   $$('[data-dpane]').forEach(b => b.onclick = () => { const [k, i] = b.dataset.dpane.split('|'); D.pane[k] = +i; keep(ctx); });
   const dq = $i('dq'); if (dq) dq.oninput = e => { D.q = e.target.value; const p = e.target.selectionStart; ctx.render(); const el = $i('dq'); el.focus(); el.setSelectionRange(p, p); };
