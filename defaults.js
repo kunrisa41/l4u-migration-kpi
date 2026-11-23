@@ -91,7 +91,7 @@ function apply_(changes, by) {
 const TZ = (() => { try { return Intl.supportedValuesOf('timeZone'); } catch { return []; } })();
 let D = { spec: null, saved: null, area: 'Restaurants', tab: 'system', open: {}, pane: {}, q: '', dirty: false };
 const clone = o => JSON.parse(JSON.stringify(o));
-const MODE = { old: ['↔ ตาม OLD', 'old'], manual: ['✋ ทำเอง', 'man'], unset: ['ยังไม่กำหนด Default', 'uns'] };
+const MODE = { old: ['↔ ตาม OLD', 'old'], manual: ['✋ ทำเอง', 'man'], unset: ['ยังไม่กำหนด Default', 'uns'], skip: ['ไม่ต้องตั้ง', 'skp'] };
 
 export function getSpec(content) {
   try { const v = JSON.parse(content('defaults_spec') || 'null'); if (v && v.v === 2) return v; } catch { }
@@ -101,7 +101,7 @@ const secs = t => t.secs.filter(s => !s.cat);
 function* each(spec) { for (const t of spec.tabs) for (const s of secs(t)) for (const p of s.panes) for (const f of p.f) yield { t, s, p, f }; }
 export function flatten(spec) { return [...each(spec)].map(({ t, s, p, f }) => ({ section: `${t.t || t.area} › ${s.s}`, group: p.p || s.s, label: f.l, value: showVal(f), note: [f.n, f.h].filter(Boolean).join(' · '), key: f.k })); }
 function showVal(f) {
-  if (f.m === 'old') return 'ตาม OLD'; if (f.m === 'manual') return 'ทำเอง (' + (f.n || 'ต่อร้าน') + ')';
+  if (f.m === 'old') return 'ตาม OLD'; if (f.m === 'skip') return 'ไม่ต้องตั้ง'; if (f.m === 'manual') return 'ทำเอง (' + (f.n || 'ต่อร้าน') + ')';
   if (f.t === 'toggle') return f.v ? 'ON' : 'OFF';
   if (Array.isArray(f.v)) return f.v.join(', ') || '—';
   return String(f.v ?? '');
@@ -154,7 +154,7 @@ export function defaultsCard(ctx, emb, st) {
         <button class="cxsave" ${edit && nCh ? 'data-dsavebtn' : 'disabled'}>Save</button></div>` : ''}</div>`;
   }).join('');
   const syncLine = sync && sync.url ? `<span class="small" style="color:var(--goodT)">🔗 เชื่อม Google Doc แล้ว</span> <button class="btn s" id="dpull">📥 ดึงค่าจาก Google Doc</button>` : `<span class="small muted">ยังไม่เชื่อม Google Doc${ctx.isMgr() ? '' : ' (Manager ตั้งค่า)'}</span>`;
-  const legend = '<span class="cxm old">↔ ตาม OLD</span> คัดลอกจากระบบเดิม · <span class="cxm man">✋ ทำเอง</span> ใส่เองทุกร้าน · <span class="cxm uns">ยังไม่กำหนด Default</span> ปล่อยตามระบบ · ไม่มีป้าย = ค่า Default ของ LFY';
+  const legend = '<span class="cxm old">↔ ตาม OLD</span> คัดลอกจากระบบเดิม · <span class="cxm man">✋ ทำเอง</span> ใส่เองทุกร้าน · <span class="cxm uns">ยังไม่กำหนด Default</span> ยังไม่มีค่ามาตรฐาน · <span class="cxm skp">ไม่ต้องตั้ง</span> ปล่อยตามระบบ · ไม่มีป้าย = ค่า Default ของ LFY';
   const nav = `<div class="cxnav"><span class="cxlogo"><b>LOCAL</b><small>FOR YOU</small></span>${areas.map(a => `<span class="${a === D.area ? 'on' : ''}" data-darea="${esc(a)}">${esc(a)}</span>`).join('')}</div>`;
   const page = `<div class="cxpage ${edit ? 'editing' : ''}">${nav}<div class="cxtop"><h1>${esc(D.area === 'Restaurants' ? 'Settings' : (tab.h1 || D.area))}</h1><input class="cxq" id="dq" placeholder="🔎 ค้นหาการตั้งค่า" value="${esc(D.q)}"></div>
     ${D.area === 'Restaurants' ? '' : ''}<div class="cxcard">${atabs.length > 1 || tab.t ? `<div class="cxtabs">${atabs.map(t => `<span class="${t.k === tab.k ? 'on' : ''}" data-dtab="${t.k}">${esc(t.t)}</span>`).join('')}</div>` : ''}${rows}</div>
@@ -195,7 +195,7 @@ export function bindDefaults(ctx, setMode) {
   $$('[data-dren]').forEach(b => b.onclick = () => { const { s } = at(b.dataset.dren); const v = prompt('ชื่อหัวข้อ', s.s); if (v && v.trim()) { s.s = v.trim(); mark(ctx); } });
   const fieldForm = (f, onOk) => {
     const T = [['toggle', 'สวิตช์ ON/OFF'], ['select', 'ตัวเลือก (dropdown)'], ['multi', 'เลือกหลายอย่าง'], ['checks', 'ช่องติ๊ก'], ['number', 'ตัวเลข'], ['text', 'ข้อความ'], ['textarea', 'ข้อความยาว'], ['list', 'รายการ/ตาราง (ทำในระบบ)']];
-    const M = [['', 'ค่า Default ของ LFY'], ['old', '↔ ตาม OLD'], ['manual', '✋ ทำเองทุกร้าน'], ['unset', 'ยังไม่กำหนด Default']];
+    const M = [['', 'ค่า Default ของ LFY'], ['old', '↔ ตาม OLD'], ['manual', '✋ ทำเองทุกร้าน'], ['unset', 'ยังไม่กำหนด Default'], ['skip', 'ไม่ต้องตั้ง (ปล่อยตามระบบ)']];
     openModal(`<h3>${f.l ? 'แก้ไขช่องตั้งค่า' : 'เพิ่มช่องตั้งค่า'}</h3><div class="fg"><div><label>ชื่อ (ตรงกับหน้าระบบ)</label><input id="ff_l" value="${esc(f.l || '')}"></div>
       <div><label>ชนิด</label><select id="ff_t">${T.map(([v, l]) => `<option value="${v}" ${f.t === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <div><label>สถานะ</label><select id="ff_m">${M.map(([v, l]) => `<option value="${v}" ${(f.m || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
