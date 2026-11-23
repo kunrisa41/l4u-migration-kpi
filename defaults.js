@@ -99,7 +99,7 @@ export function getSpec(content) {
 }
 const secs = t => t.secs.filter(s => !s.cat);
 function* each(spec) { for (const t of spec.tabs) for (const s of secs(t)) for (const p of s.panes) for (const f of p.f) if (f.t !== 'info') yield { t, s, p, f }; }
-export function flatten(spec) { return [...each(spec)].map(({ t, s, p, f }) => ({ section: `${t.t || t.area} › ${s.s}`, group: p.p || s.s, label: f.l, value: showVal(f), note: [f.n, f.h].filter(Boolean).join(' · '), key: f.k })); }
+export function flatten(spec) { return [...each(spec)].map(({ t, s, p, f }) => ({ section: `${t.t || t.area} › ${s.s}`, group: p.p || s.s, label: f.l, value: showVal(f), note: [f.n, f.dv, f.rem, f.h].filter(Boolean).join(' · '), key: f.k })); }
 function showVal(f) {
   if (f.m === 'old') return 'ตาม OLD'; if (f.m === 'skip') return 'ไม่ต้องตั้ง'; if (f.m === 'manual') return 'ทำเอง (' + (f.n || 'ต่อร้าน') + ')';
   if (f.t === 'toggle') return f.v ? 'ON' : 'OFF';
@@ -161,7 +161,7 @@ export function defaultsCard(ctx, emb, st) {
       return `<div class="cxgrp cxinfo">${f.l ? `<div class="cxlab"><label class="title">${esc(f.l)}</label></div>` : ''}${esc(f.v).split(/\n\n+/).map(x => `<p>${x}</p>`).join('')}${tag}</div>`; }
     return `<div class="cxgrp ${f.m ? 'm-' + f.m : ''}"><div class="cxlab"><label class="title">${esc(f.l)}</label>${md ? `<span class="cxm ${md[1]}">${md[0]}</span>` : ''}<span style="flex:1"></span>${f.copy && f.v ? `<button class="btn s cxcopy" data-dcopy="${pa}">📋 คัดลอก</button>` : ''}${f.opt ? '<span class="optional">OPTIONAL</span>' : ''}
       ${edit ? `<button class="lnk" data-dedf="${pa}" title="แก้ชื่อ / ชนิด / สถานะ / หมายเหตุ">✎</button><button class="lnk" data-ddelf="${pa}" title="ลบ">🗑</button>` : ''}</div>
-      ${ctl(f, pa)}${f.logo ? '<div class="cxlogo404">LOGO<br>NOT FOUND!</div>' : ''}${f.h ? `<div class="cxhelp">${esc(f.h)}</div>` : ''}${f.n ? `<div class="cxnote">💡 ${esc(f.n)}</div>` : ''}${f.imgs ? `<div class="cximgs">${f.imgs.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt=""><span>${esc(t)}</span></a>`).join('')}</div>` : ''}</div>`; };
+      ${ctl(f, pa)}${f.logo ? '<div class="cxlogo404">LOGO<br>NOT FOUND!</div>' : ''}${f.h ? `<div class="cxhelp">${esc(f.h)}</div>` : ''}${f.rem ? `<div class="cxrem">📌 ${esc(f.rem)}</div>` : ''}${f.n ? `<div class="cxnote">💡 ${esc(f.n)}</div>` : ''}${f.imgs ? `<div class="cximgs">${f.imgs.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt=""><span>${esc(t)}</span></a>`).join('')}</div>` : ''}</div>`; };
   const card = (f, pa) => { const st = f.v === 'na' ? ['Not Available', 'na'] : f.v ? ['Enabled', 'on'] : ['Disabled', 'off']; const md = MODE[f.m];
     return `<div class="cxicard"><div class="cxih"><b>${esc(f.l)}</b>${f.beta ? '<span class="cxbeta">BETA</span>' : ''}${md ? `<span class="cxm ${md[1]}">${md[0]}</span>` : ''}</div><div class="cxicat">${esc(f.cat || '')}</div>
       <span class="cxist ${st[1]}" ${edit && f.v !== 'na' ? `data-dint="${pa}" title="กดเพื่อสลับ"` : ''}>${st[0]}</span><p>${esc(f.h || '')}</p>${f.price ? `<p><b>${esc(f.price)}</b></p>` : ''}${f.warn ? `<div class="cxwarn">⚠ ${esc(f.warn)}</div>` : ''}${f.dv ? `<p><b>${esc(f.dv)}</b></p>` : ''}${f.n ? `<div class="cxnote">💡 ${esc(f.n)}</div>` : ''}</div>`; };
