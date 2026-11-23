@@ -126,7 +126,12 @@ export function defaultsCard(ctx, emb, st) {
   const q = norm(D.q), nCh = D.dirty ? diffSpecs(D.saved, D.spec).length : 0;
   const dis = edit ? '' : 'disabled';
   const path = (s, p, f) => `${tab.k}|${s.k}|${p.k}|${f ? f.k : ''}`;
-  const ctl = (f, pa) => {
+  const ctl = (f, pa) => { if (!f.dv) return ctl0(f, pa);
+    if (f.t === 'toggle') return `<div class="cxdvrow">${ctl0(f, pa)}<span>${esc(f.dv)}</span></div>`;
+    if (!edit && (f.t === 'list')) return `<div class="cxlist">${esc(f.dv)}</div>`;
+    if (!edit && ['text', 'number', 'select'].includes(f.t)) return `<input class="cxin" type="text" value="${esc(f.dv)}" disabled>`;
+    return ctl0(f, pa) + `<div class="cxdvline">${esc(f.dv)}</div>`; };
+  const ctl0 = (f, pa) => {
     const a = `data-dv="${pa}" ${dis}`;
     if (f.t === 'toggle') return `<label class="cxsw"><input type="checkbox" ${a} ${f.v ? 'checked' : ''}><i></i></label>`;
     if (f.t === 'select' && f.ui === 'buttons') return `<div class="cxbtns">${f.o.map(o => `<button type="button" class="${o === f.v ? 'on' : ''}" data-dbtn="${pa}" data-val="${esc(o)}" ${dis}>${esc(o)}</button>`).join('')}</div>`;
@@ -157,7 +162,7 @@ export function defaultsCard(ctx, emb, st) {
       ${ctl(f, pa)}${f.logo ? '<div class="cxlogo404">LOGO<br>NOT FOUND!</div>' : ''}${f.h ? `<div class="cxhelp">${esc(f.h)}</div>` : ''}${f.n ? `<div class="cxnote">💡 ${esc(f.n)}</div>` : ''}${f.imgs ? `<div class="cximgs">${f.imgs.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt=""><span>${esc(t)}</span></a>`).join('')}</div>` : ''}</div>`; };
   const card = (f, pa) => { const st = f.v === 'na' ? ['Not Available', 'na'] : f.v ? ['Enabled', 'on'] : ['Disabled', 'off']; const md = MODE[f.m];
     return `<div class="cxicard"><div class="cxih"><b>${esc(f.l)}</b>${f.beta ? '<span class="cxbeta">BETA</span>' : ''}${md ? `<span class="cxm ${md[1]}">${md[0]}</span>` : ''}</div><div class="cxicat">${esc(f.cat || '')}</div>
-      <span class="cxist ${st[1]}" ${edit && f.v !== 'na' ? `data-dint="${pa}" title="กดเพื่อสลับ"` : ''}>${st[0]}</span><p>${esc(f.h || '')}</p>${f.price ? `<p><b>${esc(f.price)}</b></p>` : ''}${f.warn ? `<div class="cxwarn">⚠ ${esc(f.warn)}</div>` : ''}${f.n ? `<div class="cxnote">💡 ${esc(f.n)}</div>` : ''}</div>`; };
+      <span class="cxist ${st[1]}" ${edit && f.v !== 'na' ? `data-dint="${pa}" title="กดเพื่อสลับ"` : ''}>${st[0]}</span><p>${esc(f.h || '')}</p>${f.price ? `<p><b>${esc(f.price)}</b></p>` : ''}${f.warn ? `<div class="cxwarn">⚠ ${esc(f.warn)}</div>` : ''}${f.dv ? `<p><b>${esc(f.dv)}</b></p>` : ''}${f.n ? `<div class="cxnote">💡 ${esc(f.n)}</div>` : ''}</div>`; };
   const hit = s => !q || s.panes.some(p => p.f.some(f => norm(f.l + ' ' + s.s + ' ' + p.p + ' ' + (f.n || '')).includes(q)));
   const rows = tab.secs.map(s => {
     if (s.cat) return `<div class="cxcat">${esc(s.cat)}</div>`;
