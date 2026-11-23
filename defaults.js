@@ -1,73 +1,10 @@
-// Default Settings — native page in the Dashboard (looks like the NEW admin Settings screens)
-// Data: content key 'defaults_spec' (JSON). Optional 2-way sync with the Google Doc via a small Apps Script web app
-// (content key 'gdoc_sync' = {url, token}).
-
-const uid = () => Math.random().toString(36).slice(2, 9);
-const F = (l, t, v, extra = {}) => Object.assign({ k: uid(), l, t, v }, extra);
-const TG = (l, v, h) => F(l, 'toggle', !!v, h ? { h } : {});
-const NUM = (l, v, u, h) => F(l, 'number', v, Object.assign({ u }, h ? { h } : {}));
-const SEL = (l, v, o, h) => F(l, 'select', v, Object.assign({ o }, h ? { h } : {}));
-const OLD = (l, h) => F(l, 'old', 'ตาม OLD', { h: h || 'คัดลอกค่าจากระบบเดิมของร้าน' });
-const MAN = (l, h) => F(l, 'manual', 'ทำเอง', { h });
-const G = (g, fields, h) => ({ k: uid(), g, h: h || '', f: fields });
-
-export function seedSpec() {
-  const timing = (n, first, last, days, interval, offset) => G(n + ' — Order Timing', [NUM('First Order Offset', first, 'นาที'), NUM('Last Order Offset', last, 'นาที'), NUM('Maximum Days Ahead', days, 'วัน'), NUM('Time Interval', interval, 'นาที'), NUM('Order Offset', offset, 'นาที')]);
-  const wait = (n, ready, complete, onRoute) => G(n + ' — Wait Times', [TG('Auto Status - Confirm', false), TG('Auto Status - Ready', true), ...(onRoute ? [TG('Auto Status - On Route', true), NUM('Time Till On Route', onRoute, 'นาที')] : []), TG('Auto Status - Complete', true), NUM('Time Till Ready', ready, 'นาที'), NUM('Time Till Complete', complete, 'นาที')]);
-  return [
-    { k: 'system', s: 'System', sub: 'Core business, locale, tax, receipts & checkout defaults', groups: [
-      G('General', [SEL('System Locale', 'English - Australia', ['English - Australia', 'English - New Zealand', 'English - United Kingdom', 'English - United States'], 'ตามประเทศของร้าน'),
-        OLD('Currency'), OLD('Timezone', 'ตามที่อยู่ร้านใน OLD'), SEL('Kilometres/Miles', 'Kilometres', ['Kilometres', 'Miles'], 'US = Miles'), SEL('Date Formatting', 'DD/MM/YYYY', ['DD/MM/YYYY', 'MM/DD/YYYY'], 'US = MM/DD/YYYY'),
-        SEL('Time Formatting', '12 Hour', ['12 Hour', '24 Hour']), OLD('Tax In Prices'), OLD('Sales Taxes (GST rate %)'), TG('Tax On Tips', false), SEL('First Day of the Week', 'Monday', ['Monday', 'Sunday'])]),
-      G('Location', [OLD('Store Address'), SEL('Map Data Source', 'Google Maps', ['Google Maps', 'OpenStreetMap'])]),
-      G('E-Mail Notifications', [OLD('Notification E-Mail Addresses'), OLD('Overview Report E-Mail Addresses'), TG('Order Created', true), TG('Booking Created', true), TG('Age Verification', true)]),
-      G('Audio Notifications', [SEL('Sound', 'Filling Your Inbox', ['Filling Your Inbox', 'Plucky', 'Bell', 'Chime']), NUM('Repeat Count', 60), TG('Stop On Click', true), TG('Play On - New Order', true), TG('Play On - New Booking', true), TG('Play On - Customer Age Verification Request', true)]),
-      G('Customer Accounts', [TG('Guest Promo Match Fields - Name', true), TG('Guest Promo Match Fields - Phone', true), TG('Guest Promo Match Fields - E-mail', true)]),
-      G('Age Verification', [TG('Enabled', true), NUM('Minimum Age', 18, 'ปี'), NUM('Estimated Wait Time', 2, 'ชั่วโมง'), TG('Store Popup Notification', true)]),
-      G('Tipping', [TG('Order Tipping', true), NUM('Tip 1 Amount', 5, '%'), NUM('Tip 2 Amount', 10, '%'), NUM('Tip 3 Amount', 15, '%')]),
-      G('Ordering', [TG('Using Awaiting Payment Status', false), TG('Order Acknowledgement', true)]),
-      G('Misc.', [TG('Logged In Only', false), TG("Disable Signup's", false), SEL('Service Picker', 'On Page Load', ['On Page Load', 'On Checkout'])]),
-    ] },
-    { k: 'services', s: 'Services', sub: 'เปิด/ปิดตาม OLD ทุกบริการ · Wait Times & Order Timing ใส่ค่ามาตรฐาน', groups: [
-      G('Pickups — General', [OLD('Enabled', 'OLD เปิด → NEW เปิด · OLD ปิด → NEW ปิด')]), timing('Pickups', 0, 30, 1, 15, 30), wait('Pickups', 15, 20),
-      G('Deliveries — General', [OLD('Enabled', 'OLD เปิด → NEW เปิด (Delivery ที่เคยเปิดแล้วปิด หน้าตาจะต่างจาก Pickup)'), SEL('Default Delivery Provider', 'Restaurant', ['Restaurant', 'Uber Direct', 'DoorDash Drive']), MAN('Delivery Zones', 'ใส่โซนเองทุกร้าน')]), timing('Deliveries', 0, 30, 1, 15, 30), wait('Deliveries', 15, 20, 20),
-      G('Dine-Ins — General', [OLD('Enabled', 'OLD "On premise" เปิด → NEW เปิด')]), timing('Dine-Ins', 0, 30, 0, 1, 0), wait('Dine-Ins', 20, 120),
-      G('Table Bookings', [OLD('Enabled', 'OLD "Table reservation" เปิด → NEW เปิด')]),
-    ] },
-    { k: 'payments', s: 'Payments', sub: 'เปิด/ปิดวิธีจ่ายเงินตาม OLD', groups: [
-      G('Payment Methods', [OLD('Cash / Card / Online (ON/OFF)', 'เปิดเหมือน OLD ทุกตัว'), MAN('Stripe Connection Code', 'Manager ใส่เอง (ดูชีต Stripe link)')]),
-    ] },
-    { k: 'policies', s: 'Policies & Agreements', sub: 'Terms & Conditions กลางของ LFY (ไม่มีชื่อร้าน)', groups: [
-      G('Terms & Conditions', [F('Terms & Conditions', 'textarea', 'LFY general Terms & Conditions template — ใส่เนื้อหาเต็มในโหมดแก้ไข', { h: 'กด Terms & Conditions แล้ววางข้อความนี้' })]),
-    ] },
-    { k: 'manual', s: 'ไม่ตั้งเป็น Default', sub: 'ต้องดู/ทำเองทุกร้าน — ระบบไม่ใส่ให้', groups: [
-      G('ทำเองจาก OLD', [MAN('Opening Hours', 'ดูจาก OLD แล้วใส่เอง'), MAN('Special Days / Holidays', 'ดูจาก OLD'), MAN('Menu & Prices'), MAN('Conditional Fees'), MAN('Promotions')]),
-      G('ไม่ต้องใส่', [MAN('Receipt Logo'), MAN('Website'), MAN('Landing Page'), MAN('Disable Ordering', 'ห้ามแตะ')]),
-    ] },
-  ];
-}
-
+// Default Settings — native copy of NEW admin › Settings inside the Dashboard.
+// Data: content 'defaults_spec' (v2 JSON, seed = defaults_seed.json). Optional 2-way sync with the Google Doc
+// through a small Apps Script web app (content 'gdoc_sync' = {url, token}).
 let SEED = null;
 try { SEED = await (await fetch(new URL('./defaults_seed.json', import.meta.url))).json(); } catch { }
-export function getSpec(content) { try { const v = JSON.parse(content('defaults_spec') || 'null'); if (Array.isArray(v) && v.length) return v; } catch { } return SEED || seedSpec(); }
 export function getSync(content) { try { return JSON.parse(content('gdoc_sync') || 'null'); } catch { return null; } }
-
 const norm = s => String(s || '').toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[^a-z0-9ก-๙]+/g, ' ').trim();
-const showVal = f => f.t === 'toggle' ? (f.v ? 'ON' : 'OFF') : f.t === 'number' ? `${f.v ?? ''}${f.u ? ' ' + f.u : ''}` : String(f.v ?? '');
-
-export function flatten(spec) {
-  const out = [];
-  spec.forEach(s => s.groups.forEach(g => g.f.forEach(f => out.push({ section: s.s, group: g.g, label: f.l, value: showVal(f), note: f.h || '', key: f.k }))));
-  return out;
-}
-
-export function diffSpecs(a, b) {
-  const A = new Map(flatten(a).map(r => [r.key, r])), B = flatten(b);
-  const ch = [];
-  B.forEach(r => { const o = A.get(r.key); if (!o) ch.push(Object.assign({ kind: 'add' }, r)); else if (o.value !== r.value || o.label !== r.label || o.note !== r.note) ch.push(Object.assign({ kind: 'update', oldLabel: o.label, oldValue: o.value }, r)); A.delete(r.key); });
-  A.forEach(r => ch.push(Object.assign({ kind: 'remove' }, r)));
-  return ch;
-}
 
 // ---------- Apps Script that runs inside the Google Doc ----------
 export function appsScript(token) {
@@ -150,55 +87,86 @@ function apply_(changes, by) {
 `;
 }
 
-// ---------- UI ----------
-let D = { spec: null, saved: null, sec: 'system', open: {}, q: '', dirty: false };
+// ---------- UI: 1:1 copy of NEW admin › Settings (structure read from the real admin, 23 Nov 2026) ----------
+const TZ = (() => { try { return Intl.supportedValuesOf('timeZone'); } catch { return []; } })();
+let D = { spec: null, saved: null, tab: 'system', open: {}, pane: {}, q: '', dirty: false };
+const clone = o => JSON.parse(JSON.stringify(o));
+const MODE = { old: ['↔ ตาม OLD', 'old'], manual: ['✋ ทำเอง', 'man'], unset: ['ยังไม่กำหนด Default', 'uns'] };
+
+export function getSpec(content) {
+  try { const v = JSON.parse(content('defaults_spec') || 'null'); if (v && v.v === 2) return v; } catch { }
+  return SEED || { v: 2, tabs: [] };
+}
+const secs = t => t.secs.filter(s => !s.cat);
+function* each(spec) { for (const t of spec.tabs) for (const s of secs(t)) for (const p of s.panes) for (const f of p.f) yield { t, s, p, f }; }
+export function flatten(spec) { return [...each(spec)].map(({ t, s, p, f }) => ({ section: `${t.t} › ${s.s}`, group: p.p || s.s, label: f.l, value: showVal(f), note: [f.n, f.h].filter(Boolean).join(' · '), key: f.k })); }
+function showVal(f) {
+  if (f.m === 'old') return 'ตาม OLD'; if (f.m === 'manual') return 'ทำเอง (' + (f.n || 'ต่อร้าน') + ')';
+  if (f.t === 'toggle') return f.v ? 'ON' : 'OFF';
+  if (Array.isArray(f.v)) return f.v.join(', ') || '—';
+  return String(f.v ?? '');
+}
+export function diffSpecs(a, b) {
+  const A = new Map(flatten(a).map(r => [r.key, r])); const ch = [];
+  flatten(b).forEach(r => { const o = A.get(r.key); if (!o) ch.push(Object.assign({ kind: 'add' }, r)); else if (o.value !== r.value || o.label !== r.label || o.note !== r.note) ch.push(Object.assign({ kind: 'update', oldLabel: o.label, oldValue: o.value }, r)); A.delete(r.key); });
+  A.forEach(r => ch.push(Object.assign({ kind: 'remove' }, r))); return ch;
+}
 
 export function defaultsCard(ctx, emb, st) {
   const { esc, content } = ctx;
-  if (!D.spec || (!D.dirty && D.src !== content('defaults_spec'))) { D.spec = JSON.parse(JSON.stringify(getSpec(content))); D.saved = JSON.parse(JSON.stringify(D.spec)); D.src = content('defaults_spec'); }
-  const mode = st.mode || 'view'; const edit = mode === 'edit';
-  const sync = getSync(content);
-  const sec = D.spec.find(s => s.k === D.sec) || D.spec[0];
-  const q = norm(D.q);
-  const nChanges = D.dirty ? diffSpecs(D.saved, D.spec).length : 0;
-  const ctrl = (f, gi, fi) => {
-    const id = `data-dv="${gi}.${fi}"`, dis = edit ? '' : 'disabled';
-    if (f.t === 'toggle') return `<label class="cwsw"><input type="checkbox" ${id} ${f.v ? 'checked' : ''} ${dis}><i></i><b>${f.v ? 'ON' : 'OFF'}</b></label>`;
-    if (f.t === 'select') return `<select class="cwin" ${id} ${dis}>${(f.o || []).concat((f.o || []).includes(f.v) ? [] : [f.v]).map(o => `<option ${o === f.v ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
-    if (f.t === 'number') return `<span class="cwnum"><input class="cwin" type="number" ${id} value="${esc(f.v)}" ${dis}>${f.u ? `<em>${esc(f.u)}</em>` : ''}</span>`;
-    if (f.t === 'textarea') return `<textarea class="cwin cwta" ${id} ${dis}>${esc(f.v)}</textarea>`;
-    if (f.t === 'old') return `<span class="cwtag old">↔ ตาม OLD</span>`;
-    if (f.t === 'manual') return `<span class="cwtag man">✋ ทำเอง</span>`;
-    return `<input class="cwin" ${id} value="${esc(f.v)}" ${dis}>`;
+  if (!D.spec || (!D.dirty && D.src !== content('defaults_spec'))) { D.spec = clone(getSpec(content)); D.saved = clone(D.spec); D.src = content('defaults_spec'); }
+  const mode = st.mode || 'view', edit = mode === 'edit', sync = getSync(content);
+  const tab = D.spec.tabs.find(t => t.k === D.tab) || D.spec.tabs[0]; if (!tab) return '';
+  const q = norm(D.q), nCh = D.dirty ? diffSpecs(D.saved, D.spec).length : 0;
+  const dis = edit ? '' : 'disabled';
+  const path = (s, p, f) => `${tab.k}|${s.k}|${p.k}|${f ? f.k : ''}`;
+  const ctl = (f, pa) => {
+    const a = `data-dv="${pa}" ${dis}`;
+    if (f.t === 'toggle') return `<label class="cxsw"><input type="checkbox" ${a} ${f.v ? 'checked' : ''}><i></i></label>`;
+    if (f.t === 'select' && f.ui === 'buttons') return `<div class="cxbtns">${f.o.map(o => `<button type="button" class="${o === f.v ? 'on' : ''}" data-dbtn="${pa}" data-val="${esc(o)}" ${dis}>${esc(o)}</button>`).join('')}</div>`;
+    if (f.t === 'select') { const o = f.o && f.o.length ? f.o : (/timezone/i.test(f.l) ? TZ : []); const list = o.includes(f.v) || f.v === '' ? o : [f.v, ...o];
+      return `<div class="cxsel"><select class="cxin" ${a}>${f.v === '' ? '<option value="">Select from the dropdown or type to search...</option>' : ''}${list.map(x => `<option ${x === f.v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>`; }
+    if (f.t === 'multi') return `<div class="cxmulti">${(f.o || []).map(o => `<label class="cxchip ${(f.v || []).includes(o) ? 'on' : ''}"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}>${esc(o)}${(f.v || []).includes(o) ? ' ×' : ''}</label>`).join('')}${!(f.v || []).length ? '<span class="cxph">Select from the dropdown or type to search...</span>' : ''}</div>`;
+    if (f.t === 'checks' && f.ui === 'switches') return `<div class="cxchecks">${(f.o || []).map(o => `<span class="cxswl"><label class="cxsw"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><i></i></label>${esc(o)}</span>`).join('')}</div>`;
+    if (f.t === 'checks') return `<div class="cxchecks">${(f.o || []).map(o => `<label><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><span>${esc(o)}</span></label>`).join('')}</div>`;
+    if (f.t === 'textarea') return `<textarea class="cxin cxta ${f.rich ? 'rich' : ''}" ${a}>${esc(f.v)}</textarea>`;
+    if (f.t === 'list') return `<div class="cxlist">${esc(f.v || '—')}</div>`;
+    return `<input class="cxin" type="${f.t === 'number' ? 'number' : 'text'}" value="${esc(f.v)}" ${a}>`;
   };
-  const groups = sec.groups.map((g, gi) => ({ g, gi, f: g.f.map((f, fi) => ({ f, fi })).filter(x => !q || norm(x.f.l + ' ' + g.g).includes(q)) })).filter(x => !q || x.f.length);
-  const body = `<div class="cwset ${edit ? 'editing' : ''}">
-    <aside class="cwnav">${D.spec.map(s => `<button class="${s.k === sec.k ? 'on' : ''}" data-dsec="${s.k}">${esc(s.s)}<small>${s.groups.reduce((n, g) => n + g.f.length, 0)}</small></button>`).join('')}
-      ${edit ? '<button class="add" data-dadd="sec">+ เพิ่มหมวด</button>' : ''}</aside>
-    <section class="cwmain">
-      <div class="cwtop"><div><div class="cwcrumb">Settings › ${esc(sec.s)}</div><div class="cwsub">${esc(sec.sub || '')}</div></div>
-        <input class="cwq" id="dq" placeholder="🔎 ค้นหาการตั้งค่า" value="${esc(D.q)}">
-        <button class="btn s" id="dall">${groups.every(x => D.open[x.g.k] !== false) ? 'พับทั้งหมด' : 'เปิดทั้งหมด'}</button></div>
-      ${groups.map(({ g, gi, f }) => { const op = q || D.open[g.k] !== false;
-        return `<div class="cwacc ${op ? 'open' : ''}"><div class="cwhead" data-dacc="${g.k}"><span>${esc(g.g)}</span>${edit ? `<span class="cwed"><button class="lnk" data-dren="${gi}">✎</button><button class="lnk" data-ddelg="${gi}">🗑</button></span>` : ''}<span class="chev">${op ? '▾' : '▸'}</span></div>
-          ${op ? `<div class="cwbody">${f.map(({ f: x, fi }) => `<div class="cwrow"><div class="cwlab"><b>${esc(x.l)}</b>${x.h ? `<div class="cwhelp">${esc(x.h)}</div>` : ''}</div><div class="cwctl">${ctrl(x, gi, fi)}</div>
-            ${edit ? `<span class="cwed"><button class="lnk" data-dedf="${gi}.${fi}" title="แก้ชื่อ / ชนิด / คำอธิบาย">✎</button><button class="lnk" data-ddelf="${gi}.${fi}" title="ลบ">🗑</button></span>` : ''}</div>`).join('')}
-            ${edit ? `<button class="lnk cwaddf" data-daddf="${gi}">+ เพิ่มช่องตั้งค่า</button>` : ''}</div>` : ''}</div>`; }).join('')}
-      ${edit ? '<button class="btn s" data-dadd="grp">+ เพิ่มหัวข้อในหมวดนี้</button>' : ''}
-    </section></div>`;
-  const syncLine = sync && sync.url ? `<span class="small" style="color:var(--goodT)">🔗 เชื่อม Google Doc แล้ว</span> <button class="btn s" id="dpull">📥 ดึงค่าจาก Google Doc</button>`
-    : `<span class="small muted">ยังไม่เชื่อม Google Doc${ctx.isMgr() ? '' : ' (Manager ตั้งค่า)'}</span>`;
-  return `<div class="card sheetcard dcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${esc(emb.t)} <small>ค่ามาตรฐานตอนตั้งร้านใหม่ · หน้าตาเหมือนระบบจริง</small></h2>
+  const grp = (f, pa) => { const md = MODE[f.m];
+    return `<div class="cxgrp ${f.m ? 'm-' + f.m : ''}"><div class="cxlab"><label class="title">${esc(f.l)}</label>${md ? `<span class="cxm ${md[1]}">${md[0]}</span>` : ''}<span style="flex:1"></span>${f.opt ? '<span class="optional">OPTIONAL</span>' : ''}
+      ${edit ? `<button class="lnk" data-dedf="${pa}" title="แก้ชื่อ / ชนิด / สถานะ / หมายเหตุ">✎</button><button class="lnk" data-ddelf="${pa}" title="ลบ">🗑</button>` : ''}</div>
+      ${ctl(f, pa)}${f.h ? `<div class="cxhelp">${esc(f.h)}</div>` : ''}${f.n ? `<div class="cxnote">💡 ${esc(f.n)}</div>` : ''}</div>`; };
+  const hit = s => !q || s.panes.some(p => p.f.some(f => norm(f.l + ' ' + s.s + ' ' + p.p + ' ' + (f.n || '')).includes(q)));
+  const rows = tab.secs.map(s => {
+    if (s.cat) return `<div class="cxcat">${esc(s.cat)}</div>`;
+    if (!hit(s)) return '';
+    const op = !!q || D.open[s.k]; const pi = Math.min(D.pane[s.k] || 0, s.panes.length - 1); const pane = s.panes[pi];
+    const fl = pane.f.filter(f => !q || norm(f.l + ' ' + s.s + ' ' + pane.p + ' ' + (f.n || '')).includes(q));
+    return `<div class="cxacc ${op ? 'open' : ''}"><div class="cxhead" data-dacc="${s.k}">${s.svc ? '<span class="cxok">✓</span>' : ''}<span class="nm">${esc(s.s)}</span>${edit ? `<button class="lnk" data-dren="${tab.k}|${s.k}">✎</button>` : ''}<span class="chev">${op ? '⌃' : '⌄'}</span></div>
+      ${op ? `${s.panes.length > 1 ? `<div class="cxitabs">${s.panes.map((p, i) => `<span class="${i === pi ? 'on' : ''}" data-dpane="${s.k}|${i}">${esc(p.p)}</span>`).join('')}</div>` : ''}
+        <div class="cxbody">${(q ? fl : pane.f).map(f => grp(f, path(s, pane, f))).join('') || '<p class="cxhelp">— ไม่มีช่องตั้งค่า —</p>'}
+        ${edit ? `<button class="lnk cxadd" data-daddf="${path(s, pane)}">+ เพิ่มช่องตั้งค่าในแท็บนี้</button>` : ''}
+        <button class="cxsave" ${edit && nCh ? 'data-dsavebtn' : 'disabled'}>Save</button></div>` : ''}</div>`;
+  }).join('');
+  const syncLine = sync && sync.url ? `<span class="small" style="color:var(--goodT)">🔗 เชื่อม Google Doc แล้ว</span> <button class="btn s" id="dpull">📥 ดึงค่าจาก Google Doc</button>` : `<span class="small muted">ยังไม่เชื่อม Google Doc${ctx.isMgr() ? '' : ' (Manager ตั้งค่า)'}</span>`;
+  const legend = '<span class="cxm old">↔ ตาม OLD</span> คัดลอกจากระบบเดิม · <span class="cxm man">✋ ทำเอง</span> ใส่เองทุกร้าน · <span class="cxm uns">ยังไม่กำหนด Default</span> ปล่อยตามระบบ · ไม่มีป้าย = ค่า Default ของ LFY';
+  const page = `<div class="cxpage ${edit ? 'editing' : ''}"><div class="cxtop"><h1>Settings</h1><input class="cxq" id="dq" placeholder="🔎 ค้นหาการตั้งค่า" value="${esc(D.q)}"></div>
+    <div class="cxcard"><div class="cxtabs">${D.spec.tabs.map(t => `<span class="${t.k === tab.k ? 'on' : ''}" data-dtab="${t.k}">${esc(t.t)}</span>`).join('')}</div>${rows}</div>
+    <div class="cxlegend">${legend}</div></div>`;
+  return `<div class="card sheetcard dcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${esc(emb.t)} <small>ค่ามาตรฐานตอนตั้งร้านใหม่ · หน้าตาเหมือนหน้า Settings ของ NEW</small></h2>
       <span class="seg"><label><input type="radio" name="dmode" data-dmode="edit" ${mode === 'edit' ? 'checked' : ''}><b>✏️ แก้ไข</b></label><label><input type="radio" name="dmode" data-dmode="view" ${mode === 'view' ? 'checked' : ''}><b>👁️ ดูอย่างเดียว</b></label><label><input type="radio" name="dmode" data-dmode="doc" ${mode === 'doc' ? 'checked' : ''}><b>📄 Google Doc</b></label></span>
       ${emb.u ? `<a class="btn s" href="${esc(emb.u)}" target="_blank" rel="noopener">เปิด Doc ในแท็บใหม่</a>` : ''}
       ${ctx.isMgr() ? '<button class="btn s" id="dsetup">⚙️ เชื่อม Google Doc</button>' : ''}
       <button class="btn s" data-etg="${st.i}">${st.open !== false ? 'ซ่อน' : 'แสดง'}</button></div>
-    ${st.open !== false ? (mode === 'doc' ? st.iframe : `<div class="row" style="align-items:center;gap:8px;margin:8px 0">${syncLine}</div>${body}
-      ${edit ? `<div class="dsave ${nChanges ? 'on' : ''}"><span>${nChanges ? `แก้ไขแล้ว <b>${nChanges}</b> จุด — ยังไม่บันทึก` : 'ยังไม่มีการแก้ไข'}</span><span><button class="btn s" id="dcancel" ${nChanges ? '' : 'disabled'}>ยกเลิก</button> <button class="btn s p" id="dsave" ${nChanges ? '' : 'disabled'}>💾 บันทึก${sync && sync.url ? ' + อัปเดต Google Doc' : ''}</button></span></div>` : ''}`) : ''}</div>`;
+    ${st.open !== false ? (mode === 'doc' ? st.iframe : `<div class="row" style="align-items:center;gap:8px;margin:8px 0">${syncLine}</div>${page}
+      ${edit ? `<div class="dsave ${nCh ? 'on' : ''}"><span>${nCh ? `แก้ไขแล้ว <b>${nCh}</b> จุด — ยังไม่บันทึก` : 'ยังไม่มีการแก้ไข — เปลี่ยนค่าได้เลย'}</span><span><button class="btn s" id="dcancel" ${nCh ? '' : 'disabled'}>ยกเลิก</button> <button class="btn s p" id="dsave" ${nCh ? '' : 'disabled'}>💾 บันทึก${sync && sync.url ? ' + อัปเดต Google Doc' : ''}</button></span></div>` : ''}`) : ''}</div>`;
 }
 
-function fieldAt(p) { const [gi, fi] = p.split('.').map(Number); const sec = D.spec.find(s => s.k === D.sec); return { sec, g: sec.groups[gi], f: fi != null ? sec.groups[gi].f[fi] : null, gi, fi }; }
-function mark(ctx) { D.dirty = true; const y = window.scrollY; const box = document.querySelector('.cwmain'); const sy = box ? box.scrollTop : 0; ctx.render(); window.scrollTo(0, y); const b2 = document.querySelector('.cwmain'); if (b2) b2.scrollTop = sy; }
+function at(pa) { const [tk, sk, pk, fk] = pa.split('|'); const t = D.spec.tabs.find(x => x.k === tk); const s = t.secs.find(x => x.k === sk); const p = pk ? s.panes.find(x => x.k === pk) : null; const fi = p && fk ? p.f.findIndex(x => x.k === fk) : -1; return { t, s, p, f: fi >= 0 ? p.f[fi] : null, fi }; }
+function keep(ctx) { const y = window.scrollY; const b = document.querySelector('.cxpage'); const sy = b ? b.scrollTop : 0; ctx.render(); window.scrollTo(0, y); const b2 = document.querySelector('.cxpage'); if (b2) b2.scrollTop = sy; }
+function mark(ctx) { D.dirty = true; keep(ctx); }
+const setV = (f, v) => { f.v = v; if (f.m === 'unset') delete f.m; };
 
 async function callDoc(sync, payload) {
   if (payload) { const r = await fetch(sync.url, { method: 'POST', body: JSON.stringify(Object.assign({ token: sync.token }, payload)) }); return r.json(); }
@@ -206,78 +174,82 @@ async function callDoc(sync, payload) {
 }
 
 export function bindDefaults(ctx, setMode) {
-  const { esc, toast, openModal, closeModal, content } = ctx;
+  const { esc, toast, openModal, closeModal, content } = ctx; const $$ = s => document.querySelectorAll(s), $i = s => document.getElementById(s);
   if (!document.querySelector('.dcard')) return;
-  document.querySelectorAll('[data-dmode]').forEach(x => x.onchange = () => { if (D.dirty && x.dataset.dmode !== 'edit' && !confirm('มีการแก้ไขที่ยังไม่บันทึก — ทิ้งการแก้ไข?')) return ctx.render(); if (x.dataset.dmode !== 'edit') { D.dirty = false; D.spec = null; } setMode(x.dataset.dmode); });
-  document.querySelectorAll('[data-dsec]').forEach(b => b.onclick = () => { D.sec = b.dataset.dsec; D.q = ''; const y = window.scrollY; ctx.render(); window.scrollTo(0, y); });
-  document.querySelectorAll('[data-dacc]').forEach(h => h.onclick = e => { if (e.target.closest('.cwed')) return; const k = h.dataset.dacc; D.open[k] = D.open[k] === false; const y = window.scrollY; ctx.render(); window.scrollTo(0, y); });
-  if (document.getElementById('dall')) document.getElementById('dall').onclick = () => { const sec = D.spec.find(s => s.k === D.sec); const allOpen = sec.groups.every(g => D.open[g.k] !== false); sec.groups.forEach(g => D.open[g.k] = !allOpen); const y = window.scrollY; ctx.render(); window.scrollTo(0, y); };
-  const dq = document.getElementById('dq'); if (dq) dq.oninput = e => { D.q = e.target.value; const p = e.target.selectionStart; ctx.render(); const el = document.getElementById('dq'); el.focus(); el.setSelectionRange(p, p); };
-  document.querySelectorAll('[data-dv]').forEach(x => x.onchange = () => { const { f } = fieldAt(x.dataset.dv); f.v = f.t === 'toggle' ? x.checked : f.t === 'number' ? (x.value === '' ? '' : Number(x.value)) : x.value; mark(ctx); });
-  document.querySelectorAll('[data-ddelf]').forEach(b => b.onclick = () => { const { g, fi, f } = fieldAt(b.dataset.ddelf); if (!confirm(`ลบ "${f.l}"?`)) return; g.f.splice(fi, 1); mark(ctx); });
-  document.querySelectorAll('[data-ddelg]').forEach(b => b.onclick = () => { const { sec, gi, g } = fieldAt(b.dataset.ddelg); if (!confirm(`ลบหัวข้อ "${g.g}" ทั้งหมด (${g.f.length} ช่อง)?`)) return; sec.groups.splice(gi, 1); mark(ctx); });
-  document.querySelectorAll('[data-dren]').forEach(b => b.onclick = () => { const { g } = fieldAt(b.dataset.dren); const v = prompt('ชื่อหัวข้อ', g.g); if (v && v.trim()) { g.g = v.trim(); mark(ctx); } });
+  $$('[data-dmode]').forEach(x => x.onchange = () => { if (D.dirty && x.dataset.dmode !== 'edit' && !confirm('มีการแก้ไขที่ยังไม่บันทึก — ทิ้งการแก้ไข?')) return ctx.render(); if (x.dataset.dmode !== 'edit') { D.dirty = false; D.spec = null; } setMode(x.dataset.dmode); });
+  $$('[data-dtab]').forEach(b => b.onclick = () => { D.tab = b.dataset.dtab; keep(ctx); });
+  $$('[data-dacc]').forEach(h => h.onclick = e => { if (e.target.closest('.lnk')) return; D.open[h.dataset.dacc] = !D.open[h.dataset.dacc]; keep(ctx); });
+  $$('[data-dpane]').forEach(b => b.onclick = () => { const [k, i] = b.dataset.dpane.split('|'); D.pane[k] = +i; keep(ctx); });
+  const dq = $i('dq'); if (dq) dq.oninput = e => { D.q = e.target.value; const p = e.target.selectionStart; ctx.render(); const el = $i('dq'); el.focus(); el.setSelectionRange(p, p); };
+  $$('[data-dv]').forEach(x => x.onchange = () => { const { f } = at(x.dataset.dv); setV(f, f.t === 'toggle' ? x.checked : f.t === 'number' ? (x.value === '' ? '' : Number(x.value)) : x.value); mark(ctx); });
+  $$('[data-dbtn]').forEach(b => b.onclick = () => { const { f } = at(b.dataset.dbtn); setV(f, b.dataset.val); mark(ctx); });
+  $$('[data-dmul]').forEach(x => x.onchange = () => { const { f } = at(x.dataset.dmul); const v = new Set(f.v || []); x.checked ? v.add(x.value) : v.delete(x.value); setV(f, (f.o || []).filter(o => v.has(o))); mark(ctx); });
+  $$('[data-ddelf]').forEach(b => b.onclick = () => { const { p, fi, f } = at(b.dataset.ddelf); if (!confirm(`ลบ "${f.l}"?`)) return; p.f.splice(fi, 1); mark(ctx); });
+  $$('[data-dren]').forEach(b => b.onclick = () => { const { s } = at(b.dataset.dren); const v = prompt('ชื่อหัวข้อ', s.s); if (v && v.trim()) { s.s = v.trim(); mark(ctx); } });
   const fieldForm = (f, onOk) => {
+    const T = [['toggle', 'สวิตช์ ON/OFF'], ['select', 'ตัวเลือก (dropdown)'], ['multi', 'เลือกหลายอย่าง'], ['checks', 'ช่องติ๊ก'], ['number', 'ตัวเลข'], ['text', 'ข้อความ'], ['textarea', 'ข้อความยาว'], ['list', 'รายการ/ตาราง (ทำในระบบ)']];
+    const M = [['', 'ค่า Default ของ LFY'], ['old', '↔ ตาม OLD'], ['manual', '✋ ทำเองทุกร้าน'], ['unset', 'ยังไม่กำหนด Default']];
     openModal(`<h3>${f.l ? 'แก้ไขช่องตั้งค่า' : 'เพิ่มช่องตั้งค่า'}</h3><div class="fg"><div><label>ชื่อ (ตรงกับหน้าระบบ)</label><input id="ff_l" value="${esc(f.l || '')}"></div>
-      <div><label>ชนิด</label><select id="ff_t">${[['toggle', 'สวิตช์ ON/OFF'], ['select', 'ตัวเลือก (dropdown)'], ['number', 'ตัวเลข'], ['text', 'ข้อความ'], ['textarea', 'ข้อความยาว'], ['old', 'ตาม OLD'], ['manual', 'ทำเอง']].map(([v, l]) => `<option value="${v}" ${f.t === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-      <div><label>ตัวเลือก (คั่นด้วย , — ใช้กับ dropdown)</label><input id="ff_o" value="${esc((f.o || []).join(', '))}"></div><div><label>หน่วย (ตัวเลข)</label><input id="ff_u" value="${esc(f.u || '')}"></div>
-      <div style="grid-column:1/-1"><label>คำอธิบายใต้ชื่อ</label><input id="ff_h" value="${esc(f.h || '')}"></div></div>
+      <div><label>ชนิด</label><select id="ff_t">${T.map(([v, l]) => `<option value="${v}" ${f.t === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div><label>สถานะ</label><select id="ff_m">${M.map(([v, l]) => `<option value="${v}" ${(f.m || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div><label>ตัวเลือก (คั่นด้วย ,)</label><input id="ff_o" value="${esc((f.o || []).join(', '))}"></div>
+      <div style="grid-column:1/-1"><label>คำอธิบายของระบบ (ใต้ช่อง)</label><input id="ff_h" value="${esc(f.h || '')}"></div>
+      <div style="grid-column:1/-1"><label>💡 หมายเหตุทีม LFY</label><input id="ff_n" value="${esc(f.n || '')}"></div></div>
       <div class="actions"><button class="btn" id="cx">ยกเลิก</button> <button class="btn p" id="ok">OK</button></div>`);
-    document.getElementById('cx').onclick = closeModal;
-    document.getElementById('ok').onclick = () => { const l = document.getElementById('ff_l').value.trim(); if (!l) return toast('ใส่ชื่อก่อน', true);
-      const t = document.getElementById('ff_t').value; const o = document.getElementById('ff_o').value.split(',').map(s => s.trim()).filter(Boolean);
-      Object.assign(f, { l, t, o, u: document.getElementById('ff_u').value.trim(), h: document.getElementById('ff_h').value.trim() });
-      if (t === 'toggle') f.v = !!f.v && f.v !== 'ตาม OLD' && f.v !== 'ทำเอง'; else if (t === 'old') f.v = 'ตาม OLD'; else if (t === 'manual') f.v = 'ทำเอง'; else if (t === 'select') f.v = o.includes(f.v) ? f.v : (o[0] || ''); else if (typeof f.v === 'boolean') f.v = '';
+    $i('cx').onclick = closeModal;
+    $i('ok').onclick = () => { const l = $i('ff_l').value.trim(); if (!l) return toast('ใส่ชื่อก่อน', true);
+      const t = $i('ff_t').value, m = $i('ff_m').value, o = $i('ff_o').value.split(',').map(x => x.trim()).filter(Boolean);
+      const wasArr = Array.isArray(f.v);
+      Object.assign(f, { l, t, o, h: $i('ff_h').value.trim(), n: $i('ff_n').value.trim() }); if (m) f.m = m; else delete f.m;
+      if (t === 'toggle') f.v = f.v === true; else if (t === 'multi' || t === 'checks') f.v = wasArr ? f.v.filter(x => o.includes(x)) : []; else if (t === 'select') f.v = o.includes(f.v) ? f.v : (o[0] || ''); else if (typeof f.v !== 'string' && typeof f.v !== 'number') f.v = '';
       closeModal(); onOk(f); };
   };
-  document.querySelectorAll('[data-dedf]').forEach(b => b.onclick = () => { const { f } = fieldAt(b.dataset.dedf); fieldForm(f, () => mark(ctx)); });
-  document.querySelectorAll('[data-daddf]').forEach(b => b.onclick = () => { const { g } = fieldAt(b.dataset.daddf); fieldForm({ k: uid(), l: '', t: 'toggle', v: true }, f => { g.f.push(f); D.open[g.k] = true; mark(ctx); }); });
-  document.querySelectorAll('[data-dadd]').forEach(b => b.onclick = () => {
-    if (b.dataset.dadd === 'grp') { const v = prompt('ชื่อหัวข้อใหม่ (เช่น Receipts)'); if (!v) return; D.spec.find(s => s.k === D.sec).groups.push({ k: uid(), g: v.trim(), f: [] }); mark(ctx); }
-    else { const v = prompt('ชื่อหมวดใหม่ (เช่น Website)'); if (!v) return; const k = uid(); D.spec.push({ k, s: v.trim(), sub: '', groups: [] }); D.sec = k; mark(ctx); }
-  });
-  if (document.getElementById('dcancel')) document.getElementById('dcancel').onclick = () => { D.spec = JSON.parse(JSON.stringify(D.saved)); D.dirty = false; ctx.render(); };
-  if (document.getElementById('dsave')) document.getElementById('dsave').onclick = async () => {
+  $$('[data-dedf]').forEach(b => b.onclick = () => { const { f } = at(b.dataset.dedf); fieldForm(f, () => mark(ctx)); });
+  $$('[data-daddf]').forEach(b => b.onclick = () => { const { p } = at(b.dataset.daddf); fieldForm({ k: 'u' + Math.random().toString(36).slice(2, 8), l: '', t: 'toggle', v: true }, f => { p.f.push(f); mark(ctx); }); });
+  const doSave = async () => {
     const changes = diffSpecs(D.saved, D.spec); if (!changes.length) return;
-    const btn = document.getElementById('dsave'); btn.disabled = true; btn.textContent = 'กำลังบันทึก…';
+    const btn = $i('dsave'); if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก…'; }
     const body = JSON.stringify(D.spec);
     const { error } = await ctx.sb().from('content').upsert({ key: 'defaults_spec', body, updated_at: new Date().toISOString() });
-    if (error) { btn.disabled = false; btn.textContent = '💾 บันทึก'; return toast(error.message, true); }
+    if (error) { if (btn) { btn.disabled = false; btn.textContent = '💾 บันทึก'; } return toast(error.message, true); }
     D.saved = JSON.parse(body); D.dirty = false; D.src = body;
     const sync = getSync(content); let msg = `บันทึกแล้ว ${changes.length} จุด`;
     if (sync && sync.url) {
       try { const r = await callDoc(sync, { changes: changes.map(c => ({ kind: c.kind, section: c.section, group: c.group, label: c.label, oldLabel: c.oldLabel, value: c.value, note: c.note })), by: ctx.me() });
-        msg += r.ok ? ` · Google Doc: แก้ ${r.updated} · เพิ่มใหม่ ${r.added}${r.added ? ' (อยู่ท้าย Doc หัวข้อ "Updates from Migration Dashboard")' : ''}` : ' · ⚠️ Google Doc: ' + r.error;
+        msg += r.ok ? ` · Google Doc: แก้ ${r.updated} · เพิ่มใหม่ ${r.added}${r.added ? ' (ท้าย Doc หัวข้อ "Updates from Migration Dashboard")' : ''}` : ' · ⚠️ Google Doc: ' + r.error;
       } catch (e) { msg += ' · ⚠️ อัปเดต Google Doc ไม่สำเร็จ (' + e.message + ')'; }
     }
     toast(msg, /⚠️/.test(msg)); await ctx.loadAll(); ctx.render();
   };
-  if (document.getElementById('dpull')) document.getElementById('dpull').onclick = async () => {
+  if ($i('dsave')) $i('dsave').onclick = doSave;
+  $$('[data-dsavebtn]').forEach(b => b.onclick = doSave);
+  if ($i('dcancel')) $i('dcancel').onclick = () => { D.spec = clone(D.saved); D.dirty = false; ctx.render(); };
+  if ($i('dpull')) $i('dpull').onclick = async () => {
     const sync = getSync(content); let r;
     try { r = await callDoc(sync); } catch (e) { return toast('อ่าน Google Doc ไม่ได้: ' + e.message, true); }
     if (!r.ok) return toast('Google Doc: ' + r.error, true);
-    const all = []; D.spec.forEach(s => s.groups.forEach(g => g.f.forEach(f => all.push({ s, g, f }))));
-    const diffs = [], extra = [];
-    r.rows.forEach(row => { const hit = all.filter(x => norm(x.f.l) === norm(row.label)); const x = hit.find(h => norm(row.head).includes(norm(h.g.g)) || norm(h.g.g).includes(norm(row.head))) || hit[0];
+    const all = [...each(D.spec)]; const diffs = [], extra = [];
+    r.rows.forEach(row => { const hits = all.filter(x => norm(x.f.l) === norm(row.label)); const x = hits.find(h => norm(row.head).includes(norm(h.s.s)) || norm(h.s.s).includes(norm(row.head)) || norm(row.head).includes(norm(h.p.p))) || hits[0];
       if (!x) { if (row.value) extra.push(row); return; }
-      if (['old', 'manual'].includes(x.f.t)) return;
+      if (x.f.m === 'old' || x.f.m === 'manual' || x.f.t === 'list') return;
       if (norm(showVal(x.f)) !== norm(row.value)) diffs.push({ x, row }); });
     openModal(`<h3>📥 ค่าจาก Google Doc: ${esc(r.title)}</h3><p class="small muted">อ่านเจอ ${r.rows.length} บรรทัด · ติ๊กอันที่ต้องการเอามาใส่ใน Dashboard</p>
-      ${diffs.length ? `<div class="sec">ค่าไม่ตรงกัน (${diffs.length})</div><table class="small"><thead><tr><th></th><th>ช่อง</th><th>Dashboard</th><th>Google Doc</th></tr></thead><tbody>${diffs.map((d, i) => `<tr><td><input type="checkbox" data-pd="${i}" checked></td><td><b>${esc(d.x.f.l)}</b><div class="muted">${esc(d.x.s.s)} › ${esc(d.x.g.g)}</div></td><td>${esc(showVal(d.x.f))}</td><td><b>${esc(d.row.value)}</b></td></tr>`).join('')}</tbody></table>` : '<p class="small" style="color:var(--goodT)">✅ ค่าที่มีทั้งสองที่ตรงกันหมด</p>'}
-      ${extra.length ? `<div class="sec">มีใน Doc แต่ยังไม่มีใน Dashboard (${extra.length}) — เพิ่มเข้าหัวข้อ "จาก Google Doc"</div><table class="small"><tbody>${extra.map((e, i) => `<tr><td><input type="checkbox" data-pe="${i}"></td><td>${esc(e.head)}</td><td><b>${esc(e.label)}</b></td><td>${esc(e.value)}</td></tr>`).join('')}</tbody></table>` : ''}
+      ${diffs.length ? `<div class="sec">ค่าไม่ตรงกัน (${diffs.length})</div><table class="small"><thead><tr><th></th><th>ช่อง</th><th>Dashboard</th><th>Google Doc</th></tr></thead><tbody>${diffs.map((d, i) => `<tr><td><input type="checkbox" data-pd="${i}" checked></td><td><b>${esc(d.x.f.l)}</b><div class="muted">${esc(d.x.t.t)} › ${esc(d.x.s.s)}${d.x.p.p ? ' › ' + esc(d.x.p.p) : ''}</div></td><td>${esc(showVal(d.x.f))}</td><td><b>${esc(d.row.value)}</b></td></tr>`).join('')}</tbody></table>` : '<p class="small" style="color:var(--goodT)">✅ ค่าที่มีทั้งสองที่ตรงกันหมด</p>'}
+      ${extra.length ? `<div class="sec">มีใน Doc แต่ไม่มีในหน้า Settings (${extra.length}) — เพิ่มเป็นหมายเหตุที่หัวข้อ "จาก Google Doc"</div><table class="small"><tbody>${extra.map((e, i) => `<tr><td><input type="checkbox" data-pe="${i}"></td><td>${esc(e.head)}</td><td><b>${esc(e.label)}</b></td><td>${esc(e.value)}</td></tr>`).join('')}</tbody></table>` : ''}
       <div class="actions"><button class="btn" id="cx">ปิด</button> <button class="btn p" id="ok">ใส่ค่าที่ติ๊ก (แล้วกดบันทึก)</button></div>`);
-    document.getElementById('cx').onclick = closeModal;
-    document.getElementById('ok').onclick = () => {
-      document.querySelectorAll('[data-pd]').forEach(c => { if (!c.checked) return; const { x, row } = diffs[+c.dataset.pd]; const v = row.value;
-        if (x.f.t === 'toggle') x.f.v = /^(on|yes|true|enabled?|เปิด|✓|✔)/i.test(v); else if (x.f.t === 'number') { const n = parseFloat(v); x.f.v = isNaN(n) ? x.f.v : n; } else { x.f.v = v; if (x.f.t === 'select' && !(x.f.o || []).includes(v)) x.f.o = (x.f.o || []).concat([v]); } });
-      const picked = [...document.querySelectorAll('[data-pe]')].filter(c => c.checked).map(c => extra[+c.dataset.pe]);
-      if (picked.length) { const sec = D.spec.find(s => s.k === D.sec); let g = sec.groups.find(x => x.g === 'จาก Google Doc'); if (!g) { g = { k: uid(), g: 'จาก Google Doc', f: [] }; sec.groups.push(g); }
-        picked.forEach(p => g.f.push({ k: uid(), l: p.label, t: 'text', v: p.value, h: p.note || p.head })); }
+    $i('cx').onclick = closeModal;
+    $i('ok').onclick = () => {
+      $$('[data-pd]').forEach(c => { if (!c.checked) return; const { x, row } = diffs[+c.dataset.pd]; const v = row.value, f = x.f;
+        if (f.t === 'toggle') setV(f, /^(on|yes|true|enabled?|เปิด|✓|✔)/i.test(v)); else if (f.t === 'number') { const n = parseFloat(v); if (!isNaN(n)) setV(f, n); }
+        else if (f.t === 'multi' || f.t === 'checks') setV(f, v.split(/[,;\n]/).map(s => s.trim()).filter(Boolean)); else { setV(f, v); if (f.t === 'select' && !(f.o || []).includes(v)) f.o = (f.o || []).concat([v]); } });
+      const picked = [...$$('[data-pe]')].filter(c => c.checked).map(c => extra[+c.dataset.pe]);
+      if (picked.length) { const t = D.spec.tabs.find(x => x.k === D.tab); let s = t.secs.find(x => x.s === 'จาก Google Doc'); if (!s) { s = { k: 'gd' + Date.now(), s: 'จาก Google Doc', panes: [{ k: 'gp' + Date.now(), p: '', f: [] }] }; t.secs.push(s); }
+        picked.forEach(p => s.panes[0].f.push({ k: 'u' + Math.random().toString(36).slice(2, 8), l: p.label, t: 'text', v: p.value, h: p.head })); D.open[s.k] = true; }
       closeModal(); D.dirty = true; setMode('edit'); toast('ใส่ค่าแล้ว — ตรวจแล้วกด 💾 บันทึก');
     };
   };
-  if (document.getElementById('dsetup')) document.getElementById('dsetup').onclick = () => {
-    const cur = getSync(content) || {}; const token = cur.token || (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : uid() + uid() + uid());
+  if ($i('dsetup')) $i('dsetup').onclick = () => {
+    const cur = getSync(content) || {}; const token = cur.token || (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '') : Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
     const code = appsScript(token);
     openModal(`<h3>⚙️ เชื่อม Dashboard ⇄ Google Doc (ทำครั้งเดียว)</h3>
       <ol class="small steps">
@@ -293,11 +265,11 @@ export function bindDefaults(ctx, setMode) {
       <textarea readonly style="width:100%;height:120px;font:11px monospace;margin:6px 0">${esc(code)}</textarea>
       <label>Web app URL</label><input id="surl" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(cur.url || '')}" style="width:100%">
       <div class="actions">${cur.url ? '<button class="btn s r" id="soff">ยกเลิกการเชื่อม</button>' : ''}<span style="flex:1"></span><button class="btn" id="cx">ปิด</button> <button class="btn p" id="ssave">ทดสอบ + บันทึก</button></div>`);
-    document.getElementById('cx').onclick = closeModal;
-    document.getElementById('ccopy').onclick = async () => { try { await navigator.clipboard.writeText(code); toast('คัดลอกโค้ดแล้ว'); } catch { toast('คัดลอกไม่ได้ — เลือกข้อความในกล่องแล้วกด Cmd+C', true); } };
-    if (document.getElementById('soff')) document.getElementById('soff').onclick = async () => { await ctx.sb().from('content').delete().eq('key', 'gdoc_sync'); closeModal(); await ctx.loadAll(); ctx.render(); };
-    document.getElementById('ssave').onclick = async () => {
-      const url = document.getElementById('surl').value.trim(); if (!/^https:\/\/script\.google\.com\/.+\/exec/.test(url)) return toast('URL ต้องขึ้นต้น https://script.google.com/ และลงท้าย /exec', true);
+    $i('cx').onclick = closeModal;
+    $i('ccopy').onclick = async () => { try { await navigator.clipboard.writeText(code); toast('คัดลอกโค้ดแล้ว'); } catch { toast('คัดลอกไม่ได้ — เลือกข้อความในกล่องแล้วกด Cmd+C', true); } };
+    if ($i('soff')) $i('soff').onclick = async () => { await ctx.sb().from('content').delete().eq('key', 'gdoc_sync'); closeModal(); await ctx.loadAll(); ctx.render(); };
+    $i('ssave').onclick = async () => {
+      const url = $i('surl').value.trim(); if (!/^https:\/\/script\.google\.com\/.+\/exec/.test(url)) return toast('URL ต้องขึ้นต้น https://script.google.com/ และลงท้าย /exec', true);
       let r; try { r = await callDoc({ url, token }); } catch (e) { return toast('ต่อไม่ได้: ' + e.message + ' — เช็กว่า Who has access = Anyone', true); }
       if (!r.ok) return toast('Google Doc ตอบ: ' + r.error + ' — โค้ดที่วางอาจไม่ใช่ชุดล่าสุด กดคัดลอกใหม่', true);
       const { error } = await ctx.sb().from('content').upsert({ key: 'gdoc_sync', body: JSON.stringify({ url, token }), updated_at: new Date().toISOString() });
