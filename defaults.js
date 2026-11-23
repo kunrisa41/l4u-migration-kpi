@@ -135,6 +135,7 @@ export function defaultsCard(ctx, emb, st) {
   const ctl0 = (f, pa) => {
     const a = `data-dv="${pa}" ${dis}`;
     if (f.t === 'toggle') return `<label class="cxsw"><input type="checkbox" ${a} ${f.v ? 'checked' : ''}><i></i></label>`;
+    if (f.ui === 'picklist') return `<div class="cxpick"><div class="cxpickh">เลือกใช้ 1 ประโยคจากรายการนี้ (สุ่มได้) — กด 📋 เพื่อคัดลอก</div>${(f.o || []).map((o, i) => `<div class="cxpickr"><span>${esc(o)}</span><button type="button" class="btn s" data-dpick="${pa}" data-i="${i}">📋 Copy</button></div>`).join('')}</div>`;
     if (f.t === 'select' && f.ui === 'buttons') return `<div class="cxbtns">${f.o.map(o => `<button type="button" class="${o === f.v ? 'on' : ''}" data-dbtn="${pa}" data-val="${esc(o)}" ${dis}>${esc(o)}</button>`).join('')}</div>`;
     if (f.t === 'select') { const o = f.o && f.o.length ? f.o : (/timezone/i.test(f.l) ? TZ : []); const list = o.includes(f.v) || f.v === '' ? o : [f.v, ...o];
       return `<div class="cxsel"><select class="cxin" ${a}>${f.v === '' ? '<option value="">Select from the dropdown or type to search...</option>' : ''}${list.map(x => `<option ${x === f.v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>`; }
@@ -222,6 +223,7 @@ export function bindDefaults(ctx, setMode) {
   $$('[data-dprinter]').forEach(b => b.onclick = () => { D.modal = b.dataset.dprinter; const y = window.scrollY; ctx.render(); window.scrollTo(0, y); const pg = document.querySelector('.cxpage'); if (pg) pg.scrollTop = 0; });
   $$('[data-dmclose]').forEach(b => b.onclick = e => { if (e.target !== b) return; D.modal = null; keep(ctx); });
   $$('[data-dint]').forEach(b => b.onclick = () => { const { f } = at(b.dataset.dint); f.v = !f.v; mark(ctx); });
+  $$('[data-dpick]').forEach(b => b.onclick = async e => { e.stopPropagation(); const { f } = at(b.dataset.dpick); const t = (f.o || [])[+b.dataset.i] || ''; try { await navigator.clipboard.writeText(t); toast('คัดลอกแล้ว — ไปวางในระบบได้เลย'); } catch { toast('คัดลอกไม่ได้ — เลือกข้อความแล้วกด Cmd+C', true); } });
   $$('[data-dcopy]').forEach(b => b.onclick = async e => { e.stopPropagation(); const { f } = at(b.dataset.dcopy); try { await navigator.clipboard.writeText(String(f.v)); toast('คัดลอกแล้ว — ไปวางในระบบได้เลย'); } catch { toast('คัดลอกไม่ได้ — เลือกข้อความแล้วกด Cmd+C', true); } });
   $$('[data-dbtn]').forEach(b => b.onclick = () => { const { f } = at(b.dataset.dbtn); setV(f, b.dataset.val); mark(ctx); });
   $$('[data-dsecret]').forEach(x => x.onchange = async () => { const { error } = await ctx.sb().from('content').upsert({ key: x.dataset.dsecret, body: x.value.trim(), updated_at: new Date().toISOString() }); ctx.toast(error ? 'บันทึกรหัสไม่สำเร็จ: ' + error.message : 'บันทึกรหัส Default แล้ว'); if (!error) await ctx.loadAll(); });
