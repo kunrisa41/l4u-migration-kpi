@@ -89,7 +89,7 @@ function apply_(changes, by) {
 
 // ---------- UI: 1:1 copy of NEW admin › Settings (structure read from the real admin, 23 Nov 2026) ----------
 const TZ = (() => { try { return Intl.supportedValuesOf('timeZone'); } catch { return []; } })();
-let D = { spec: null, saved: null, area: 'Restaurants', tab: 'system', open: {}, pane: {}, q: '', dirty: false };
+let D = { spec: null, saved: null, modal: null, area: 'Restaurants', tab: 'system', open: {}, pane: {}, q: '', dirty: false };
 const clone = o => JSON.parse(JSON.stringify(o));
 const MODE = { old: ['↔ ตาม OLD', 'old'], manual: ['✋ ทำเอง', 'man'], unset: ['ยังไม่กำหนด Default', 'uns'], skip: ['ไม่ต้องตั้ง', 'skp'] };
 
@@ -103,6 +103,8 @@ export function flatten(spec) { return [...each(spec)].map(({ t, s, p, f }) => (
 function showVal(f) {
   if (f.m === 'old') return 'ตาม OLD'; if (f.m === 'skip') return 'ไม่ต้องตั้ง'; if (f.m === 'manual') return 'ทำเอง (' + (f.n || 'ต่อร้าน') + ')';
   if (f.t === 'toggle') return f.v ? 'ON' : 'OFF';
+  if (f.t === 'integration') return f.v === 'na' ? 'Not Available' : f.v ? 'Enabled' : 'Disabled';
+  if (f.t === 'printers') return (f.v || []).join(', ');
   if (Array.isArray(f.v)) return f.v.join(', ') || '—';
   return String(f.v ?? '');
 }
@@ -131,13 +133,18 @@ export function defaultsCard(ctx, emb, st) {
     if (f.t === 'select') { const o = f.o && f.o.length ? f.o : (/timezone/i.test(f.l) ? TZ : []); const list = o.includes(f.v) || f.v === '' ? o : [f.v, ...o];
       return `<div class="cxsel"><select class="cxin" ${a}>${f.v === '' ? '<option value="">Select from the dropdown or type to search...</option>' : ''}${list.map(x => `<option ${x === f.v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>`; }
     if (f.t === 'multi') return `<div class="cxmulti">${(f.o || []).map(o => `<label class="cxchip ${(f.v || []).includes(o) ? 'on' : ''}"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}>${esc(o)}${(f.v || []).includes(o) ? ' ×' : ''}</label>`).join('')}${!(f.v || []).length ? '<span class="cxph">Select from the dropdown or type to search...</span>' : ''}</div>`;
+    if (f.t === 'checks' && f.ui === 'switchbox') return `<div class="cxbox">${(f.o || []).map(o => `<div class="cxboxrow"><label class="cxsw"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><i></i></label><span>${esc(o)}</span><b class="cxdrag">✥</b></div>`).join('')}</div>${f.reset ? '<button type="button" class="cxgrey" disabled>Reset</button>' : ''}`;
+    if (f.t === 'printers') return `<div class="cxpbtns"><button type="button" class="cxbtnp" disabled>Create Printer</button><button type="button" class="cxbtnp" disabled>Update Status</button></div><div class="cxplist">${(f.v || []).map(k => { const ps = tab.secs.find(x => x.k === k); if (!ps) return ''; const nm = ((ps.panes[0].f.find(x => x.l === 'Name') || {}).v) || ps.s;
+      return `<div class="cxprow" data-dprinter="${k}" title="กดเพื่อดู/แก้ Edit Printer"><span class="cxdot"></span><div><b>${esc(nm)}</b><div>API Key: <span class="cxkey">ได้หลังกด Create Printer</span></div><div>Status: Disconnected</div></div><span class="cxpico">🗑 ⧉</span></div>`; }).join('')}</div>`;
+    if (f.t === 'textarea' && f.ui === 'rich') return `<div class="cxrich"><div class="cxtool"><span>Default ⇕</span><b>B</b><i>I</i><u>U</u><span>☰</span><span>---</span></div><textarea class="cxin cxta" ${a}>${esc(f.v)}</textarea></div><button type="button" class="cxclear" disabled>Clear</button>`;
+    if (f.t === 'select' && f.ui === 'native') return `<select class="cxin cxnative" ${a}>${(f.o || []).map(x => `<option ${x === f.v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
     if (f.t === 'checks' && f.ui === 'switchcol') return `<div class="cxstack">${(f.o || []).map(o => `<div class="cxrowsw"><label class="cxsw"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><i></i></label><span>${esc(o)}</span></div>`).join('')}</div>`;
     if (f.t === 'checks' && f.ui === 'checkcol') return `<div class="cxstack">${(f.o || []).map(o => `<label class="cxrowck"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><i></i><span>${esc(o)}</span></label>`).join('')}</div>`;
     if (f.t === 'checks' && f.ui === 'switches') return `<div class="cxchecks${f.col ? ' col' : ''}">${(f.o || []).map(o => `<span class="cxswl"><label class="cxsw"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><i></i></label>${esc(o)}</span>`).join('')}</div>`;
     if (f.t === 'checks') return `<div class="cxchecks">${(f.o || []).map(o => `<label><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><span>${esc(o)}</span></label>`).join('')}</div>`;
     if (f.t === 'textarea') return `<textarea class="cxin cxta ${f.rich ? 'rich' : ''}" ${a}>${esc(f.v)}</textarea>`;
     if (f.t === 'list') return `<div class="cxlist">${esc(f.v || '—')}</div>`;
-    return `<input class="cxin" type="${f.t === 'number' ? 'number' : 'text'}" value="${esc(f.v)}" ${a}>`;
+    return `<input class="cxin" type="${f.t === 'number' ? 'number' : 'text'}" value="${esc(f.v)}" ${f.ph ? `placeholder="${esc(f.ph)}"` : ''} ${a}>`;
   };
   const grp = (f, pa, pane) => { const md = MODE[f.m];
     if (f.t === 'info') { let tag = '';
@@ -145,11 +152,15 @@ export function defaultsCard(ctx, emb, st) {
       return `<div class="cxgrp cxinfo">${f.l ? `<div class="cxlab"><label class="title">${esc(f.l)}</label></div>` : ''}${esc(f.v).split(/\n\n+/).map(x => `<p>${x}</p>`).join('')}${tag}</div>`; }
     return `<div class="cxgrp ${f.m ? 'm-' + f.m : ''}"><div class="cxlab"><label class="title">${esc(f.l)}</label>${md ? `<span class="cxm ${md[1]}">${md[0]}</span>` : ''}<span style="flex:1"></span>${f.copy && f.v ? `<button class="btn s cxcopy" data-dcopy="${pa}">📋 คัดลอก</button>` : ''}${f.opt ? '<span class="optional">OPTIONAL</span>' : ''}
       ${edit ? `<button class="lnk" data-dedf="${pa}" title="แก้ชื่อ / ชนิด / สถานะ / หมายเหตุ">✎</button><button class="lnk" data-ddelf="${pa}" title="ลบ">🗑</button>` : ''}</div>
-      ${ctl(f, pa)}${f.h ? `<div class="cxhelp">${esc(f.h)}</div>` : ''}${f.n ? `<div class="cxnote">💡 ${esc(f.n)}</div>` : ''}</div>`; };
+      ${ctl(f, pa)}${f.logo ? '<div class="cxlogo404">LOGO<br>NOT FOUND!</div>' : ''}${f.h ? `<div class="cxhelp">${esc(f.h)}</div>` : ''}${f.n ? `<div class="cxnote">💡 ${esc(f.n)}</div>` : ''}${f.imgs ? `<div class="cximgs">${f.imgs.map(([t, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt=""><span>${esc(t)}</span></a>`).join('')}</div>` : ''}</div>`; };
+  const card = (f, pa) => { const st = f.v === 'na' ? ['Not Available', 'na'] : f.v ? ['Enabled', 'on'] : ['Disabled', 'off']; const md = MODE[f.m];
+    return `<div class="cxicard"><div class="cxih"><b>${esc(f.l)}</b>${f.beta ? '<span class="cxbeta">BETA</span>' : ''}${md ? `<span class="cxm ${md[1]}">${md[0]}</span>` : ''}</div><div class="cxicat">${esc(f.cat || '')}</div>
+      <span class="cxist ${st[1]}" ${edit && f.v !== 'na' ? `data-dint="${pa}" title="กดเพื่อสลับ"` : ''}>${st[0]}</span><p>${esc(f.h || '')}</p>${f.price ? `<p><b>${esc(f.price)}</b></p>` : ''}${f.warn ? `<div class="cxwarn">⚠ ${esc(f.warn)}</div>` : ''}${f.n ? `<div class="cxnote">💡 ${esc(f.n)}</div>` : ''}</div>`; };
   const hit = s => !q || s.panes.some(p => p.f.some(f => norm(f.l + ' ' + s.s + ' ' + p.p + ' ' + (f.n || '')).includes(q)));
   const rows = tab.secs.map(s => {
     if (s.cat) return `<div class="cxcat">${esc(s.cat)}</div>`;
-    if (!hit(s)) return '';
+    if (s.hidden || !hit(s)) return '';
+    if (s.grid) return `<div class="cxgrid">${s.panes[0].f.filter(f => !q || norm(f.l + ' ' + (f.cat || '')).includes(q)).map(f => card(f, path(s, s.panes[0], f))).join('')}</div>`;
     const op = !!q || D.open[s.k]; const pi = Math.min(D.pane[s.k] || 0, s.panes.length - 1); const pane = s.panes[pi];
     const fl = pane.f.filter(f => !q || norm(f.l + ' ' + s.s + ' ' + pane.p + ' ' + (f.n || '')).includes(q));
     return `<div class="cxacc ${op ? 'open' : ''}"><div class="cxhead" data-dacc="${s.k}">${s.svc ? '<span class="cxok">✓</span>' : ''}<span class="nm">${esc(s.s)}</span>${edit ? `<button class="lnk" data-dren="${tab.k}|${s.k}">✎</button>` : ''}<span class="chev">${op ? '⌃' : '⌄'}</span></div>
@@ -160,10 +171,16 @@ export function defaultsCard(ctx, emb, st) {
   }).join('');
   const syncLine = sync && sync.url ? `<span class="small" style="color:var(--goodT)">🔗 เชื่อม Google Doc แล้ว</span> <button class="btn s" id="dpull">📥 ดึงค่าจาก Google Doc</button>` : `<span class="small muted">ยังไม่เชื่อม Google Doc${ctx.isMgr() ? '' : ' (Manager ตั้งค่า)'}</span>`;
   const legend = '<span class="cxm old">↔ ตาม OLD</span> คัดลอกจากระบบเดิม · <span class="cxm man">✋ ทำเอง</span> ใส่เองทุกร้าน · <span class="cxm uns">ยังไม่กำหนด Default</span> ยังไม่มีค่ามาตรฐาน · <span class="cxm skp">ไม่ต้องตั้ง</span> ปล่อยตามระบบ · ไม่มีป้าย = ค่า Default ของ LFY';
+  let modal = '';
+  if (D.modal) { const ms = tab.secs.find(x => x.k === D.modal);
+    if (ms) { const pi = Math.min(D.pane[ms.k] || 0, ms.panes.length - 1), pane = ms.panes[pi];
+      modal = `<div class="cxmbg" data-dmclose><div class="cxmodal" onclick="event.stopPropagation()"><button class="cxmx" data-dmclose>×</button><div class="cxmhead"><h2>Edit Printer</h2><div>API Key: <span class="cxkey">ได้หลังกด Create Printer</span></div></div>
+        <div class="cxitabs">${ms.panes.map((p, i) => `<span class="${i === pi ? 'on' : ''}" data-dpane="${ms.k}|${i}">${esc(p.p)}</span>`).join('')}</div>
+        <div class="cxbody">${pane.f.map(f => grp(f, path(ms, pane, f), pane)).join('')}${edit ? `<button class="lnk cxadd" data-daddf="${path(ms, pane)}">+ เพิ่มช่องตั้งค่าในแท็บนี้</button>` : ''}<button class="cxsave" ${edit && nCh ? 'data-dsavebtn' : 'disabled'}>Save</button></div></div></div>`; } else D.modal = null; }
   const nav = `<div class="cxnav"><span class="cxlogo"><b>LOCAL</b><small>FOR YOU</small></span>${areas.map(a => `<span class="${a === D.area ? 'on' : ''}" data-darea="${esc(a)}">${esc(a)}</span>`).join('')}</div>`;
-  const page = `<div class="sheetwrap dwrap"><div class="cxpage ${edit ? 'editing' : ''}">${nav}<div class="cxtop"><h1>${esc(D.area === 'Restaurants' ? 'Settings' : (tab.h1 || D.area))}</h1><input class="cxq" id="dq" placeholder="🔎 ค้นหาการตั้งค่า" value="${esc(D.q)}"></div>
+  const page = `<div class="sheetwrap dwrap"><div class="cxpage ${edit ? 'editing' : ''} ${modal ? 'hasmodal' : ''}">${nav}<div class="cxtop"><h1>${esc(D.area === 'Restaurants' ? 'Settings' : (tab.h1 || D.area))}</h1><input class="cxq" id="dq" placeholder="🔎 ค้นหาการตั้งค่า" value="${esc(D.q)}"></div>
     ${D.area === 'Restaurants' ? '' : ''}<div class="cxcard">${atabs.length > 1 || tab.t ? `<div class="cxtabs">${atabs.map(t => `<span class="${t.k === tab.k ? 'on' : ''}" data-dtab="${t.k}">${esc(t.t)}</span>`).join('')}</div>` : ''}${rows}</div>
-    <div class="cxlegend">${legend}</div></div><div class="sheetgut" title="เลื่อน Dashboard ตรงนี้">⇕</div></div>`;
+    <div class="cxlegend">${legend}</div>${modal}</div><div class="sheetgut" title="เลื่อน Dashboard ตรงนี้">⇕</div></div>`;
   return `<div class="card sheetcard dcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${esc(emb.t)} <small>ค่ามาตรฐานตอนตั้งร้านใหม่ · หน้าตาเหมือนหน้า Settings ของ NEW</small></h2>
       <span class="seg"><label><input type="radio" name="dmode" data-dmode="edit" ${mode === 'edit' ? 'checked' : ''}><b>✏️ แก้ไข</b></label><label><input type="radio" name="dmode" data-dmode="view" ${mode === 'view' ? 'checked' : ''}><b>👁️ ดูอย่างเดียว</b></label><label><input type="radio" name="dmode" data-dmode="doc" ${mode === 'doc' ? 'checked' : ''}><b>📄 Google Doc</b></label></span>
       ${emb.u ? `<a class="btn s" href="${esc(emb.u)}" target="_blank" rel="noopener">เปิด Doc ในแท็บใหม่</a>` : ''}
@@ -187,12 +204,15 @@ export function bindDefaults(ctx, setMode) {
   const { esc, toast, openModal, closeModal, content } = ctx; const $$ = s => document.querySelectorAll(s), $i = s => document.getElementById(s);
   if (!document.querySelector('.dcard')) return;
   $$('[data-dmode]').forEach(x => x.onchange = () => { if (D.dirty && x.dataset.dmode !== 'edit' && !confirm('มีการแก้ไขที่ยังไม่บันทึก — ทิ้งการแก้ไข?')) return ctx.render(); if (x.dataset.dmode !== 'edit') { D.dirty = false; D.spec = null; } setMode(x.dataset.dmode); });
-  $$('[data-dtab]').forEach(b => b.onclick = () => { D.tab = b.dataset.dtab; keep(ctx); });
-  $$('[data-darea]').forEach(b => b.onclick = () => { D.area = b.dataset.darea; D.tab = ''; keep(ctx); });
+  $$('[data-dtab]').forEach(b => b.onclick = () => { D.tab = b.dataset.dtab; D.modal = null; keep(ctx); });
+  $$('[data-darea]').forEach(b => b.onclick = () => { D.area = b.dataset.darea; D.tab = ''; D.modal = null; keep(ctx); });
   $$('[data-dacc]').forEach(h => h.onclick = e => { if (e.target.closest('.lnk')) return; D.open[h.dataset.dacc] = !D.open[h.dataset.dacc]; keep(ctx); });
   $$('[data-dpane]').forEach(b => b.onclick = () => { const [k, i] = b.dataset.dpane.split('|'); D.pane[k] = +i; keep(ctx); });
   const dq = $i('dq'); if (dq) dq.oninput = e => { D.q = e.target.value; const p = e.target.selectionStart; ctx.render(); const el = $i('dq'); el.focus(); el.setSelectionRange(p, p); };
   $$('[data-dv]').forEach(x => x.onchange = () => { const { f } = at(x.dataset.dv); setV(f, f.t === 'toggle' ? x.checked : f.t === 'number' ? (x.value === '' ? '' : Number(x.value)) : x.value); mark(ctx); });
+  $$('[data-dprinter]').forEach(b => b.onclick = () => { D.modal = b.dataset.dprinter; const y = window.scrollY; ctx.render(); window.scrollTo(0, y); const pg = document.querySelector('.cxpage'); if (pg) pg.scrollTop = 0; });
+  $$('[data-dmclose]').forEach(b => b.onclick = e => { if (e.target !== b) return; D.modal = null; keep(ctx); });
+  $$('[data-dint]').forEach(b => b.onclick = () => { const { f } = at(b.dataset.dint); f.v = !f.v; mark(ctx); });
   $$('[data-dcopy]').forEach(b => b.onclick = async e => { e.stopPropagation(); const { f } = at(b.dataset.dcopy); try { await navigator.clipboard.writeText(String(f.v)); toast('คัดลอกแล้ว — ไปวางในระบบได้เลย'); } catch { toast('คัดลอกไม่ได้ — เลือกข้อความแล้วกด Cmd+C', true); } });
   $$('[data-dbtn]').forEach(b => b.onclick = () => { const { f } = at(b.dataset.dbtn); setV(f, b.dataset.val); mark(ctx); });
   $$('[data-dmul]').forEach(x => x.onchange = () => { const { f } = at(x.dataset.dmul); const v = new Set(f.v || []); x.checked ? v.add(x.value) : v.delete(x.value); setV(f, (f.o || []).filter(o => v.has(o))); mark(ctx); });
