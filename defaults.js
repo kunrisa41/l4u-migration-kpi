@@ -138,7 +138,7 @@ export function defaultsCard(ctx, emb, st) {
     return `<input class="cxin" type="${f.t === 'number' ? 'number' : 'text'}" value="${esc(f.v)}" ${a}>`;
   };
   const grp = (f, pa) => { const md = MODE[f.m];
-    return `<div class="cxgrp ${f.m ? 'm-' + f.m : ''}"><div class="cxlab"><label class="title">${esc(f.l)}</label>${md ? `<span class="cxm ${md[1]}">${md[0]}</span>` : ''}<span style="flex:1"></span>${f.opt ? '<span class="optional">OPTIONAL</span>' : ''}
+    return `<div class="cxgrp ${f.m ? 'm-' + f.m : ''}"><div class="cxlab"><label class="title">${esc(f.l)}</label>${md ? `<span class="cxm ${md[1]}">${md[0]}</span>` : ''}<span style="flex:1"></span>${f.copy && f.v ? `<button class="btn s cxcopy" data-dcopy="${pa}">📋 คัดลอก</button>` : ''}${f.opt ? '<span class="optional">OPTIONAL</span>' : ''}
       ${edit ? `<button class="lnk" data-dedf="${pa}" title="แก้ชื่อ / ชนิด / สถานะ / หมายเหตุ">✎</button><button class="lnk" data-ddelf="${pa}" title="ลบ">🗑</button>` : ''}</div>
       ${ctl(f, pa)}${f.h ? `<div class="cxhelp">${esc(f.h)}</div>` : ''}${f.n ? `<div class="cxnote">💡 ${esc(f.n)}</div>` : ''}</div>`; };
   const hit = s => !q || s.panes.some(p => p.f.some(f => norm(f.l + ' ' + s.s + ' ' + p.p + ' ' + (f.n || '')).includes(q)));
@@ -188,6 +188,7 @@ export function bindDefaults(ctx, setMode) {
   $$('[data-dpane]').forEach(b => b.onclick = () => { const [k, i] = b.dataset.dpane.split('|'); D.pane[k] = +i; keep(ctx); });
   const dq = $i('dq'); if (dq) dq.oninput = e => { D.q = e.target.value; const p = e.target.selectionStart; ctx.render(); const el = $i('dq'); el.focus(); el.setSelectionRange(p, p); };
   $$('[data-dv]').forEach(x => x.onchange = () => { const { f } = at(x.dataset.dv); setV(f, f.t === 'toggle' ? x.checked : f.t === 'number' ? (x.value === '' ? '' : Number(x.value)) : x.value); mark(ctx); });
+  $$('[data-dcopy]').forEach(b => b.onclick = async e => { e.stopPropagation(); const { f } = at(b.dataset.dcopy); try { await navigator.clipboard.writeText(String(f.v)); toast('คัดลอกแล้ว — ไปวางในระบบได้เลย'); } catch { toast('คัดลอกไม่ได้ — เลือกข้อความแล้วกด Cmd+C', true); } });
   $$('[data-dbtn]').forEach(b => b.onclick = () => { const { f } = at(b.dataset.dbtn); setV(f, b.dataset.val); mark(ctx); });
   $$('[data-dmul]').forEach(x => x.onchange = () => { const { f } = at(x.dataset.dmul); const v = new Set(f.v || []); x.checked ? v.add(x.value) : v.delete(x.value); setV(f, (f.o || []).filter(o => v.has(o))); mark(ctx); });
   $$('[data-ddelf]').forEach(b => b.onclick = () => { const { p, fi, f } = at(b.dataset.ddelf); if (!confirm(`ลบ "${f.l}"?`)) return; p.f.splice(fi, 1); mark(ctx); });
