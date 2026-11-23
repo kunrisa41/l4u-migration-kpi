@@ -411,3 +411,20 @@ html,body{overflow-x:clip}
 .dwrap{margin-top:0}
 .dwrap .cxpage{flex:1;min-width:0}
 .dwrap .sheetgut{height:640px;box-sizing:border-box}
+/* exact switch + checkbox look of the NEW admin settings pages */
+.cxsw i{width:50px;height:24px;border-radius:30px;background:#fff;box-shadow:inset 0 0 0 2px #DDDDDD}
+.cxsw i::after{left:4px;top:4px;width:16px;height:16px;background:#DDDDDD}
+.cxsw input:checked+i{background:#fff;box-shadow:inset 0 0 0 2px #273B91}
+.cxsw input:checked+i::after{left:30px;background:#273B91}
+.cxchecks.col .cxsw i{box-shadow:none;background:#CCCCCC}.cxchecks.col .cxsw i::after{background:#fff}
+.cxchecks.col .cxsw input:checked+i{background:#273B91;box-shadow:none}.cxchecks.col .cxsw input:checked+i::after{background:#fff}
+.cxstack{display:flex;flex-direction:column;gap:10px}
+.cxrowsw{display:flex;align-items:center;gap:20px;font-size:14px}
+.cxrowck{display:flex;align-items:center;gap:12px;margin:0;font-size:14px;cursor:pointer}
+.cxrowck input{display:none}
+.cxrowck i{width:18px;height:18px;border-radius:3px;border:2px solid #BDBDBD;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;background:#fff}
+.cxrowck input:checked+i{background:#273B91;border-color:#273B91}
+.cxrowck input:checked+i::after{content:'';width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.cxinfo p{margin:0 0 10px;font-size:14px;line-height:1.45}
+.cxinfo .cxlab{margin-bottom:10px}
+.cxtag{display:inline-block;background:#EEEEEE;border-radius:3px;padding:8px 12px;font-size:14px;font-weight:700;margin-top:6px}

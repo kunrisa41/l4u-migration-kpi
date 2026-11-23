@@ -98,7 +98,7 @@ export function getSpec(content) {
   return SEED || { v: 2, tabs: [] };
 }
 const secs = t => t.secs.filter(s => !s.cat);
-function* each(spec) { for (const t of spec.tabs) for (const s of secs(t)) for (const p of s.panes) for (const f of p.f) yield { t, s, p, f }; }
+function* each(spec) { for (const t of spec.tabs) for (const s of secs(t)) for (const p of s.panes) for (const f of p.f) if (f.t !== 'info') yield { t, s, p, f }; }
 export function flatten(spec) { return [...each(spec)].map(({ t, s, p, f }) => ({ section: `${t.t || t.area} › ${s.s}`, group: p.p || s.s, label: f.l, value: showVal(f), note: [f.n, f.h].filter(Boolean).join(' · '), key: f.k })); }
 function showVal(f) {
   if (f.m === 'old') return 'ตาม OLD'; if (f.m === 'skip') return 'ไม่ต้องตั้ง'; if (f.m === 'manual') return 'ทำเอง (' + (f.n || 'ต่อร้าน') + ')';
@@ -131,13 +131,18 @@ export function defaultsCard(ctx, emb, st) {
     if (f.t === 'select') { const o = f.o && f.o.length ? f.o : (/timezone/i.test(f.l) ? TZ : []); const list = o.includes(f.v) || f.v === '' ? o : [f.v, ...o];
       return `<div class="cxsel"><select class="cxin" ${a}>${f.v === '' ? '<option value="">Select from the dropdown or type to search...</option>' : ''}${list.map(x => `<option ${x === f.v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></div>`; }
     if (f.t === 'multi') return `<div class="cxmulti">${(f.o || []).map(o => `<label class="cxchip ${(f.v || []).includes(o) ? 'on' : ''}"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}>${esc(o)}${(f.v || []).includes(o) ? ' ×' : ''}</label>`).join('')}${!(f.v || []).length ? '<span class="cxph">Select from the dropdown or type to search...</span>' : ''}</div>`;
+    if (f.t === 'checks' && f.ui === 'switchcol') return `<div class="cxstack">${(f.o || []).map(o => `<div class="cxrowsw"><label class="cxsw"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><i></i></label><span>${esc(o)}</span></div>`).join('')}</div>`;
+    if (f.t === 'checks' && f.ui === 'checkcol') return `<div class="cxstack">${(f.o || []).map(o => `<label class="cxrowck"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><i></i><span>${esc(o)}</span></label>`).join('')}</div>`;
     if (f.t === 'checks' && f.ui === 'switches') return `<div class="cxchecks${f.col ? ' col' : ''}">${(f.o || []).map(o => `<span class="cxswl"><label class="cxsw"><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><i></i></label>${esc(o)}</span>`).join('')}</div>`;
     if (f.t === 'checks') return `<div class="cxchecks">${(f.o || []).map(o => `<label><input type="checkbox" data-dmul="${pa}" value="${esc(o)}" ${(f.v || []).includes(o) ? 'checked' : ''} ${dis}><span>${esc(o)}</span></label>`).join('')}</div>`;
     if (f.t === 'textarea') return `<textarea class="cxin cxta ${f.rich ? 'rich' : ''}" ${a}>${esc(f.v)}</textarea>`;
     if (f.t === 'list') return `<div class="cxlist">${esc(f.v || '—')}</div>`;
     return `<input class="cxin" type="${f.t === 'number' ? 'number' : 'text'}" value="${esc(f.v)}" ${a}>`;
   };
-  const grp = (f, pa) => { const md = MODE[f.m];
+  const grp = (f, pa, pane) => { const md = MODE[f.m];
+    if (f.t === 'info') { let tag = '';
+      if (f.tag) { const num = l => Number((pane.f.find(x => x.l === l) || {}).v) || 0; tag = `<span class="cxtag">${esc(f.tag).replace('{wait}', `<u>${num('Time Till Confirm (minutes)') + num('Time Till Ready (minutes)')}</u>`)}</span>`; }
+      return `<div class="cxgrp cxinfo">${f.l ? `<div class="cxlab"><label class="title">${esc(f.l)}</label></div>` : ''}${esc(f.v).split(/\n\n+/).map(x => `<p>${x}</p>`).join('')}${tag}</div>`; }
     return `<div class="cxgrp ${f.m ? 'm-' + f.m : ''}"><div class="cxlab"><label class="title">${esc(f.l)}</label>${md ? `<span class="cxm ${md[1]}">${md[0]}</span>` : ''}<span style="flex:1"></span>${f.copy && f.v ? `<button class="btn s cxcopy" data-dcopy="${pa}">📋 คัดลอก</button>` : ''}${f.opt ? '<span class="optional">OPTIONAL</span>' : ''}
       ${edit ? `<button class="lnk" data-dedf="${pa}" title="แก้ชื่อ / ชนิด / สถานะ / หมายเหตุ">✎</button><button class="lnk" data-ddelf="${pa}" title="ลบ">🗑</button>` : ''}</div>
       ${ctl(f, pa)}${f.h ? `<div class="cxhelp">${esc(f.h)}</div>` : ''}${f.n ? `<div class="cxnote">💡 ${esc(f.n)}</div>` : ''}</div>`; };
@@ -149,7 +154,7 @@ export function defaultsCard(ctx, emb, st) {
     const fl = pane.f.filter(f => !q || norm(f.l + ' ' + s.s + ' ' + pane.p + ' ' + (f.n || '')).includes(q));
     return `<div class="cxacc ${op ? 'open' : ''}"><div class="cxhead" data-dacc="${s.k}">${s.svc ? '<span class="cxok">✓</span>' : ''}<span class="nm">${esc(s.s)}</span>${edit ? `<button class="lnk" data-dren="${tab.k}|${s.k}">✎</button>` : ''}<span class="chev">${op ? '⌃' : '⌄'}</span></div>
       ${op ? `${s.panes.length > 1 ? `<div class="cxitabs">${s.panes.map((p, i) => `<span class="${i === pi ? 'on' : ''}" data-dpane="${s.k}|${i}">${esc(p.p)}</span>`).join('')}</div>` : ''}
-        <div class="cxbody">${(q ? fl : pane.f).map(f => grp(f, path(s, pane, f))).join('') || '<p class="cxhelp">— ไม่มีช่องตั้งค่า —</p>'}
+        <div class="cxbody">${(q ? fl : pane.f).map(f => grp(f, path(s, pane, f), pane)).join('') || '<p class="cxhelp">— ไม่มีช่องตั้งค่า —</p>'}
         ${edit ? `<button class="lnk cxadd" data-daddf="${path(s, pane)}">+ เพิ่มช่องตั้งค่าในแท็บนี้</button>` : ''}
         <button class="cxsave" ${edit && nCh ? 'data-dsavebtn' : 'disabled'}>Save</button></div>` : ''}</div>`;
   }).join('');
