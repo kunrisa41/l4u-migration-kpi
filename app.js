@@ -229,6 +229,7 @@ function viewTools() {
   /* real product logo: by name first (e.g. "Stripe"), then by the kind of link */
   const fav = (u, n) => { try { const h = new URL(u).hostname, p = new URL(u).pathname;
     if (/stripe/i.test(n || '')) return s2('stripe.com');
+    if (/youcanbook\.me$/.test(h) || /calendar|book .*team|appointment/i.test(n || '')) return 'https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_31_2x.png';
     if (/kml|map/i.test(n || '') && /drive\.google/.test(h)) return GI.drive;
     if (/docs\.google\.com$/.test(h)) return /\/spreadsheets\//.test(p) ? GI.sheets : /\/presentation\//.test(p) ? s2('slides.google.com') : GI.docs;
     if (/drive\.google\.com$/.test(h)) return GI.drive;
