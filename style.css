@@ -502,3 +502,4 @@ html,body{overflow-x:clip}
 .starhero{flex-direction:column;justify-content:center;text-align:center;gap:10px;padding:18px}.starbody{display:flex;flex-direction:column;align-items:center}.starhero ul{display:inline-block;text-align:left;margin:4px auto 0}
 
 .webex{margin-top:12px}.webex img{width:100%;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;margin-top:4px;display:block}
+.flyc .webex img{max-height:420px;object-fit:contain;background:#F1F5F9}

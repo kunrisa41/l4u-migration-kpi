@@ -1602,7 +1602,7 @@ function flyerBlock() {
   return `<div class="ac" id="flyers"><div class="an">B</div><div><b>Create & Send Flyers</b> <span class="small muted">ทำใบปลิวใหม่ให้ตรงกับระบบสั่งอาหารใหม่ แล้วส่งให้ร้าน</span>
     <div class="flygrid">
       <div class="flyc"><div class="spt">1️⃣ สร้างใบปลิว + Dine-in QR Code</div><p class="small" style="margin:4px 0 8px">เปิดเครื่องมือสร้าง Flyers ใส่ข้อมูลร้าน / โดเมน / ส่วนลด แล้วดาวน์โหลดรูปใบปลิว</p>
-        ${u ? `<a class="btn p s" href="${esc(u)}" target="_blank" rel="noopener">🎨 เปิด Create Flyers</a>` : ''}${tk('e1', 'สร้างใบปลิวของร้านนี้แล้ว')}${tk('e5', 'สร้าง Dine-in QR Code ของร้านแล้ว')}</div>
+        ${u ? `<a class="btn p s" href="${esc(u)}" target="_blank" rel="noopener">🎨 เปิด Create Flyers</a>` : ''}${tk('e1', 'สร้างใบปลิวของร้านนี้แล้ว')}${tk('e5', 'สร้าง Dine-in QR Code ของร้านแล้ว')}<div class="webex"><div class="small muted">ตัวอย่างใบปลิว + QR Code</div><img src="img/ex_flyer.jpg" alt="ตัวอย่างใบปลิว + QR Code" data-zoom="img/ex_flyer.jpg" class="real"></div></div>
       <div class="flyc"><div class="spt">2️⃣ ส่งให้ร้านทาง respond.io chat</div><p class="small" style="margin:4px 0 8px">แนบรูปใบปลิว + ส่งข้อความนี้ (ไทย + อังกฤษ)</p>
         <div class="row"><button class="btn p s" data-cpt="flyer_chat">📋 Copy ข้อความแชต</button>${isMgr() ? '<button class="btn s" data-edt="flyer_chat">แก้ไขข้อความ</button>' : ''}</div>
         <details class="small"><summary>ดูข้อความ</summary><pre class="msg">${esc(content('flyer_chat'))}</pre></details>${tk('e2', 'ส่งใบปลิว + ข้อความให้ร้านทาง respond.io แล้ว')}</div>
@@ -1611,7 +1611,7 @@ function flyerBlock() {
         <div class="row"><button class="btn p s" id="fly_cp">📋 Copy ข้อความโพสต์</button>${isMgr() ? '<button class="btn s" data-edt="flyer_post">แก้ไขข้อความ</button>' : ''}</div>
         <pre class="msg" id="fly_prev">${esc(flyerPost())}</pre>${tk('e3', 'เตรียมข้อความโพสต์ (ใส่โดเมน + % ส่วนลด) แล้ว')}</div>
       <div class="flyc"><div class="spt">4️⃣ เก็บใน Customer File ของร้าน</div><p class="small" style="margin:4px 0 8px">อัปโหลดรูปใบปลิว + Dine-in QR Code (และข้อความโพสต์) เข้า <b>Customer File</b> ของร้านนี้ ให้ทีมหาเจอทีหลัง</p>
-        ${content('customer_file_url') ? `<a class="btn s" href="${esc(content('customer_file_url'))}" target="_blank" rel="noopener">📁 เปิด Customer File</a>` : ''}${isMgr() ? ' <button class="btn s" id="cf_set">⚙️ ตั้งลิงก์ Customer File</button>' : ''}${tk('e4', 'เก็บใบปลิว + Dine-in QR Code ใน Customer File ของร้านแล้ว')}</div>
+        ${content('customer_file_url') ? `<a class="btn s" href="${esc(content('customer_file_url'))}" target="_blank" rel="noopener">📁 เปิด Customer File</a>` : ''}${isMgr() ? ' <button class="btn s" id="cf_set">⚙️ ตั้งลิงก์ Customer File</button>' : ''}${tk('e4', 'เก็บใบปลิว + Dine-in QR Code ใน Customer File ของร้านแล้ว')}<div class="webex"><div class="small muted">ตัวอย่าง: Customer Files › ชื่อร้าน › โฟลเดอร์ Dine-in by MIG</div><img src="img/ex_customer_file.jpg" alt="ตัวอย่าง: Customer Files › ชื่อร้าน › โฟลเดอร์ Dine-in by MIG" data-zoom="img/ex_customer_file.jpg" class="real"></div></div>
     </div></div></div>`;
 }
 function bindFlyers() {
@@ -1681,8 +1681,8 @@ async function viewFlow() {
           <div class="sp it"><div class="spt">🛠️ เว็บ Template สร้างโดย IT</div><ul><li>บอกร้าน: <b>พร้อมใช้พรุ่งนี้ (ภายใน 24 ชม.)</b></li><li>แจ้งใน Monday IT board ให้อัปเดตปุ่ม <b>Online Order</b> และ <b>Table Reservation</b></li></ul>${it ? `<a class="btn s" href="${esc(it)}" target="_blank" rel="noopener">🔗 Monday IT board</a>` : ''}<div class="webex"><div class="small muted">ตัวอย่างหน้าตาเว็บ Template โดย IT</div><img src="img/web_it_example.jpg" alt="ตัวอย่างเว็บ Template โดย IT" data-zoom="img/web_it_example.jpg" class="real"></div></div></div>
         <div class="tks">${tk('b1', 'แจ้งคุณต้น (เว็บ CW) หรือแจ้ง Monday IT board (เว็บ IT) แล้ว')}${tk('b2', 'บอกร้านแล้วว่าใช้ระบบใหม่ได้เมื่อไหร่ (ทันที / ภายใน 24 ชม.)')}</div></div></div>
       <div class="ac"><div class="an">D</div><div><b>อัปเดต 486 Monday</b> ${content('monday_486') ? `<a class="btn s" href="${esc(content('monday_486'))}" target="_blank" rel="noopener">🔗 เปิด 486 board</a>` : ''}
-        <div class="split"><div class="sp ok"><div class="spt">✅ เรียบร้อยทุกอย่าง</div><ul><li>เปลี่ยน Status เป็น <b>Completed</b></li></ul></div>
-          <div class="sp q"><div class="spt">⏳ ยังไม่เรียบร้อย</div><ul><li>คงสถานะ <b>Queue to go live</b></li><li>ตอนกด Record LIVE ให้ใส่ <b>"ต้องตามเรื่องอะไร"</b></li><li>ระบบแจ้งเตือนเข้า <b>Google Chat</b> ให้เอง และขึ้นในกล่อง "ต้องตามงานต่อ" หน้า Dashboard จนกว่าจะกดเสร็จ</li></ul></div></div>
+        <div class="split"><div class="sp ok"><div class="spt">✅ เรียบร้อยทุกอย่าง</div><ul><li>เปลี่ยน Status เป็น <b>Completed</b></li></ul><div class="webex"><div class="small muted">ตัวอย่าง 486: กลุ่ม MIG Complete</div><img src="img/ex_486_complete.jpg" alt="ตัวอย่าง 486: กลุ่ม MIG Complete" data-zoom="img/ex_486_complete.jpg" class="real"></div></div>
+          <div class="sp q"><div class="spt">⏳ ยังไม่เรียบร้อย</div><ul><li>คงสถานะ <b>Queue to go live</b></li><li>ตอนกด Record LIVE ให้ใส่ <b>"ต้องตามเรื่องอะไร"</b></li><li>ระบบแจ้งเตือนเข้า <b>Google Chat</b> ให้เอง และขึ้นในกล่อง "ต้องตามงานต่อ" หน้า Dashboard จนกว่าจะกดเสร็จ</li></ul><div class="webex"><div class="small muted">ตัวอย่าง 486: กลุ่ม MIG QUEUE to LIVE</div><img src="img/ex_486_queue.jpg" alt="ตัวอย่าง 486: กลุ่ม MIG QUEUE to LIVE" data-zoom="img/ex_486_queue.jpg" class="real"></div></div></div>
         <div class="tks">${tk('c1', 'อัปเดต 486 Monday แล้ว (Completed หรือ Queue to go live)')}</div></div></div>
       ${oldSysBlock()}
       ${flowStorePick()}
