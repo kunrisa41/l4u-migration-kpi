@@ -1193,11 +1193,22 @@ function bindRecLog() {
 }
 /* 📢 Daily announcements / update log (Manager posts, everyone reads) */
 function annList() { try { const v = JSON.parse(content('announcements') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+function annAcks() { try { const v = JSON.parse(content('ann_acks') || '{}'); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; } }
 function annCard() {
   const L = annList().slice().sort((a, b) => (b.d || '').localeCompare(a.d || '') || (b.id || 0) - (a.id || 0));
-  const td = C.iso(C.today());
-  const row = a => `<div class="annrow"><div class="annd">${fd(a.d)}${a.d === td ? ' <span class="badge b-ok">วันนี้</span>' : ''}</div><div class="annb"><b>${esc(a.t)}</b>${a.b ? `<div class="annx">${esc(a.b)}</div>` : ''}<div class="small muted">โดย ${esc(a.by || '')}</div></div>${isMgr() ? `<div class="annact"><button class="btn s" data-anned="${a.id}">แก้ไข</button><button class="btn s" data-anndel="${a.id}">ลบ</button></div>` : ''}</div>`;
-  return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">📢 ประกาศ & อัปเดต <small>${L.length} รายการ · ใหม่สุดอยู่บน · เลื่อนดูย้อนหลังได้</small></h2>${isMgr() ? '<button class="btn s p" id="annnew">+ ประกาศใหม่</button>' : ''}</div>
+  const td = C.iso(C.today()), AK = annAcks();
+  const team = S.members.filter(m => m.active && !m.is_team);
+  const hm = t => { const m = String(t || '').match(/^(\d{4})-(\d\d)-(\d\d)T(\d\d:\d\d)/); return m ? `${fd(m[1] + '-' + m[2] + '-' + m[3])} ${m[4]}` : ''; };
+  const row = a => {
+    const acks = AK[String(a.id)] || []; const need = team.filter(m => m.name !== a.by);
+    const done = need.filter(m => acks.some(k => k.code === m.code)), wait = need.filter(m => !acks.some(k => k.code === m.code));
+    const cls = !need.length || !wait.length ? 'ann-all' : done.length ? 'ann-some' : 'ann-none';
+    const mine = S.me && need.some(m => m.code === S.me.code) && !acks.some(k => k.code === S.me.code);
+    return `<div class="annrow ${cls}"><div class="annd">${fd(a.d)}${a.d === td ? ' <span class="badge b-ok">วันนี้</span>' : ''}</div><div class="annb"><b>${esc(a.t)}</b>${a.b ? `<div class="annx">${esc(a.b)}</div>` : ''}<div class="small muted">โดย ${esc(a.by || '')}</div>
+      <div class="annack small">${acks.length ? `✅ รับทราบแล้ว: ${acks.map(k => `<b>${esc(k.name)}</b> <span class="muted">(${hm(k.at)})</span>`).join(' · ')}` : '<span class="annwait">ยังไม่มีใครรับทราบ</span>'}${wait.length ? ` <span class="annwait">· รอ: ${wait.map(m => esc(m.name)).join(', ')}</span>` : ''}</div></div>
+      <div class="annact">${mine ? `<button class="btn s t" data-annack="${a.id}">👍 รับทราบ</button>` : ''}${isMgr() ? `<button class="btn s" data-anned="${a.id}">แก้ไข</button><button class="btn s" data-anndel="${a.id}">ลบ</button>` : ''}</div></div>`;
+  };
+  return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">📢 ประกาศ & อัปเดต <small>${L.length} รายการ · ใหม่สุดอยู่บน · กด 👍 รับทราบ · <span class="annkey ann-none">ยังไม่มีใครกด</span> <span class="annkey ann-some">กดบางคน</span> <span class="annkey ann-all">ครบแล้ว</span></small></h2>${isMgr() ? '<button class="btn s p" id="annnew">+ ประกาศใหม่</button>' : ''}</div>
     <div class="annbox">${L.map(row).join('') || '<div class="muted small" style="padding:10px">ยังไม่มีประกาศ</div>'}</div></div>`;
 }
 function annModal(a) {
@@ -1215,6 +1226,7 @@ function annModal(a) {
   };
 }
 function bindAnn() {
+  document.querySelectorAll('[data-annack]').forEach(b => b.onclick = async () => { b.disabled = true; await save(sb.rpc('ann_ack', { p_id: b.dataset.annack, p_code: S.me.code, p_name: S.me.name }), 'รับทราบแล้ว 👍'); });
   if ($('#annnew')) $('#annnew').onclick = () => annModal(null);
   document.querySelectorAll('[data-anned]').forEach(b => b.onclick = () => annModal(annList().find(x => String(x.id) === b.dataset.anned)));
   document.querySelectorAll('[data-anndel]').forEach(b => b.onclick = async () => { const L = annList(); const a = L.find(x => String(x.id) === b.dataset.anndel); if (!a || !confirm(`ลบประกาศ "${a.t}"?`)) return;
