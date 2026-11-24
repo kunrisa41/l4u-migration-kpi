@@ -322,7 +322,9 @@ function render() {
     $('#app').innerHTML = `<div class="login"><h1>Account not linked</h1><p>You are signed in as <b>${esc(S.session.user.email)}</b>, but this e-mail is not on the team list yet. Ask the Manager to add you in the Team tab.</p><button class="btn" id="out">Sign out</button></div>`;
     $('#out').onclick = () => sb.auth.signOut(); return;
   }
-  { const hm = location.hash.match(/^#run=(\d+)/); if (hm) { S.tab = 'run'; S.runId = +hm[1]; } else if (S.tab === 'run') S.tab = 'home'; }
+  { const hb = location.hash.match(/^#blk=(\d+)/), ht = location.hash.match(/^#tab=([a-z]+)/);
+    if (hb || ht) { S.tab = hb ? 'blockers' : ht[1]; if (hb) S.blkHi = +hb[1]; history.replaceState(null, '', location.pathname + location.search); }
+    const hm = location.hash.match(/^#run=(\d+)/); if (hm) { S.tab = 'run'; S.runId = +hm[1]; } else if (S.tab === 'run') S.tab = 'home'; }
   if (S.tab === 'daily') S.tab = 'perf';
   if (S.tab === 'feedback') { S.tab = 'flow'; S.scrollFb = true; }
   const inKpi = KPI_TABS.some(t => t[0] === S.tab);
@@ -543,7 +545,7 @@ function viewBlockers() {
   <div class="tw"><table class="blk"><thead><tr><th>เสร็จ</th><th>วันที่</th><th>ร้าน</th><th>ผู้ดูแล</th><th>ปัญหา</th><th>รายละเอียด</th><th>ต้องตามภายใน</th><th>สถานะ</th><th>Manager Noted</th><th></th></tr></thead><tbody>
   ${list.map(b => { const i = C.blockerInfo(b, a); const done = b.status === 'Resolved'; const days = Math.round((C.today() - C.parseD(b.log_date)) / C.DAY);
     const can = isMgr() || b.employee === S.me.code;
-    return `<tr class="${done ? 'done' : ''}"><td style="text-align:center"><input type="checkbox" class="tick" data-tick="${b.id}" ${done ? 'checked' : ''} ${can ? '' : 'disabled'} title="ติ๊กเมื่อแก้เสร็จ"></td>
+    return `<tr class="${done ? 'done' : ''}${S.blkHi === b.id ? ' blkhi' : ''}" data-blkrow="${b.id}"><td style="text-align:center"><input type="checkbox" class="tick" data-tick="${b.id}" ${done ? 'checked' : ''} ${can ? '' : 'disabled'} title="ติ๊กเมื่อแก้เสร็จ"></td>
     <td class="small">${fd(b.log_date)}${!done && days > 0 ? `<div style="color:${days >= 2 ? 'var(--badT)' : 'var(--warnT)'};font-weight:700">${days} วัน</div>` : ''}${done && b.res_date ? `<div class="small" style="color:var(--goodT)">เสร็จ ${fd(b.res_date)}</div>` : ''}</td>
     <td><b>${esc(rn(b))}</b></td><td>${esc(memberName(b.employee))}</td><td class="small">${esc(b.category || '')}${b.activity_id && b.status !== 'Resolved' ? `<div>${badge('⏳ LIVE รอติ๊ก', 'warn')}</div>` : ''}${b.party ? `<div class="muted">${esc(b.party)}</div>` : ''}</td>
     <td class="small">${esc(b.description || '')}${b.evidence ? ` <a href="${esc(b.evidence)}" target="_blank" rel="noopener">หลักฐาน</a>` : ''}${(b.images || []).length ? `<div class="bthumbs">${b.images.map(p => `<a data-bimg="${esc(p)}" target="_blank" rel="noopener"><img data-bimgsrc="${esc(p)}" alt="🖼️"></a>`).join('')}</div>` : ''}</td>
@@ -552,6 +554,7 @@ function viewBlockers() {
     <td>${isMgr() ? `<select class="mini" data-brv="${b.id}">${REVIEW2.map(o => `<option value="${o[0]}" ${(b.review || 'Pending') === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>` : `<span class="small">${esc((REVIEW2.find(o => o[0] === (b.review || 'Pending')) || ['', ''])[1])}</span>`}</td>
     <td>${can ? `<button class="btn s" data-b="${b.id}">แก้ไข</button>` : ''}</td></tr>`; }).join('') || '<tr><td colspan="10" class="muted">ยังไม่มีปัญหาที่บันทึกไว้</td></tr>'}</tbody></table></div></div>`;
   { const ps = [...document.querySelectorAll('[data-bimgsrc]')].map(x => x.dataset.bimgsrc); if (ps.length) blkImgUrls(ps).then(u => { document.querySelectorAll('[data-bimgsrc]').forEach(im => { if (u[im.dataset.bimgsrc]) { im.src = u[im.dataset.bimgsrc]; im.parentElement.href = u[im.dataset.bimgsrc]; } }); }); }
+  if (S.blkHi) { const row = document.querySelector(`[data-blkrow="${S.blkHi}"]`); if (row) setTimeout(() => row.scrollIntoView({ block: 'center' }), 50); else if (S.blockers.length) toast('ไม่พบรายการนี้ (อาจถูกลบไปแล้ว)', true); setTimeout(() => { S.blkHi = null; }, 15000); }
   $('#bopen').onchange = e => { S.bOpen = e.target.checked; render(); };
   $('#addb').onclick = () => blockerModal(null);
   $('#expb').onclick = () => download('blocker-noshow-log.csv', toCsv([['Date', 'Restaurant ID', 'Restaurant Name', 'Employee', 'Issue Category', 'Issue Description', 'Evidence Link', 'Responsible Party', 'Follow-up Due Date', 'Follow-up Completed Date', 'Resolved Date', 'Status', 'Manager Noted']]
@@ -1382,7 +1385,7 @@ function viewRun() {
   document.querySelectorAll('#main [data-dl]').forEach(b => b.onclick = () => openReport(b.dataset.dl));
   document.querySelectorAll('#main [data-rlpl]').forEach(b => b.onclick = () => { history.replaceState(null, '', location.pathname + location.search); const n = b.dataset.rlpl.trim().toLowerCase(); const p = (S.prelive || []).find(x => x.store_name.trim().toLowerCase() === n); S.pl = p ? Object.assign({}, p) : { store_name: b.dataset.rlpl, checks: {}, inspector: S.me.code }; S.tab = 'prelive'; render(); });
 }
-window.addEventListener('hashchange', () => { if (/^#run=/.test(location.hash) && S.me) render(); });
+window.addEventListener('hashchange', () => { if (/^#(run|blk|tab)=/.test(location.hash) && S.me) render(); });
 function recLog() {
   const runs = S.runs || []; const q = (S.rlQ || '').toLowerCase();
   const list = runs.filter(r => !q || r.store_name.toLowerCase().includes(q)).slice(0, S.rlAll ? 300 : 15);
