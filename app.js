@@ -1311,6 +1311,24 @@ const runLink = r => location.origin + location.pathname + '#run=' + r.id;
 const runLinkBtn = r => `<button class="btn s" data-runlink="${r.id}" title="คัดลอกลิงก์หน้านี้ ส่งให้ทีมเปิดดูสิ่งที่ต้องแก้">🔗 คัดลอกลิงก์ส่งทีม</button>`;
 function bindRunLink() { document.querySelectorAll('[data-runlink]').forEach(b => b.onclick = async e => { e.stopPropagation(); const r = (S.runs || []).find(x => String(x.id) === b.dataset.runlink) || { id: b.dataset.runlink };
   const t = runLink(r); try { await navigator.clipboard.writeText(t); toast('คัดลอกลิงก์แล้ว — วางส่งทีมได้เลย: ' + t); } catch { prompt('คัดลอกลิงก์นี้', t); } }); }
+const runChatBtn = r => `<button class="btn s t" data-runchat="${r.id}" title="ส่งผลตรวจร้านนี้ + โน้ต เข้า Google Chat ของทีม">💬 Send to chat</button>`;
+function bindRunChat() { document.querySelectorAll('[data-runchat]').forEach(b => b.onclick = e => { e.stopPropagation();
+  const r = (S.runs || []).find(x => String(x.id) === b.dataset.runchat); if (!r) return;
+  const bad = (r.checks || []).filter(c => (c.status === 'FAIL' || c.status === 'REVIEW') && !hideCheck(c)).length;
+  const pct = v => v === null || v === undefined ? '–' : v + '%';
+  const head = `🧪 *ผลตรวจร้าน ${r.store_name}* (${fmtDT(r.created_at)})\nเมนู ${pct(r.menu_percent)} · หลังบ้าน ${pct(r.backend_percent)} · รวม ${pct(r.overall_percent)}\nต้องแก้: เมนู ${r.items_need_fixing || 0} · หลังบ้าน ${bad} จุด`;
+  openModal(`<h2>💬 Send to chat</h2><p class="small muted">ส่งเข้า Google Chat ของทีม พร้อมลิงก์หน้าผลตรวจ</p>
+    <label>โน้ตถึงทีม (ไม่ใส่ก็ได้)</label><textarea id="rcnote" rows="3" placeholder="เช่น Kphat please edit this shop before go live on upcoming appointment"></textarea>
+    <div class="row" style="gap:6px;margin:6px 0;flex-wrap:wrap">${['Kphat please edit this shop before go live on upcoming appointment', 'Kton please edit this shop before go live on upcoming appointment', 'Please recheck after editing'].map(t => `<button class="btn s" data-rcq="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+    <label>ตัวอย่างข้อความ</label><pre class="msg" id="rcprev" style="white-space:pre-wrap"></pre>
+    <div class="actions"><button class="btn" id="cx">ยกเลิก</button> <button class="btn p" id="rcsend">💬 ส่งเข้าแชท</button></div>`);
+  const build = () => { const n = ($('#rcnote').value || '').trim(); return `${head}${n ? `\n📝 ${S.me.name}: ${n}` : `\nส่งโดย ${S.me.name}`}\n🔗 ${runLink(r)}`; };
+  const upd = () => { $('#rcprev').textContent = build(); }; upd();
+  $('#rcnote').oninput = upd; document.querySelectorAll('[data-rcq]').forEach(q => q.onclick = () => { $('#rcnote').value = q.dataset.rcq; upd(); });
+  $('#cx').onclick = closeModal;
+  $('#rcsend').onclick = async () => { $('#rcsend').disabled = true; const { error } = await sb.rpc('gchat_post', { p_text: build() });
+    if (error) { $('#rcsend').disabled = false; return toast('ส่งไม่สำเร็จ: ' + error.message, true); } closeModal(); toast('ส่งเข้า Google Chat แล้ว'); };
+}); }
 function backendIssuesHtml(r) {
   const bad = (r.checks || []).filter(c => (c.status === 'FAIL' || c.status === 'REVIEW') && !hideCheck(c));
   if (!bad.length) return '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงทุกจุดที่ตรวจ</p>';
@@ -1329,13 +1347,13 @@ function viewRun() {
   const bad = (r.checks || []).filter(c => (c.status === 'FAIL' || c.status === 'REVIEW') && !hideCheck(c));
   $('#main').innerHTML = `<div class="card">
     <div class="row" style="align-items:center;flex-wrap:wrap;gap:8px"><h2 style="flex:1;margin:0">🧪 ผลตรวจ: ${esc(r.store_name)} <small>${fmtDT(r.created_at)} · ${esc(r.mode || '')} · ${esc(r.version || '')}${r.operator ? ' · ' + esc(r.operator) : ''}</small></h2>
-      ${runLinkBtn(r)}${recheckBtn(r)}${pdfOf(r) ? `<button class="btn s p" data-dl="${pdfOf(r).id}">📄 PDF</button>` : ''}<button class="btn s" data-rlpl="${esc(r.store_name)}">เปิด Pre-Live ของร้านนี้</button><button class="btn s" data-tab="home">← หน้าแรก</button></div>
+      ${runChatBtn(r)}${runLinkBtn(r)}${recheckBtn(r)}${pdfOf(r) ? `<button class="btn s p" data-dl="${pdfOf(r).id}">📄 PDF</button>` : ''}<button class="btn s" data-rlpl="${esc(r.store_name)}">เปิด Pre-Live ของร้านนี้</button><button class="btn s" data-tab="home">← หน้าแรก</button></div>
     <div class="grid g3" style="margin-top:10px">${[['เมนู (OLD vs NEW)', r.menu_percent, r.items_need_fixing ? `ต้องแก้ ${r.items_need_fixing} เมนู` : ''], ['หลังบ้าน (Backend)', r.backend_percent, `${bad.length} จุดต้องดู`], ['รวม (Overall)', r.overall_percent, '']].map(x => `<div class="kpi"><div class="l">${x[0]}</div><div class="v">${pct(x[1])}</div><div class="s">${esc(x[2])}</div></div>`).join('')}</div>
     ${r.summary && r.summary.newUrl ? `<p class="small muted" style="margin:8px 0 0">NEW: <a href="${esc(r.summary.newUrl)}" target="_blank" rel="noopener">${esc(r.summary.newUrl)}</a>${r.summary.oldUrl ? ` · OLD: <a href="${esc(r.summary.oldUrl)}" target="_blank" rel="noopener">${esc(r.summary.oldUrl)}</a>` : ''}</p>` : ''}
     <h3 style="margin:16px 0 4px">🛠️ หลังบ้าน</h3>${backendIssuesHtml(r)}
     <h3 style="margin:18px 0 4px">🍽️ เมนู</h3>${menuIssuesHtml(r) || '<p class="small" style="color:var(--goodT)">✅ เมนูตรงทั้งหมด</p>'}</div>`;
   document.querySelectorAll('#main [data-tab]').forEach(b => b.onclick = () => { history.replaceState(null, '', location.pathname + location.search); S.tab = b.dataset.tab; render(); });
-  bindRunLink(); bindRecheck();
+  bindRunLink(); bindRecheck(); bindRunChat();
   document.querySelectorAll('#main [data-dl]').forEach(b => b.onclick = () => openReport(b.dataset.dl));
   document.querySelectorAll('#main [data-rlpl]').forEach(b => b.onclick = () => { history.replaceState(null, '', location.pathname + location.search); const n = b.dataset.rlpl.trim().toLowerCase(); const p = (S.prelive || []).find(x => x.store_name.trim().toLowerCase() === n); S.pl = p ? Object.assign({}, p) : { store_name: b.dataset.rlpl, checks: {}, inspector: S.me.code }; S.tab = 'prelive'; render(); });
 }
@@ -1352,7 +1370,7 @@ function recLog() {
       ${open ? `<tr><td colspan="9" style="background:#F8FAFC">${bad.length ? Object.entries(groups).map(([g, l]) => `<div class="sec" style="margin-top:6px">${esc(g)} (${l.length})</div><table class="small issues"><thead><tr><th></th><th>รายการ</th><th>OLD / ต้องเป็น</th><th>NEW ตอนนี้</th><th>ต้องทำ</th></tr></thead><tbody>
         ${l.slice(0, 80).map(c => `<tr><td>${c.status === 'FAIL' ? '❌' : '❓'}</td><td><b>${esc(c.field)}</b></td><td>${esc(String(c.old || '').replace(/\s*\(\+\s*Check@gmail\.com\)/i, ''))}</td><td>${esc(c.new)}</td><td>${esc(c.action)}</td></tr>`).join('')}</tbody></table>`).join('')
         : '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงทุกจุดที่ตรวจ</p>'}${menuIssuesHtml(r)}
-        <div class="row" style="margin-top:6px">${runLinkBtn(r)}${recheckBtn(r)}${pdfOf(r) ? `<button class="btn s p" data-dl="${pdfOf(r).id}">📄 เปิด Compare Report (PDF)</button>` : ''}<button class="btn s" data-rlpl="${esc(r.store_name)}">เปิด Pre-Live ของร้านนี้</button>${content('mig_drive') ? `<a class="btn s" href="${esc(content('mig_drive'))}" target="_blank" rel="noopener">📁 วิดีโอใน MIG Audit Check</a>` : ''}</div></td></tr>` : ''}`; };
+        <div class="row" style="margin-top:6px">${runChatBtn(r)}${runLinkBtn(r)}${recheckBtn(r)}${pdfOf(r) ? `<button class="btn s p" data-dl="${pdfOf(r).id}">📄 เปิด Compare Report (PDF)</button>` : ''}<button class="btn s" data-rlpl="${esc(r.store_name)}">เปิด Pre-Live ของร้านนี้</button>${content('mig_drive') ? `<a class="btn s" href="${esc(content('mig_drive'))}" target="_blank" rel="noopener">📁 วิดีโอใน MIG Audit Check</a>` : ''}</div></td></tr>` : ''}`; };
   return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🧪 Log การตรวจเช็ค (LFY Recorder) <small>คะแนน + สิ่งที่ต้องแก้ ส่งมาเองทุกครั้งที่ตรวจเสร็จ (PDF ส่งมาด้วยตั้งแต่ V18.29)</small></h2>
       <input id="rlq" placeholder="ค้นหาชื่อร้าน" value="${esc(S.rlQ || '')}" style="width:220px"></div>
     <div class="tw" style="margin-top:10px"><table><thead><tr><th>วันที่</th><th>ร้าน</th><th>โหมด</th><th>โดย</th><th class="num">เมนู</th><th class="num">หลังบ้าน</th><th class="num">รวม</th><th>ผล</th><th></th></tr></thead><tbody>
@@ -1361,7 +1379,7 @@ function recLog() {
 }
 function bindRecLog() {
   document.querySelectorAll('#main [data-dl]').forEach(b => b.onclick = e => { e.stopPropagation(); openReport(b.dataset.dl); });
-  bindRecheck(); bindRunLink();
+  bindRecheck(); bindRunLink(); bindRunChat();
   document.querySelectorAll('[data-rl]').forEach(t => t.onclick = () => { const id = +t.dataset.rl; S.rlOpen = S.rlOpen === id ? null : id; const y = window.scrollY; render(); window.scrollTo(0, y); });
   document.querySelectorAll('[data-rlpl]').forEach(b => b.onclick = e => { e.stopPropagation(); const n = b.dataset.rlpl.trim().toLowerCase(); const p = (S.prelive || []).find(x => x.store_name.trim().toLowerCase() === n);
     S.pl = p ? Object.assign({}, p) : { store_name: b.dataset.rlpl, checks: {}, inspector: S.me.code }; S.tab = 'prelive'; render(); window.scrollTo(0, 0); });
@@ -1575,7 +1593,7 @@ function viewPrelive() {
     return `<div class="autobox">${head}${list ? `<details><summary class="small">ดูรายละเอียด</summary><ul class="small">${list}</ul></details>` : ''}</div>`; };
   const runPanel = run ? (() => { const bad = (run.checks || []).filter(c => (c.status === 'FAIL' || c.status === 'REVIEW') && !hideCheck(c));
     const groups = {}; bad.forEach(c => { (groups[c.area || 'อื่นๆ'] = groups[c.area || 'อื่นๆ'] || []).push(c); });
-    return `<div class="runpanel"><div class="row" style="align-items:center"><b style="flex:1">🤖 ผลจาก LFY Recorder ${esc(run.version || '')}</b>${runLinkBtn(run)}&nbsp;${recheckBtn(run)}&nbsp;<span class="small muted">${fmtDT(run.created_at)} · ${esc(run.mode || '')}${run.operator ? ' · ' + esc(run.operator) : ''}</span></div>
+    return `<div class="runpanel"><div class="row" style="align-items:center"><b style="flex:1">🤖 ผลจาก LFY Recorder ${esc(run.version || '')}</b>${runChatBtn(run)}&nbsp;${runLinkBtn(run)}&nbsp;${recheckBtn(run)}&nbsp;<span class="small muted">${fmtDT(run.created_at)} · ${esc(run.mode || '')}${run.operator ? ' · ' + esc(run.operator) : ''}</span></div>
       <div class="grid g3" style="margin-top:8px">${[['เมนู (OLD vs NEW)', run.menu_percent, run.items_need_fixing !== null && run.items_need_fixing !== undefined ? `ต้องแก้ ${run.items_need_fixing} รายการ` : (run.menu_status || '')],
         ['หลังบ้าน (Backend)', run.backend_percent, `${bad.length} จุดต้องดู`], ['รวม (Overall)', run.overall_percent, '']].map(x => `<div class="kpi"><div class="l">${x[0]}</div><div class="v">${x[1] === null || x[1] === undefined ? '–' : x[1] + '%'}</div><div class="s">${esc(x[2])}</div></div>`).join('')}</div>
       ${bad.length ? `<details open style="margin-top:8px"><summary><b>รายการที่ Recorder พบว่าไม่ตรง / ต้องแก้ (${bad.length})</b> — OLD มีอะไร / NEW เป็นอะไร</summary>
@@ -1612,7 +1630,7 @@ function viewPrelive() {
   $('#pl_all').onclick = () => { const c = collect(); delete c._r; PRELIVE.forEach(x => { c.checks['i' + x.n] = true; if (x.all) c.checks['o' + x.n] = x.opts.slice(); }); c.done = PL_REQ; S.pl = c; render(); };
   $('#pl_new').onclick = () => { S.pl = null; render(); };
   bindWording();
-  bindRecheck(); bindRunLink();
+  bindRecheck(); bindRunLink(); bindRunChat();
   $('#pl_rec').onclick = () => { const n = $('#pl_r').value.trim(); if (!n) { toast('ใส่ชื่อร้านก่อน (ชื่อเดียวกับที่จะใส่ใน Recorder)', true); $('#pl_r').focus(); return; }
     const c = collect(); delete c._r; S.pl = c; window.open('http://localhost:3210/?shop=' + encodeURIComponent(n), '_blank', 'noopener');
     toast('เปิด LFY Recorder แล้ว · ตรวจเสร็จผลจะขึ้นที่นี่เอง'); };
