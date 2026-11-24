@@ -1022,7 +1022,7 @@ function activityModal(kind, a, pre) {
         <label class="ci"><input type="checkbox" id="af_mit" ${chk.monday_it ? 'checked' : ''}> <span>แจ้งใน <b>Monday IT board</b> ให้อัปเดตปุ่ม Online Order & Table Reservation แล้ว</span></label>
         ${content('monday_it') ? `<a class="btn s" href="${esc(content('monday_it'))}" target="_blank" rel="noopener">🔗 เปิด Monday IT board</a>` : ''}</div>
       <div class="afh">D · 486 Monday</div>
-      <div class="ls"><span>อัปเดต 486 Monday Status * ${content('monday_486') ? `<a href="${esc(content('monday_486'))}" target="_blank" rel="noopener" class="small">🔗 เปิด 486 board</a>` : ''}</span><span class="seg"><label><input type="radio" name="af_486" value="Completed" ${chk.m486 === 'Completed' ? 'checked' : ''}><b>✅ Completed</b></label><label><input type="radio" name="af_486" value="Queue" ${chk.m486 === 'Queue' ? 'checked' : ''}><b>⏳ Queue to go live</b></label></span></div>
+      <div class="ls"><span>อัปเดต 486 Monday Status * ${content('monday_486') ? `<a href="${esc(content('monday_486'))}" target="_blank" rel="noopener" class="small">🔗 เปิด 486 board</a>` : ''}</span><span class="seg"><label><input type="radio" name="af_486" value="Completed" ${chk.m486 === 'Completed' ? 'checked' : ''}><b>✅ Completed</b></label><label><input type="radio" name="af_486" value="Queue" ${chk.m486 === 'Queue' ? 'checked' : ''}><b>⏳ Back to queue to go live</b></label></span></div>
       <div id="af_fu" style="${chk.m486 === 'Queue' ? '' : 'display:none'}"><label>ต้องตามเรื่องอะไรต่อ? * <span class="small muted">(ระบบจะแจ้งเตือนเข้า Google Chat และขึ้นใน Dashboard จนกว่าจะเสร็จ)</span></label>
         <textarea id="af_fut" placeholder="เช่น รอ IT อัปเดตปุ่ม Online order, ร้านยังไม่เชื่อม Stripe, รอเครื่องปริ้นใหม่">${esc(a.followup || '')}</textarea></div>
       <div class="afh">E · ปิดระบบร้านเก่า (Gloria Food / PartnerNet)</div>
@@ -1104,7 +1104,7 @@ function activityModal(kind, a, pre) {
       const target = ap.find(x => x.id === chk.from_appt) || ap[0];
       if (target) { await sb.from('activities').update({ status: 'LIVE Completed' }).eq('id', target.id); const bid = (target.checklist || {}).blocker_id; if (bid) await sb.from('blockers').update({ status: 'Resolved', res_date: rec.act_date }).eq('id', bid); }
     }
-    toast(isAp ? (isNew ? 'ลงนัดแล้ว' : 'อัปเดตนัดแล้ว') : rec.followup && !rec.followup_done_at ? 'บันทึกแล้ว · ⏳ Queue to go live — แจ้ง Google Chat ให้แล้ว' : 'บันทึก LIVE แล้ว ✅');
+    toast(isAp ? (isNew ? 'ลงนัดแล้ว' : 'อัปเดตนัดแล้ว') : rec.followup && !rec.followup_done_at ? 'บันทึกแล้ว · ⏳ Back to queue to go live — แจ้ง Google Chat ให้แล้ว' : 'บันทึก LIVE แล้ว ✅');
     await loadAll(); render();
   };
 }
@@ -1149,7 +1149,7 @@ function viewHome() {
     <td>${stBadge(a.status)}</td><td class="small">${a.status === 'No-show' || a.status === 'Problem' ? esc([a.issue_category, a.issue_detail].filter(Boolean).join(' — ')) : ''}${a.notes ? `<div class="muted">${esc(a.notes)}</div>` : ''}</td><td><button class="btn s">เปิด</button></td></tr>`;
   const lvRow = a => `<tr class="clk" data-act="${a.id}"><td>🔴</td><td><b>${esc(a.store_name)}</b></td><td>${esc(memberName(a.member_code))}</td><td>${liveTxt(a)}</td><td class="small">${esc(a.notes || '')}</td><td><button class="btn s">เปิด</button></td></tr>`;
   const fus = lives.filter(a => a.followup && !a.followup_done_at).sort((x, y) => x.act_date.localeCompare(y.act_date));
-  const fuCard = fus.length ? `<div class="card fucard"><h2>⏳ ต้องตามงานต่อหลัง LIVE <small>${fus.length} ร้าน · 486 Monday = Queue to go live · แจ้ง Google Chat ทุกเช้า 07:30 จนกว่าจะกดเสร็จ</small></h2>
+  const fuCard = fus.length ? `<div class="card fucard"><h2>⏳ ต้องตามงานต่อหลัง LIVE <small>${fus.length} ร้าน · 486 Monday = Back to queue to go live · แจ้ง Google Chat ทุกเช้า 07:30 จนกว่าจะกดเสร็จ</small></h2>
     <div class="tw"><table><thead><tr><th>ร้าน</th><th>ต้องตามเรื่อง</th><th>โดย</th><th>LIVE เมื่อ</th><th></th></tr></thead><tbody>
     ${fus.map(a => { const dd = Math.round((C.today() - C.parseD(a.act_date)) / C.DAY); return `<tr><td><b>${esc(a.store_name)}</b> <span class="small">${(a.checklist || {}).site === 'IT' ? '🛠️ IT' : '🌐 CW'}</span></td><td>${esc(a.followup)}</td><td>${esc(memberName(a.member_code))}</td>
       <td class="small">${fd(a.act_date)}${dd > 0 ? ` · <b style="color:${dd >= 2 ? 'var(--badT)' : 'var(--warnT)'}">${dd} วัน</b>` : ''}</td>
@@ -1525,7 +1525,7 @@ function goalCard() {
 }
 function liveTxt(a) { const c = a.checklist || {}; const ok = LIVE_CHK.every(k => c[k] === 'Yes' || c[k] === 'N/A');
   const pend = a.followup && !a.followup_done_at;
-  return (ok ? badge('Checks ✓', 'good') : badge('Checks ไม่ครบ', 'warn')) + ' ' + (pend ? badge('⏳ Queue to go live', 'warn') : c.m486 ? badge('486 ✓', 'good') : '') + (c.site ? ` <span class="small">${c.site === 'CW' ? '🌐 CW' : '🛠️ IT'}</span>` : '') + (pend ? `<div class="small" style="color:var(--warnT)">ต้องตาม: ${esc(a.followup)}</div>` : ''); }
+  return (ok ? badge('Checks ✓', 'good') : badge('Checks ไม่ครบ', 'warn')) + ' ' + (pend ? badge('⏳ Back to queue to go live', 'warn') : c.m486 ? badge('486 ✓', 'good') : '') + (c.site ? ` <span class="small">${c.site === 'CW' ? '🌐 CW' : '🛠️ IT'}</span>` : '') + (pend ? `<div class="small" style="color:var(--warnT)">ต้องตาม: ${esc(a.followup)}</div>` : ''); }
 function bindActButtons() {
   document.querySelectorAll('[data-act]').forEach(b => b.onclick = e => { e.stopPropagation(); activityModal(null, S.acts.find(a => String(a.id) === b.dataset.act)); });
   document.querySelectorAll('#main [data-new]').forEach(b => b.onclick = () => activityModal(b.dataset.new));
@@ -1935,8 +1935,8 @@ async function viewFlow() {
         <div class="tks">${tk('b1', 'แจ้งคุณต้น (เว็บ CW) หรือแจ้ง Monday IT board (เว็บ IT) แล้ว')}${tk('b2', 'บอกร้านแล้วว่าใช้ระบบใหม่ได้เมื่อไหร่ (ทันที / ภายใน 24 ชม.)')}</div></div></div>
       <div class="ac"><div class="an">D</div><div><b>อัปเดต 486 Monday</b> ${content('monday_486') ? `<a class="btn s" href="${esc(content('monday_486'))}" target="_blank" rel="noopener">🔗 เปิด 486 board</a>` : ''}
         <div class="split"><div class="sp ok"><div class="spt">✅ เรียบร้อยทุกอย่าง</div><ul><li>เปลี่ยน Status เป็น <b>Completed</b></li></ul><div class="webex"><div class="small muted">ตัวอย่าง 486: กลุ่ม MIG Complete</div><img src="img/ex_486_complete.jpg" alt="ตัวอย่าง 486: กลุ่ม MIG Complete" data-zoom="img/ex_486_complete.jpg" class="real"></div></div>
-          <div class="sp q"><div class="spt">⏳ ยังไม่เรียบร้อย</div><ul><li>คงสถานะ <b>Queue to go live</b></li><li>ตอนกด Record LIVE ให้ใส่ <b>"ต้องตามเรื่องอะไร"</b></li><li>ระบบแจ้งเตือนเข้า <b>Google Chat</b> ให้เอง และขึ้นในกล่อง "ต้องตามงานต่อ" หน้า Dashboard จนกว่าจะกดเสร็จ</li></ul><div class="webex"><div class="small muted">ตัวอย่าง 486: กลุ่ม MIG QUEUE to LIVE</div><img src="img/ex_486_queue.jpg" alt="ตัวอย่าง 486: กลุ่ม MIG QUEUE to LIVE" data-zoom="img/ex_486_queue.jpg" class="real"></div></div></div>
-        <div class="tks">${tk('c1', 'อัปเดต 486 Monday แล้ว (Completed หรือ Queue to go live)')}</div></div></div>
+          <div class="sp q"><div class="spt">⏳ ยังไม่เรียบร้อย</div><ul><li>คงสถานะ <b>Back to queue to go live</b></li><li>ตอนกด Record LIVE ให้ใส่ <b>"ต้องตามเรื่องอะไร"</b></li><li>ระบบแจ้งเตือนเข้า <b>Google Chat</b> ให้เอง และขึ้นในกล่อง "ต้องตามงานต่อ" หน้า Dashboard จนกว่าจะกดเสร็จ</li></ul><div class="webex"><div class="small muted">ตัวอย่าง 486: กลุ่ม MIG QUEUE to LIVE</div><img src="img/ex_486_queue.jpg" alt="ตัวอย่าง 486: กลุ่ม MIG QUEUE to LIVE" data-zoom="img/ex_486_queue.jpg" class="real"></div></div></div>
+        <div class="tks">${tk('c1', 'อัปเดต 486 Monday แล้ว (Completed หรือ Back to queue to go live)')}</div></div></div>
       ${oldSysBlock()}
       ${flowStorePick()}
     </div></div>`;
@@ -2082,9 +2082,9 @@ async function viewGcal() {
     <div class="row" style="margin-top:14px"><div style="flex:1;min-width:280px"><label>Web app URL</label><input id="gurl" value="${esc(g.url || '')}" placeholder="https://script.google.com/macros/s/.../exec"></div>
       <button class="btn p" id="gsv">Save</button><button class="btn t" id="gts" ${g.url ? '' : 'disabled'}>ส่งนัดทดสอบ</button>${g.url ? '<button class="btn s" id="gof">ยกเลิกการเชื่อม</button>' : ''}</div>
     <p class="small muted" data-x="1">โค้ดมีรหัสลับเฉพาะของคุณ — อย่าส่งต่อให้คนอื่น · นัดที่เปลี่ยนสถานะ (No-show / ติดปัญหา / LIVE แล้ว / เลื่อนนัด) จะอัปเดตในปฏิทินให้เอง · ลบนัดในระบบ = ลบในปฏิทินด้วย · นัดที่ลงไว้ก่อนเชื่อม จะเข้าปฏิทินเมื่อมีการแก้ไขนัดนั้น</p></div>
-  <div class="card"><h2>💬 แจ้งเตือนเข้า Google Chat <small>ร้านที่ LIVE แล้วแต่ยัง Queue to go live / ต้องตามงานต่อ</small></h2>
+  <div class="card"><h2>💬 แจ้งเตือนเข้า Google Chat <small>ร้านที่ LIVE แล้วแต่ยัง Back to queue to go live / ต้องตามงานต่อ</small></h2>
     <div>${g.chat_url ? badge('✓ เชื่อมแล้ว', 'good') : badge('ยังไม่ได้เชื่อม', 'warn')}</div>
-    <p class="small">ระบบจะส่งข้อความเข้า Space ใน Google Chat: (1) ทันทีที่มีคนบันทึก LIVE แบบ "Queue to go live" พร้อมเรื่องที่ต้องตาม (2) เมื่อกด "ตามเสร็จแล้ว" (3) สรุปร้านที่ยังค้าง ทุกวันจันทร์–ศุกร์ 07:30 น.</p>
+    <p class="small">ระบบจะส่งข้อความเข้า Space ใน Google Chat: (1) ทันทีที่มีคนบันทึก LIVE แบบ "Back to queue to go live" พร้อมเรื่องที่ต้องตาม (2) เมื่อกด "ตามเสร็จแล้ว" (3) สรุปร้านที่ยังค้าง ทุกวันจันทร์–ศุกร์ 07:30 น.</p>
     <ol class="steps">
       <li>เปิด <a href="https://chat.google.com/" target="_blank" rel="noopener"><b>Google Chat</b></a> แล้วเลือก Space ของทีม (หรือสร้าง Space ใหม่ เช่น "L4U Migration")</li>
       <li>คลิกชื่อ Space ด้านบน ▾ → <b>Apps & integrations</b></li>
