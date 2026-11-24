@@ -1062,7 +1062,7 @@ function viewHome() {
     ${fus.map(a => { const dd = Math.round((C.today() - C.parseD(a.act_date)) / C.DAY); return `<tr><td><b>${esc(a.store_name)}</b> <span class="small">${(a.checklist || {}).site === 'IT' ? '🛠️ IT' : '🌐 CW'}</span></td><td>${esc(a.followup)}</td><td>${esc(memberName(a.member_code))}</td>
       <td class="small">${fd(a.act_date)}${dd > 0 ? ` · <b style="color:${dd >= 2 ? 'var(--badT)' : 'var(--warnT)'}">${dd} วัน</b>` : ''}</td>
       <td style="white-space:nowrap">${isMgr() || a.member_code === S.me.code ? `<button class="btn s t" data-fudone="${a.id}">✅ ตามเสร็จแล้ว</button> ` : ''}<button class="btn s" data-act="${a.id}">แก้ไข</button></td></tr>`; }).join('')}</tbody></table></div></div>` : '';
-  $('#main').innerHTML = `${goalCard()}${annCard()}${fuCard}
+  $('#main').innerHTML = `${goalCard()}<div id="starbox">${starCard()}</div>${annCard()}${fuCard}
   <div class="card"><div class="row" style="align-items:flex-start"><div style="flex:1"><div class="small muted" style="font-weight:700;letter-spacing:.05em">DAILY TARGET PERFORMANCE · REAL-TIME</div>
     <h2 style="font-size:20px;margin:4px 0">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} <small>(${new Date().toLocaleDateString('th-TH', { dateStyle: 'full' })})</small></h2></div>
       <div class="callbtn"><div class="row" style="justify-content:flex-end;gap:6px"><button class="btn p" id="hcall">📞 บันทึกการโทรประจำวัน</button><button class="btn" data-new="appointment">+ Add Appointment</button><button class="btn r" data-new="live">🔴 Record LIVE</button></div><div class="small muted">บันทึกร้านที่โทรติดต่อวันนี้ (ไม่รับสาย / ได้นัด / โทรกลับ)<br>ดูสรุปและส่งเข้า Chat ได้ที่ Team Performance</div></div></div>
@@ -1090,7 +1090,7 @@ function viewHome() {
   const shift = n => { const d = new Date(cy, cm - 1 + n, 1); S.calMonth = C.iso(d).slice(0, 7); render(); };
   $('#cp').onclick = () => shift(-1); $('#cn').onclick = () => shift(1); $('#ct').onclick = () => { S.calMonth = null; S.selDate = null; render(); };
   document.querySelectorAll('[data-day]').forEach(b => b.onclick = e => { if (e.target.closest('[data-act]')) return; S.selDate = b.dataset.day; render(); });
-  bindActButtons(); bindRecorder(); bindSheet(); bindRecLog(); bindAnn();
+  bindActButtons(); bindRecorder(); bindSheet(); bindRecLog(); bindAnn(); loadStar();
   $('#hcall').onclick = () => { S.dailyDate = C.iso(C.today()); callModal(null); };
   document.querySelectorAll('[data-fudone]').forEach(b => b.onclick = async () => {
     const a = S.acts.find(x => String(x.id) === b.dataset.fudone); if (!confirm(`ตามงานร้าน ${a.store_name} เสร็จแล้ว และอัปเดต 486 Monday เป็น Completed แล้ว?`)) return;
@@ -1210,6 +1210,29 @@ function annCard() {
   };
   return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">📢 ประกาศ & อัปเดต <small>${L.length} รายการ · ใหม่สุดอยู่บน · กด 👍 รับทราบ · <span class="annkey ann-none">ยังไม่มีใครกด</span> <span class="annkey ann-some">กดบางคน</span> <span class="annkey ann-all">ครบแล้ว</span></small></h2>${isMgr() ? '<button class="btn s p" id="annnew">+ ประกาศใหม่</button>' : ''}</div>
     <div class="annbox">${L.map(row).join('') || '<div class="muted small" style="padding:10px">ยังไม่มีประกาศ</div>'}</div></div>`;
+}
+/* 🏆 Star of the week (calculated in the database; posted to Google Chat every Friday 17:00) */
+function starCard() {
+  const j = S.star; if (!j) return '';
+  const s = j.star, R = j.rows || [], t = j.tops || {};
+  const top = (k, v) => v > 0 && String(v) === String(t[k]) ? ' <span class="badge b-ok">สูงสุด</span>' : '';
+  const wk = `${fd(j.week_start)} – ${fd(j.week_end)}`;
+  const reasons = s ? (j.text || '').split('\n').filter(l => l.startsWith('- ')).map(l => `<li>${esc(l.slice(2))}</li>`).join('') : '';
+  return `<div class="card starcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🏆 Star of the week <small>${wk} · คำนวณจาก LIVE, นัดใหม่, นัดที่ปิดได้, No-show, Pre-Live ครบ, ปิดปัญหา, การโทร · ส่งเข้า Google Chat ทุกศุกร์ 17:00</small></h2>
+      ${isMgr() && s ? '<button class="btn s p" id="starpost">📣 ส่งชื่นชมเข้าแชทตอนนี้</button>' : ''}</div>
+    ${s ? `<div class="starhero"><div class="starname">👏 ขอชื่นชม <b>${esc(s.name)}</b></div><ul>${reasons}</ul></div>` : '<div class="muted small" style="margin:8px 0">สัปดาห์นี้ยังไม่มีผลงานที่บันทึก — จะเลือก Star อัตโนมัติเมื่อมี LIVE / นัด / Pre-Live</div>'}
+    <div class="tw" style="margin-top:8px"><table><thead><tr><th>คน</th><th class="num">🔴 LIVE</th><th class="num">📅 นัดใหม่</th><th class="num">✅ นัดปิด LIVE</th><th class="num">❌ No-show</th><th class="num">🧾 Pre-Live ครบ</th><th class="num">🛠️ ปิดปัญหา</th><th class="num">📞 โทร</th><th class="num">คะแนน</th></tr></thead><tbody>
+    ${R.map((r, i) => `<tr ${s && i === 0 ? 'class="starrow"' : ''}><td><b>${s && i === 0 ? '🏆 ' : ''}${esc(r.name)}</b></td><td class="num">${r.live}${top('live', r.live)}</td><td class="num">${r.booked}${top('booked', r.booked)}</td><td class="num">${r.appt_live}/${r.appt_done}</td><td class="num">${r.noshow}</td><td class="num">${r.prelive}${top('prelive', r.prelive)}</td><td class="num">${r.solved}</td><td class="num">${r.calls}${top('calls', r.calls)}</td><td class="num"><b>${Math.round(r.score * 10) / 10}</b></td></tr>`).join('')}</tbody></table></div>
+    <div class="small muted" style="margin-top:6px">คะแนน = LIVE×5 + นัดใหม่×2 + Pre-Live ครบ×2 + ปิดปัญหา×1 + โทร×0.2 − No-show×2 · ไม่รวม Manager</div></div>`;
+}
+async function loadStar() {
+  if (S.starAt && Date.now() - S.starAt < 60000) return bindStar();
+  const { data, error } = await sb.rpc('weekly_star'); if (error || !data) return;
+  S.star = data; S.starAt = Date.now(); const box = $('#starbox'); if (box) { box.innerHTML = starCard(); bindStar(); }
+}
+function bindStar() {
+  if ($('#starpost')) $('#starpost').onclick = async () => { if (!confirm('ส่งข้อความชื่นชม Star of the week เข้า Google Chat ตอนนี้?')) return;
+    const { error } = await sb.rpc('weekly_star_post'); toast(error ? error.message : 'ส่งเข้า Google Chat แล้ว 🏆', !!error); };
 }
 function annModal(a) {
   a = a || { d: C.iso(C.today()), t: '', b: '' };
