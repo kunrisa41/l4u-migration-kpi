@@ -1810,3 +1810,13 @@ sb.auth.onAuthStateChange(async (_ev, session) => {
   try { await loadAll(); render(); if (!subscribed) { subscribe(); subscribed = true; } }
   catch (e) { console.error(e); $('#app').innerHTML = `<div class="login"><h1>Could not load data</h1><p>${esc(e.message || e)}</p><button class="btn" onclick="location.reload()">Retry</button></div>`; }
 });
+
+/* Keep each tab where you left it: page position + inner scroll boxes (e.g. Log การตรวจเช็ค), until refresh */
+{
+  const scrollKey = (el, i) => { const c = el.closest('.card'); const h = c && c.querySelector('h2,h3'); return ((h && h.textContent) || '').trim().slice(0, 40) + '|' + i; };
+  const scrollables = () => [...document.querySelectorAll('#main *')].filter(e => !e.closest('.cxpage') && e.scrollHeight > e.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(e).overflowY));
+  const save = () => { const t = S.__renderedTab; if (!t) return; S.__sc = S.__sc || {}; const els = {}; scrollables().forEach((e, i) => { els[scrollKey(e, i)] = e.scrollTop; }); S.__sc[t] = { y: window.scrollY, els }; };
+  const restore = () => { const s = (S.__sc || {})[S.tab]; S.__renderedTab = S.tab; if (!s) return; scrollables().forEach((e, i) => { const v = s.els[scrollKey(e, i)]; if (v) e.scrollTop = v; }); if (s.y) window.scrollTo(0, s.y); };
+  const inner = render;
+  render = function () { save(); inner(); restore(); };
+}
