@@ -542,3 +542,4 @@ html,body{overflow-x:clip}
 .bimg button{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:11px;border:0;background:#0009;color:#fff;cursor:pointer;line-height:20px;padding:0}
 .bthumbs{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
 .bthumbs img{width:54px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #E2E8F0;cursor:zoom-in}
+.tool .tsub{display:block;font-size:12px;font-weight:500;color:#64748B;margin-top:2px}

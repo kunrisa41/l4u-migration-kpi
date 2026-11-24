@@ -260,6 +260,8 @@ function viewHowto() {
     catch (e) { toast('เบราว์เซอร์นี้ Copy รูปไม่ได้ — ใช้ ⬇️ ดาวน์โหลด แทน', true); } });
   $('#hq').oninput = e => { S.howQ = e.target.value; const pos = e.target.selectionStart; viewHowto(); const n = $('#hq'); n.focus(); n.setSelectionRange(pos, pos); };
 }
+/* "Name (detail)" -> name, then the detail on its own line */
+const toolName = n => { const m = String(n || '').match(/^(.*?)\s*\((.+)\)\s*$/); return m ? `${esc(m[1])}<small class="tsub">${esc(m[2])}</small>` : esc(n); };
 function viewTools() {
   const q = (S.toolQ || '').toLowerCase(); const all = toolsList(); const list = all.filter(t => !q || (t.n + ' ' + t.g).toLowerCase().includes(q));
   const groups = [...new Set(list.map(t => t.g || 'อื่นๆ'))];
@@ -282,7 +284,7 @@ function viewTools() {
   $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🧰 Tools <small>ลิงก์ทั้งหมดที่ทีมใช้ — เปิดจากที่นี่ที่เดียว ไม่ต้องใช้ bookmark</small></h2>
       <input id="tq" placeholder="ค้นหา เช่น Stripe, KML, Monday" value="${esc(S.toolQ || '')}" style="width:260px">${isMgr() ? '<button class="btn p s" id="tedit">✏️ จัดการลิงก์</button>' : ''}</div></div>
     ${groups.map(g => `<div class="card"><h2>${esc(g)}</h2><div class="toolgrid">${list.filter(t => (t.g || 'อื่นๆ') === g).map(t => t.u
-      ? `<a class="tool" href="${esc(t.u)}" target="_blank" rel="noopener"><img src="${esc(fav(t.u, t.n))}" alt="" onerror="this.onerror=null;this.src='https://www.google.com/s2/favicons?sz=64&domain='+new URL(this.closest('a').href).hostname"><span>${esc(t.n)}</span></a>`
+      ? `<a class="tool" href="${esc(t.u)}" target="_blank" rel="noopener"><img src="${esc(fav(t.u, t.n))}" alt="" onerror="this.onerror=null;this.src='https://www.google.com/s2/favicons?sz=64&domain='+new window.URL(this.closest('a').href).hostname"><span>${toolName(t.n)}</span></a>`
       : `<div class="tool off" title="ยังไม่มีลิงก์ — Manager ใส่ได้ที่ ✏️ จัดการลิงก์"><span>${esc(t.n)}</span><small>รอลิงก์</small></div>`).join('')}</div></div>`).join('') || '<div class="card"><p class="muted">ไม่พบลิงก์</p></div>'}`;
   $('#tq').oninput = e => { S.toolQ = e.target.value; const pos = e.target.selectionStart; viewTools(); const n = $('#tq'); n.focus(); n.setSelectionRange(pos, pos); };
   if ($('#tedit')) $('#tedit').onclick = () => toolsEditor();
