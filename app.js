@@ -1231,18 +1231,30 @@ async function openReport(id) {
   const { data, error } = await sb.storage.from('audit-reports').createSignedUrl(r.file_path, 600);
   if (error) { if (w) w.close(); return toast(error.message, true); } if (w) w.location = data.signedUrl; else location.href = data.signedUrl;
 }
+const MI_ST = { MISSING_IN_NEW: ['ไม่มีใน NEW', 'bad'], EXTRA_IN_NEW: ['มีใน NEW แต่ OLD ไม่มี', 'warn'] };
+function menuIssuesHtml(r) {
+  const n = r.items_need_fixing; const mi = (r.summary && Array.isArray(r.summary.menuIssues)) ? r.summary.menuIssues : null;
+  if (!n && !(mi && mi.length)) return '';
+  if (!mi) return `<p class="small">🍽️ เมนู: ต้องแก้ ${n} รายการ — รายละเอียดอยู่ใน Compare Report (PDF) · ผลตรวจจาก Recorder V18.49 ขึ้นไปจะแสดงรายการที่นี่</p>`;
+  const groups = {}; mi.forEach(x => { (groups[x.cat || 'ไม่ระบุหมวด'] = groups[x.cat || 'ไม่ระบุหมวด'] || []).push(x); });
+  const tot = (r.summary.menuIssuesTotal || mi.length);
+  return `<div class="sec" style="margin-top:10px">🍽️ เมนูที่ต้องแก้ (${tot}${tot > mi.length ? `, แสดง ${mi.length}` : ''})</div>` + Object.entries(groups).map(([g, l]) => `<div class="small" style="margin:8px 0 2px;font-weight:700;color:var(--accT,#0f766e)">เมนู › ${esc(g)} (${l.length})</div>
+    <table class="small issues" style="table-layout:fixed;width:100%"><colgroup><col style="width:34px"><col style="width:22%"><col style="width:16%"><col style="width:18%"><col style="width:18%"><col></colgroup><thead><tr><th></th><th>เมนู</th><th>เรื่อง</th><th>OLD / ต้องเป็น</th><th>NEW ตอนนี้</th><th>ต้องทำ</th></tr></thead><tbody>
+    ${l.map(x => { const st = MI_ST[x.st]; const d = (x.d && x.d.length) ? x.d : [{ f: '', o: '', n: '', a: '' }];
+      return d.map((y, i) => `<tr>${i === 0 ? `<td rowspan="${d.length}">${x.st === 'EXTRA_IN_NEW' ? '❓' : '❌'}</td><td rowspan="${d.length}"><b>${esc(x.item)}</b>${st ? `<div>${badge(st[0], st[1])}</div>` : ''}</td>` : ''}<td>${esc(y.f)}</td><td>${esc(y.o)}</td><td>${esc(y.n)}</td><td>${esc(y.a)}</td></tr>`).join(''); }).join('')}</tbody></table>`).join('');
+}
 function recLog() {
   const runs = S.runs || []; const q = (S.rlQ || '').toLowerCase();
   const list = runs.filter(r => !q || r.store_name.toLowerCase().includes(q)).slice(0, S.rlAll ? 300 : 15);
   const pctB = v => v === null || v === undefined ? '<span class="muted">–</span>' : `<b style="color:${v >= 100 ? 'var(--goodT)' : v >= 90 ? 'var(--warnT)' : 'var(--badT)'}">${v}%</b>`;
-  const row = r => { const bad = (r.checks || []).filter(c => c.status === 'FAIL' || c.status === 'REVIEW'); const open = S.rlOpen === r.id;
+  const row = r => { const bad = (r.checks || []).filter(c => (c.status === 'FAIL' || c.status === 'REVIEW') && !/check@gmail/i.test((c.field || '') + ' ' + (c.old || ''))); const open = S.rlOpen === r.id;
     const groups = {}; bad.forEach(c => { (groups[c.area || 'อื่นๆ'] = groups[c.area || 'อื่นๆ'] || []).push(c); });
     return `<tr class="clk" data-rl="${r.id}"><td class="small">${fmtDT(r.created_at)}</td><td><b>${esc(r.store_name)}</b></td><td class="small">${esc(r.mode || '')}</td><td class="small">${esc(r.operator || '')}</td>
       <td class="num">${pctB(r.menu_percent)}${r.items_need_fixing ? `<div class="small">ต้องแก้ ${r.items_need_fixing}</div>` : ''}</td><td class="num">${pctB(r.backend_percent)}${bad.length ? `<div class="small">${bad.length} จุด</div>` : ''}</td><td class="num">${pctB(r.overall_percent)}</td>
       <td>${bad.length || r.items_need_fixing ? badge('ต้องแก้', 'bad') : badge('✓ ผ่าน', 'good')}${pdfOf(r) ? ' <span title="มี PDF">📄</span>' : ''}</td><td class="small">${open ? '▲' : '▼'}</td></tr>
       ${open ? `<tr><td colspan="9" style="background:#F8FAFC">${bad.length ? Object.entries(groups).map(([g, l]) => `<div class="sec" style="margin-top:6px">${esc(g)} (${l.length})</div><table class="small issues"><thead><tr><th></th><th>รายการ</th><th>OLD / ต้องเป็น</th><th>NEW ตอนนี้</th><th>ต้องทำ</th></tr></thead><tbody>
         ${l.slice(0, 80).map(c => `<tr><td>${c.status === 'FAIL' ? '❌' : '❓'}</td><td><b>${esc(c.field)}</b></td><td>${esc(c.old)}</td><td>${esc(c.new)}</td><td>${esc(c.action)}</td></tr>`).join('')}</tbody></table>`).join('')
-        : '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงทุกจุดที่ตรวจ</p>'}${r.items_need_fixing ? `<p class="small">🍽️ เมนู: ต้องแก้ ${r.items_need_fixing} รายการ — ดูรายละเอียดใน Compare Report (PDF)</p>` : ''}
+        : '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงทุกจุดที่ตรวจ</p>'}${menuIssuesHtml(r)}
         <div class="row" style="margin-top:6px">${pdfOf(r) ? `<button class="btn s p" data-dl="${pdfOf(r).id}">📄 เปิด Compare Report (PDF)</button>` : ''}<button class="btn s" data-rlpl="${esc(r.store_name)}">เปิด Pre-Live ของร้านนี้</button>${content('mig_drive') ? `<a class="btn s" href="${esc(content('mig_drive'))}" target="_blank" rel="noopener">📁 วิดีโอใน MIG Audit Check</a>` : ''}</div></td></tr>` : ''}`; };
   return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🧪 Log การตรวจเช็ค (LFY Recorder) <small>คะแนน + สิ่งที่ต้องแก้ ส่งมาเองทุกครั้งที่ตรวจเสร็จ (PDF ส่งมาด้วยตั้งแต่ V18.29)</small></h2>
       <input id="rlq" placeholder="ค้นหาชื่อร้าน" value="${esc(S.rlQ || '')}" style="width:220px"></div>
@@ -1463,14 +1475,14 @@ function viewPrelive() {
       : a.status === 'FAIL' ? `<span class="auto bad">🤖 Recorder: ต้องแก้ ${a.fail || a.itemsNeedFixing || ''} จุด${a.percent !== undefined ? ' · เมนูถูก ' + a.percent + '%' : ''}</span>` : `<span class="auto rev">🤖 Recorder: ต้องเช็กซ้ำ ${a.review || ''} จุด</span>`;
     const list = (a.issues || []).slice(0, 12).map(x => `<li>${x.status === 'FAIL' ? '❌' : '❓'} <b>${esc(x.field || x.area)}</b> <span class="muted">${esc(x.area)}</span>${x.old || x.new ? `<br><span class="small">OLD / ต้องเป็น: <b>${esc(x.old || '–')}</b> → NEW: <b>${esc(x.new || '–')}</b></span>` : ''}${x.action ? `<br><span class="small" style="color:var(--blueT)">👉 ${esc(x.action)}</span>` : ''}</li>`).join('');
     return `<div class="autobox">${head}${list ? `<details><summary class="small">ดูรายละเอียด</summary><ul class="small">${list}</ul></details>` : ''}</div>`; };
-  const runPanel = run ? (() => { const bad = (run.checks || []).filter(c => c.status === 'FAIL' || c.status === 'REVIEW');
+  const runPanel = run ? (() => { const bad = (run.checks || []).filter(c => (c.status === 'FAIL' || c.status === 'REVIEW') && !/check@gmail/i.test((c.field || '') + ' ' + (c.old || '')));
     const groups = {}; bad.forEach(c => { (groups[c.area || 'อื่นๆ'] = groups[c.area || 'อื่นๆ'] || []).push(c); });
     return `<div class="runpanel"><div class="row" style="align-items:center"><b style="flex:1">🤖 ผลจาก LFY Recorder ${esc(run.version || '')}</b><span class="small muted">${fmtDT(run.created_at)} · ${esc(run.mode || '')}${run.operator ? ' · ' + esc(run.operator) : ''}</span></div>
       <div class="grid g3" style="margin-top:8px">${[['เมนู (OLD vs NEW)', run.menu_percent, run.items_need_fixing !== null && run.items_need_fixing !== undefined ? `ต้องแก้ ${run.items_need_fixing} รายการ` : (run.menu_status || '')],
         ['หลังบ้าน (Backend)', run.backend_percent, `${bad.length} จุดต้องดู`], ['รวม (Overall)', run.overall_percent, '']].map(x => `<div class="kpi"><div class="l">${x[0]}</div><div class="v">${x[1] === null || x[1] === undefined ? '–' : x[1] + '%'}</div><div class="s">${esc(x[2])}</div></div>`).join('')}</div>
       ${bad.length ? `<details style="margin-top:8px"><summary><b>รายการที่ Recorder พบว่าไม่ตรง / ต้องแก้ (${bad.length})</b> — OLD มีอะไร / NEW เป็นอะไร</summary>
         ${Object.entries(groups).map(([g, list]) => `<div class="sec">${esc(g)}</div><table class="small"><thead><tr><th></th><th>รายการ</th><th>OLD / ค่าที่ต้องเป็น</th><th>NEW ตอนนี้</th><th>ต้องทำ</th></tr></thead><tbody>
-          ${list.slice(0, 60).map(c => `<tr><td>${c.status === 'FAIL' ? '❌' : '❓'}</td><td><b>${esc(c.field)}</b></td><td>${esc(c.old)}</td><td>${esc(c.new)}</td><td>${esc(c.action)}</td></tr>`).join('')}</tbody></table>`).join('')}</details>` : '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงตามมาตรฐานทุกจุดที่ Recorder ตรวจ</p>'}
+          ${list.slice(0, 60).map(c => `<tr><td>${c.status === 'FAIL' ? '❌' : '❓'}</td><td><b>${esc(c.field)}</b></td><td>${esc(c.old)}</td><td>${esc(c.new)}</td><td>${esc(c.action)}</td></tr>`).join('')}</tbody></table>`).join('')}</details>` : '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงตามมาตรฐานทุกจุดที่ Recorder ตรวจ</p>'}${menuIssuesHtml(run) ? `<details style="margin-top:8px"><summary><b>🍽️ เมนูที่ต้องแก้ (${(run.summary && run.summary.menuIssuesTotal) || run.items_need_fixing || 0})</b></summary>${menuIssuesHtml(run)}</details>` : ''}
       ${ck.old_system && (ck.old_system.o6 || ck.old_system.o8 || ck.old_system.o10) ? `<p class="small" style="margin:8px 0 0">🏚️ <b>ระบบเก่า (OLD) มี:</b> ${(ck.old_system.o6 || []).map(x => `<span class="badge b-blue">${esc(x)}</span>`).join(' ')} ${(ck.old_system.o8 || []).map(x => `<span class="badge b-grey">💳 ${esc(x)}</span>`).join(' ')} ${(ck.old_system.o10 || []).map(x => `<span class="badge b-warn">🌐 ${esc(x)}${x === 'GF Web' ? ' → คุณต้น LIVE เว็บ' : ''}</span>`).join(' ')} <span class="muted">— เลือกไว้ให้ในข้อ All Services และ Payment แล้ว</span></p>` : ''}
       <p class="small muted" style="margin:6px 0 0">ข้อที่ Recorder ตรวจแล้วผ่านจะติ๊กให้อัตโนมัติ ข้อที่ไม่ผ่านจะไม่ติ๊ก — แก้ใน NEW แล้วรัน Recorder ใหม่ หรือติ๊กเองได้</p></div>`; })() : '';
   $('#main').innerHTML = `${restList()}${wordingCard()}<div class="two">
