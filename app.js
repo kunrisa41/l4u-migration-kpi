@@ -1211,14 +1211,14 @@ function annCard() {
   return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">📢 ประกาศ & อัปเดต <small>${L.length} รายการ · ใหม่สุดอยู่บน · กด 👍 รับทราบ · <span class="annkey ann-none">ยังไม่มีใครกด</span> <span class="annkey ann-some">กดบางคน</span> <span class="annkey ann-all">ครบแล้ว</span></small></h2>${isMgr() ? '<button class="btn s p" id="annnew">+ ประกาศใหม่</button>' : ''}</div>
     <div class="annbox">${L.map(row).join('') || '<div class="muted small" style="padding:10px">ยังไม่มีประกาศ</div>'}</div></div>`;
 }
-/* 🏆 Star of the week (calculated in the database; posted to Google Chat every Friday 17:00) */
+/* 🏆 Star of the week (calculated in the database; posted to Google Chat every Friday 16:00) */
 function starCard() {
   const j = S.star; if (!j) return '';
   const s = j.star, R = j.rows || [], t = j.tops || {};
   const top = (k, v) => v > 0 && String(v) === String(t[k]) ? ' <span class="badge b-ok">สูงสุด</span>' : '';
   const wk = `${fd(j.week_start)} – ${fd(j.week_end)}`;
   const reasons = s ? (j.text || '').split('\n').filter(l => l.startsWith('- ')).map(l => `<li>${esc(l.slice(2))}</li>`).join('') : '';
-  return `<div class="card starcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🏆 Star of the week <small>${wk} · คำนวณจาก LIVE, นัดใหม่, นัดที่ปิดได้, No-show, Pre-Live ครบ, ปิดปัญหา, การโทร · ส่งเข้า Google Chat ทุกศุกร์ 17:00</small></h2>
+  return `<div class="card starcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🏆 Star of the week <small>${wk} · คำนวณจาก LIVE, นัดใหม่, นัดที่ปิดได้, No-show, Pre-Live ครบ, ปิดปัญหา, การโทร · ส่งเข้า Google Chat ทุกศุกร์ 16:00</small></h2>
       ${isMgr() && s ? '<button class="btn s p" id="starpost">📣 ส่งชื่นชมเข้าแชทตอนนี้</button>' : ''}</div>
     ${s ? `<div class="starhero"><div class="starname">👏 ขอชื่นชม <b>${esc(s.name)}</b></div><ul>${reasons}</ul></div>` : '<div class="muted small" style="margin:8px 0">สัปดาห์นี้ยังไม่มีผลงานที่บันทึก — จะเลือก Star อัตโนมัติเมื่อมี LIVE / นัด / Pre-Live</div>'}
     <div class="tw" style="margin-top:8px"><table><thead><tr><th>คน</th><th class="num">🔴 LIVE</th><th class="num">📅 นัดใหม่</th><th class="num">✅ นัดปิด LIVE</th><th class="num">❌ No-show</th><th class="num">🧾 Pre-Live ครบ</th><th class="num">🛠️ ปิดปัญหา</th><th class="num">📞 โทร</th><th class="num">คะแนน</th></tr></thead><tbody>
