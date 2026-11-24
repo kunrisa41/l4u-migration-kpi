@@ -1292,10 +1292,14 @@ function menuIssuesHtml(r) {
   const gangs = {}; Object.values(share).filter(g => g.items.length > 1).forEach(g => { const k = g.items.join('\u0001'); (gangs[k] = gangs[k] || { items: g.items, cats: g.cats, ds: [] }).ds.push(g.d); });
   const gangList = Object.values(gangs).sort((a, b) => b.items.length - a.items.length);
   const own = mi.map(x => ({ x, ds: (x.d || []).filter(d => share[dsig(d)].items.length === 1) })).filter(o => o.ds.length || MI_ST[o.x.st]);
-  const gangCard = g => `<div class="mcard gang"><div class="mhead">🔗 <b>แก้ทีเดียว ${g.items.length} เมนู</b> <span class="small muted">· ใช้ตัวเลือกชุดเดียวกัน · ${esc([...g.cats].filter(Boolean).join(', '))}</span></div>
+  const sets = Array.isArray(r.summary.optionSets) ? r.summary.optionSets : [];
+  const setFor = ds => { const names = new Set(); ds.forEach(d => [...miList(d.n), ...miList(d.o)].forEach(x => names.add(String(x).replace(/\s*[+-]\d+(\.\d+)?$/, '').trim().toLowerCase())));
+    let best = null, bs = 0; sets.forEach(st => { const hit = (st.o || []).filter(o => names.has(String(o).toLowerCase())).length; if (hit > bs) { bs = hit; best = st; } }); return bs >= 2 ? best : null; };
+  const setLine = st => st ? `<div class="mset">🧩 Option Set ใน NEW: <b>${esc(st.n)}</b> · ${st.r === true ? 'บังคับเลือก (Required)' : st.r === false ? 'ไม่บังคับ' : ''}${st.i && st.i.length ? ` · ใช้กับ ${st.i.length} เมนู` : ''}<div class="small muted">แก้ที่ Menus › Option Sets › ${esc(st.n)} › Edit ครั้งเดียว ทุกเมนูที่ใช้ชุดนี้จะเปลี่ยนตาม</div></div>` : '';
+  const gangCard = g => `<div class="mcard gang"><div class="mhead">🔗 <b>แก้ทีเดียว ${g.items.length} เมนู</b> <span class="small muted">· ใช้ตัวเลือกชุดเดียวกัน · ${esc([...g.cats].filter(Boolean).join(', '))}</span></div>${setLine(setFor(g.ds))}
       <div class="mitems">${g.items.map(i => `<span class="mchip item">${esc(i)}</span>`).join('')}</div>${g.ds.map(miDetail).join('')}</div>`;
   const ownCard = o => { const st = MI_ST[o.x.st];
-    return `<div class="mcard"><div class="mhead">${o.x.st === 'EXTRA_IN_NEW' ? '❓' : '❌'} <b>${esc(o.x.item)}</b>${st ? ' ' + badge(st[0], st[1]) : ''}<span class="small muted"> · ${esc(o.x.cat || '')}</span>${gangList.some(g => g.items.includes(o.x.item)) ? '<span class="small muted"> · มีอีกส่วนอยู่ในการ์ด 🔗 ด้านบน</span>' : ''}</div>${o.ds.map(miDetail).join('')}</div>`; };
+    return `<div class="mcard"><div class="mhead">${o.x.st === 'EXTRA_IN_NEW' ? '❓' : '❌'} <b>${esc(o.x.item)}</b>${st ? ' ' + badge(st[0], st[1]) : ''}<span class="small muted"> · ${esc(o.x.cat || '')}</span></div>${o.ds.map(miDetail).join('')}</div>`; };
   return `<div class="sec" style="margin-top:10px">🍽️ เมนูที่ต้องแก้ (${tot} เมนู${tot > mi.length ? `, แสดง ${mi.length}` : ''})</div>
     ${gangList.length ? `<div class="small" style="margin:6px 0 2px;font-weight:700">🔗 แก้เป็นกลุ่ม — เมนูที่ใช้ตัวเลือกชุดเดียวกัน แก้ครั้งเดียวได้ทั้งแก๊ง (${gangList.length})</div><div class="migrid">${gangList.map(gangCard).join('')}</div>` : ''}
     ${own.length ? `<div class="small" style="margin:12px 0 2px;font-weight:700">แก้รายเมนู (${own.length})</div><div class="migrid">${own.map(ownCard).join('')}</div>` : ''}`;
