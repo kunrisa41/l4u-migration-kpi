@@ -544,11 +544,12 @@ function viewBlockers() {
     return `<tr class="${done ? 'done' : ''}"><td style="text-align:center"><input type="checkbox" class="tick" data-tick="${b.id}" ${done ? 'checked' : ''} ${can ? '' : 'disabled'} title="ติ๊กเมื่อแก้เสร็จ"></td>
     <td class="small">${fd(b.log_date)}${!done && days > 0 ? `<div style="color:${days >= 2 ? 'var(--badT)' : 'var(--warnT)'};font-weight:700">${days} วัน</div>` : ''}${done && b.res_date ? `<div class="small" style="color:var(--goodT)">เสร็จ ${fd(b.res_date)}</div>` : ''}</td>
     <td><b>${esc(rn(b))}</b></td><td>${esc(memberName(b.employee))}</td><td class="small">${esc(b.category || '')}${b.party ? `<div class="muted">${esc(b.party)}</div>` : ''}</td>
-    <td class="small">${esc(b.description || '')}${b.evidence ? ` <a href="${esc(b.evidence)}" target="_blank" rel="noopener">หลักฐาน</a>` : ''}</td>
+    <td class="small">${esc(b.description || '')}${b.evidence ? ` <a href="${esc(b.evidence)}" target="_blank" rel="noopener">หลักฐาน</a>` : ''}${(b.images || []).length ? `<div class="bthumbs">${b.images.map(p => `<a data-bimg="${esc(p)}" target="_blank" rel="noopener"><img data-bimgsrc="${esc(p)}" alt="🖼️"></a>`).join('')}</div>` : ''}</td>
     <td class="small">${fd(b.fu_due)}${!done && i.fu === 'Overdue' ? ' ' + badge('เลยกำหนด', 'bad') : ''}</td>
     <td><select class="mini" data-bst="${b.id}" ${can ? '' : 'disabled'}>${BST2.map(o => `<option value="${o[0]}" ${(b.status || 'Open') === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></td>
     <td>${isMgr() ? `<select class="mini" data-brv="${b.id}">${REVIEW2.map(o => `<option value="${o[0]}" ${(b.review || 'Pending') === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>` : `<span class="small">${esc((REVIEW2.find(o => o[0] === (b.review || 'Pending')) || ['', ''])[1])}</span>`}</td>
     <td>${can ? `<button class="btn s" data-b="${b.id}">แก้ไข</button>` : ''}</td></tr>`; }).join('') || '<tr><td colspan="10" class="muted">ยังไม่มีปัญหาที่บันทึกไว้</td></tr>'}</tbody></table></div></div>`;
+  { const ps = [...document.querySelectorAll('[data-bimgsrc]')].map(x => x.dataset.bimgsrc); if (ps.length) blkImgUrls(ps).then(u => { document.querySelectorAll('[data-bimgsrc]').forEach(im => { if (u[im.dataset.bimgsrc]) { im.src = u[im.dataset.bimgsrc]; im.parentElement.href = u[im.dataset.bimgsrc]; } }); }); }
   $('#bopen').onchange = e => { S.bOpen = e.target.checked; render(); };
   $('#addb').onclick = () => blockerModal(null);
   $('#expb').onclick = () => download('blocker-noshow-log.csv', toCsv([['Date', 'Restaurant ID', 'Restaurant Name', 'Employee', 'Issue Category', 'Issue Description', 'Evidence Link', 'Responsible Party', 'Follow-up Due Date', 'Follow-up Completed Date', 'Resolved Date', 'Status', 'Manager Noted']]
@@ -578,6 +579,10 @@ function viewBlockers() {
   });
   document.querySelectorAll('[data-brv]').forEach(x => x.onchange = async () => { const b = S.blockers.find(y => String(y.id) === x.dataset.brv); await setBlocker(b, { review: x.value }, 'บันทึก Manager Noted แล้ว'); });
 }
+const __blkUrl = {};
+async function blkImgUrls(paths) { const need = paths.filter(p => !__blkUrl[p] || __blkUrl[p].t < Date.now() - 50 * 60000);
+  if (need.length) { const { data } = await sb.storage.from('blocker-images').createSignedUrls(need, 3600); (data || []).forEach(x => { if (x.signedUrl) __blkUrl[x.path] = { u: x.signedUrl, t: Date.now() }; }); }
+  const o = {}; paths.forEach(p => { if (__blkUrl[p]) o[p] = __blkUrl[p].u; }); return o; }
 function blockerModal(b) {
   const isNew = !b; b = b || { log_date: C.iso(C.today()), employee: S.me.code, status: 'Open', review: 'Pending', fu_due: C.iso(C.addWorkdays(C.today(), 2, C.holidaySet(S.settings))) };
   const f = (n, l, t = 'text') => `<div><label>${l}</label><input name="${n}" type="${t}" value="${esc(b[n] ?? '')}"></div>`;
@@ -588,9 +593,25 @@ function blockerModal(b) {
     ${f('log_date', 'วันที่', 'date')}<div style="grid-column:span 2"><label>ชื่อร้าน *</label><input id="b_r" list="restlist" value="${esc(r0 ? r0.name : '')}" placeholder="พิมพ์ชื่อร้าน"></div>
     <div><label>ผู้ดูแล</label><select name="employee" ${isMgr() ? '' : 'disabled'}>${memberOpts(b.employee)}</select></div>${s('category', 'ประเภทปัญหา *', L.ISSUE)}${s('party', 'ปัญหามาจากใคร', L.PARTY)}
     ${f('fu_due', 'ต้องตามภายในวันที่', 'date')}${f('evidence', 'ลิงก์หลักฐาน (ถ้ามี)', 'url')}</div>
-    <label>รายละเอียดปัญหา *</label><textarea name="description" placeholder="เช่น ร้านไม่รับสาย 3 ครั้ง, รอ IT แก้ปุ่ม, เครื่องปริ้นเสีย">${esc(b.description ?? '')}</textarea></div>
+    <label>รายละเอียดปัญหา *</label><textarea name="description" placeholder="เช่น ร้านไม่รับสาย 3 ครั้ง, รอ IT แก้ปุ่ม, เครื่องปริ้นเสีย · 📋 ก็อปรูปมาแล้วกด Cmd+V วางในช่องนี้ได้เลย">${esc(b.description ?? '')}</textarea></div>
+    <div class="bimgs" id="bimgs"></div><p class="small muted" style="margin:4px 0 0">📋 วางรูปได้เลย: ก็อปรูป / แคปหน้าจอ (Cmd+Ctrl+Shift+4) แล้วคลิกช่องรายละเอียด กด <b>Cmd+V</b> · หรือ <label class="lnk" style="display:inline;cursor:pointer;color:var(--accT,#2563eb);text-decoration:underline">เลือกรูปจากเครื่อง<input type="file" id="bimgf" accept="image/*" multiple style="display:none"></label></p>
     <div class="actions">${!isNew && isMgr() ? '<button class="btn r s" id="del" style="margin-right:auto">ลบ</button>' : ''}<button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">บันทึก</button></div>`);
   $('#cx').onclick = closeModal;
+  /* pasted / chosen images -> storage "blocker-images", paths kept in blockers.images */
+  const imgs = Array.isArray(b.images) ? [...b.images] : []; let upN = 0;
+  const drawImgs = async () => { const box = $('#bimgs'); if (!box) return; if (!imgs.length && !upN) { box.innerHTML = ''; return; }
+    const urls = await blkImgUrls(imgs);
+    box.innerHTML = imgs.map((p, i) => `<div class="bimg"><a href="${esc(urls[p] || '#')}" target="_blank" rel="noopener"><img src="${esc(urls[p] || '')}" alt=""></a><button type="button" data-bimgx="${i}" title="เอารูปนี้ออก">×</button></div>`).join('') + (upN ? `<div class="bimg up">กำลังอัปโหลด ${upN}…</div>` : '');
+    box.querySelectorAll('[data-bimgx]').forEach(x => x.onclick = () => { imgs.splice(+x.dataset.bimgx, 1); drawImgs(); }); };
+  const addFiles = async files => { for (const f of files) { if (!/^image\//.test(f.type)) continue; if (f.size > 10 * 1024 * 1024) { toast('รูปใหญ่เกิน 10 MB', true); continue; }
+      upN++; drawImgs(); const ext = (f.type.split('/')[1] || 'png').replace('jpeg', 'jpg'); const path = `${new Date().toISOString().slice(0, 7)}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await sb.storage.from('blocker-images').upload(path, f, { contentType: f.type }); upN--;
+      if (error) toast('อัปโหลดรูปไม่สำเร็จ: ' + error.message, true); else imgs.push(path); drawImgs(); } };
+  const ta = document.querySelector('#bf textarea[name="description"]');
+  if (ta) ta.addEventListener('paste', e => { const files = [...(e.clipboardData?.items || [])].filter(it => it.kind === 'file' && /^image\//.test(it.type)).map(it => it.getAsFile()).filter(Boolean);
+    if (files.length) { e.preventDefault(); addFiles(files); toast('กำลังแนบรูป ' + files.length + ' รูป…'); } });
+  if ($('#bimgf')) $('#bimgf').onchange = e => { addFiles([...e.target.files]); e.target.value = ''; };
+  drawImgs();
   if ($('#del')) $('#del').onclick = async () => { if (confirm('ลบรายการนี้?')) { closeModal(); await save(sb.from('blockers').delete().eq('id', b.id), 'ลบแล้ว'); } };
   $('#sv').onclick = async () => {
     const d = formData($('#bf')); if (!isMgr()) d.employee = b.employee || S.me.code;
@@ -598,6 +619,8 @@ function blockerModal(b) {
     if (!name || !d.category || !d.description) return toast('กรุณาใส่ชื่อร้าน ประเภทปัญหา และรายละเอียด', true);
     if (!d.log_date) d.log_date = C.iso(C.today());
     $('#sv').disabled = true; const r = await ensureRest(name); if (!r) { $('#sv').disabled = false; return; } d.rid = r.rid;
+    if (upN) { $('#sv').disabled = false; return toast('รอรูปอัปโหลดให้เสร็จก่อนนะ', true); }
+    d.images = imgs;
     if (isNew) { d.status = 'Open'; d.review = 'Pending'; }
     closeModal();
     await save(isNew ? sb.from('blockers').insert(d) : sb.from('blockers').update(d).eq('id', b.id), isNew ? 'บันทึกแล้ว · แจ้ง Google Chat แล้ว 💬' : 'บันทึกแล้ว');
