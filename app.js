@@ -552,9 +552,12 @@ function viewBlockers() {
     <td class="small">${fd(b.fu_due)}${!done && i.fu === 'Overdue' ? ' ' + badge('เลยกำหนด', 'bad') : ''}</td>
     <td><select class="mini" data-bst="${b.id}" ${can ? '' : 'disabled'}>${BST2.map(o => `<option value="${o[0]}" ${(b.status || 'Open') === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></td>
     <td>${isMgr() ? `<select class="mini" data-brv="${b.id}">${REVIEW2.map(o => `<option value="${o[0]}" ${(b.review || 'Pending') === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>` : `<span class="small">${esc((REVIEW2.find(o => o[0] === (b.review || 'Pending')) || ['', ''])[1])}</span>`}</td>
-    <td>${can ? `<button class="btn s" data-b="${b.id}">แก้ไข</button>` : ''}</td></tr>`; }).join('') || '<tr><td colspan="10" class="muted">ยังไม่มีปัญหาที่บันทึกไว้</td></tr>'}</tbody></table></div></div>`;
+    <td>${can ? `<button class="btn s" data-b="${b.id}">แก้ไข</button>` : ''}${done && (b.activity_id || /back to queue|no-show|reschedule/i.test(b.category || '')) ? (annList().some(x => x.blk === b.id) ? `<div class="small" style="color:var(--goodT);margin-top:4px">📢 ประกาศนัด LIVE ใหม่แล้ว</div>` : `<button class="btn s t" style="margin-top:4px" data-resched="${b.id}" title="สิ่งที่ทำให้ LIVE ไม่ได้แก้แล้ว — ต้องนัด LIVE call ใหม่ · ลงประกาศให้ทีม">📅 Need to reschedule LIVE call</button>`) : ''}</td></tr>`; }).join('') || '<tr><td colspan="10" class="muted">ยังไม่มีปัญหาที่บันทึกไว้</td></tr>'}</tbody></table></div></div>`;
   { const ps = [...document.querySelectorAll('[data-bimgsrc]')].map(x => x.dataset.bimgsrc); if (ps.length) blkImgUrls(ps).then(u => { document.querySelectorAll('[data-bimgsrc]').forEach(im => { if (u[im.dataset.bimgsrc]) { im.src = u[im.dataset.bimgsrc]; im.parentElement.href = u[im.dataset.bimgsrc]; } }); }); }
   if (S.blkHi) { const row = document.querySelector(`[data-blkrow="${S.blkHi}"]`); if (row) setTimeout(() => row.scrollIntoView({ block: 'center' }), 50); else if (S.blockers.length) toast('ไม่พบรายการนี้ (อาจถูกลบไปแล้ว)', true); setTimeout(() => { S.blkHi = null; }, 15000); }
+  document.querySelectorAll('[data-resched]').forEach(x => x.onclick = () => { const b = S.blockers.find(y => String(y.id) === x.dataset.resched); if (!b) return;
+    annModal({ d: C.iso(C.today()), blk: b.id, t: `📅 Need to reschedule LIVE call — ${rn(b)}`,
+      b: `สิ่งที่ทำให้ LIVE ไม่ได้ แก้เรียบร้อยแล้ว (${b.category || ''}${b.description ? ': ' + b.description : ''})\nต้องนัดร้าน LIVE call ใหม่ · ผู้ดูแล: ${memberName(b.employee)}\nนัดแล้วลงใน Dashboard & Calendar` }); });
   $('#bopen').onchange = e => { S.bOpen = e.target.checked; render(); };
   $('#addb').onclick = () => blockerModal(null);
   $('#expb').onclick = () => download('blocker-noshow-log.csv', toCsv([['Date', 'Restaurant ID', 'Restaurant Name', 'Employee', 'Issue Category', 'Issue Description', 'Evidence Link', 'Responsible Party', 'Follow-up Due Date', 'Follow-up Completed Date', 'Resolved Date', 'Status', 'Manager Noted']]
@@ -1481,7 +1484,7 @@ function annModal(a) {
   $('#ancx').onclick = closeModal;
   $('#ansv').onclick = async () => {
     const t = $('#ant').value.trim(); if (!t) return toast('ใส่หัวข้อก่อน', true);
-    const L = annList(); const rec = { id: a.id || Date.now(), d: $('#and').value || C.iso(C.today()), t, b: $('#anb').value.trim(), by: a.by || S.me.name };
+    const L = annList(); const rec = { id: a.id || Date.now(), d: $('#and').value || C.iso(C.today()), t, b: $('#anb').value.trim(), by: a.by || S.me.name }; if (a.blk) rec.blk = a.blk;
     const i = L.findIndex(x => x.id === a.id); if (i >= 0) L[i] = rec; else L.push(rec);
     const chat = $('#anchat').checked;
     closeModal(); const ok = await save(sb.from('content').upsert({ key: 'announcements', body: JSON.stringify(L), updated_at: new Date().toISOString() }, { onConflict: 'key' }), 'บันทึกประกาศแล้ว');
