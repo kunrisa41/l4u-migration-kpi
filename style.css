@@ -490,3 +490,5 @@ html,body{overflow-x:clip}
 
 .cxrem{margin-top:8px;padding:9px 12px;background:#ECFDF5;border:1px solid #A7F3D0;border-left:4px solid #10B981;border-radius:3px;color:#065F46;font-size:14px;white-space:pre-line}
 .cximgs img[src*="lp_links"]{width:300px;height:auto;object-fit:contain}
+
+.annbox{max-height:280px;overflow:auto;margin-top:10px;border:1px solid var(--line);border-radius:10px;background:#fff}.annrow{display:flex;gap:14px;padding:10px 14px;border-bottom:1px solid var(--line);align-items:flex-start}.annrow:last-child{border-bottom:0}.annd{width:120px;flex:none;font-weight:700;font-size:13px;color:#334155}.annb{flex:1}.annx{white-space:pre-wrap;font-size:13px;margin:3px 0;color:#334155}.annact{display:flex;gap:6px;flex:none}

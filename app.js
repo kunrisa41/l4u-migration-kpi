@@ -1062,7 +1062,7 @@ function viewHome() {
     ${fus.map(a => { const dd = Math.round((C.today() - C.parseD(a.act_date)) / C.DAY); return `<tr><td><b>${esc(a.store_name)}</b> <span class="small">${(a.checklist || {}).site === 'IT' ? '🛠️ IT' : '🌐 CW'}</span></td><td>${esc(a.followup)}</td><td>${esc(memberName(a.member_code))}</td>
       <td class="small">${fd(a.act_date)}${dd > 0 ? ` · <b style="color:${dd >= 2 ? 'var(--badT)' : 'var(--warnT)'}">${dd} วัน</b>` : ''}</td>
       <td style="white-space:nowrap">${isMgr() || a.member_code === S.me.code ? `<button class="btn s t" data-fudone="${a.id}">✅ ตามเสร็จแล้ว</button> ` : ''}<button class="btn s" data-act="${a.id}">แก้ไข</button></td></tr>`; }).join('')}</tbody></table></div></div>` : '';
-  $('#main').innerHTML = `${goalCard()}${fuCard}
+  $('#main').innerHTML = `${goalCard()}${annCard()}${fuCard}
   <div class="card"><div class="row" style="align-items:flex-start"><div style="flex:1"><div class="small muted" style="font-weight:700;letter-spacing:.05em">DAILY TARGET PERFORMANCE · REAL-TIME</div>
     <h2 style="font-size:20px;margin:4px 0">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} <small>(${new Date().toLocaleDateString('th-TH', { dateStyle: 'full' })})</small></h2></div>
       <div class="callbtn"><div class="row" style="justify-content:flex-end;gap:6px"><button class="btn p" id="hcall">📞 บันทึกการโทรประจำวัน</button><button class="btn" data-new="appointment">+ Add Appointment</button><button class="btn r" data-new="live">🔴 Record LIVE</button></div><div class="small muted">บันทึกร้านที่โทรติดต่อวันนี้ (ไม่รับสาย / ได้นัด / โทรกลับ)<br>ดูสรุปและส่งเข้า Chat ได้ที่ Team Performance</div></div></div>
@@ -1090,7 +1090,7 @@ function viewHome() {
   const shift = n => { const d = new Date(cy, cm - 1 + n, 1); S.calMonth = C.iso(d).slice(0, 7); render(); };
   $('#cp').onclick = () => shift(-1); $('#cn').onclick = () => shift(1); $('#ct').onclick = () => { S.calMonth = null; S.selDate = null; render(); };
   document.querySelectorAll('[data-day]').forEach(b => b.onclick = e => { if (e.target.closest('[data-act]')) return; S.selDate = b.dataset.day; render(); });
-  bindActButtons(); bindRecorder(); bindSheet(); bindRecLog();
+  bindActButtons(); bindRecorder(); bindSheet(); bindRecLog(); bindAnn();
   $('#hcall').onclick = () => { S.dailyDate = C.iso(C.today()); callModal(null); };
   document.querySelectorAll('[data-fudone]').forEach(b => b.onclick = async () => {
     const a = S.acts.find(x => String(x.id) === b.dataset.fudone); if (!confirm(`ตามงานร้าน ${a.store_name} เสร็จแล้ว และอัปเดต 486 Monday เป็น Completed แล้ว?`)) return;
@@ -1190,6 +1190,35 @@ function bindRecLog() {
     S.pl = p ? Object.assign({}, p) : { store_name: b.dataset.rlpl, checks: {}, inspector: S.me.code }; S.tab = 'prelive'; render(); window.scrollTo(0, 0); });
   if ($('#rlq')) $('#rlq').oninput = e => { S.rlQ = e.target.value; const p = e.target.selectionStart; render(); const el = $('#rlq'); el.focus(); el.setSelectionRange(p, p); };
   if ($('#rlall')) $('#rlall').onclick = () => { S.rlAll = true; render(); };
+}
+/* 📢 Daily announcements / update log (Manager posts, everyone reads) */
+function annList() { try { const v = JSON.parse(content('announcements') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+function annCard() {
+  const L = annList().slice().sort((a, b) => (b.d || '').localeCompare(a.d || '') || (b.id || 0) - (a.id || 0));
+  const td = C.iso(C.today());
+  const row = a => `<div class="annrow"><div class="annd">${fd(a.d)}${a.d === td ? ' <span class="badge b-ok">วันนี้</span>' : ''}</div><div class="annb"><b>${esc(a.t)}</b>${a.b ? `<div class="annx">${esc(a.b)}</div>` : ''}<div class="small muted">โดย ${esc(a.by || '')}</div></div>${isMgr() ? `<div class="annact"><button class="btn s" data-anned="${a.id}">แก้ไข</button><button class="btn s" data-anndel="${a.id}">ลบ</button></div>` : ''}</div>`;
+  return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">📢 ประกาศ & อัปเดต <small>${L.length} รายการ · ใหม่สุดอยู่บน · เลื่อนดูย้อนหลังได้</small></h2>${isMgr() ? '<button class="btn s p" id="annnew">+ ประกาศใหม่</button>' : ''}</div>
+    <div class="annbox">${L.map(row).join('') || '<div class="muted small" style="padding:10px">ยังไม่มีประกาศ</div>'}</div></div>`;
+}
+function annModal(a) {
+  a = a || { d: C.iso(C.today()), t: '', b: '' };
+  openModal(`<h2>${a.id ? 'แก้ไขประกาศ' : '📢 ประกาศใหม่'}</h2><label>วันที่</label><input id="and" type="date" value="${esc(a.d)}">
+    <label>หัวข้อ</label><input id="ant" value="${esc(a.t)}" placeholder="เช่น Recorder V18.41 — Final Proof ซ้าย-ขวา">
+    <label>รายละเอียด (ไม่ใส่ก็ได้)</label><textarea id="anb" rows="5" placeholder="อัปเดตอะไร / ทีมต้องทำอะไร">${esc(a.b || '')}</textarea>
+    <div class="actions"><button class="btn" id="ancx">ยกเลิก</button><button class="btn p" id="ansv">บันทึก</button></div>`);
+  $('#ancx').onclick = closeModal;
+  $('#ansv').onclick = async () => {
+    const t = $('#ant').value.trim(); if (!t) return toast('ใส่หัวข้อก่อน', true);
+    const L = annList(); const rec = { id: a.id || Date.now(), d: $('#and').value || C.iso(C.today()), t, b: $('#anb').value.trim(), by: a.by || S.me.name };
+    const i = L.findIndex(x => x.id === a.id); if (i >= 0) L[i] = rec; else L.push(rec);
+    closeModal(); await save(sb.from('content').upsert({ key: 'announcements', body: JSON.stringify(L), updated_at: new Date().toISOString() }, { onConflict: 'key' }), 'บันทึกประกาศแล้ว');
+  };
+}
+function bindAnn() {
+  if ($('#annnew')) $('#annnew').onclick = () => annModal(null);
+  document.querySelectorAll('[data-anned]').forEach(b => b.onclick = () => annModal(annList().find(x => String(x.id) === b.dataset.anned)));
+  document.querySelectorAll('[data-anndel]').forEach(b => b.onclick = async () => { const L = annList(); const a = L.find(x => String(x.id) === b.dataset.anndel); if (!a || !confirm(`ลบประกาศ "${a.t}"?`)) return;
+    await save(sb.from('content').upsert({ key: 'announcements', body: JSON.stringify(L.filter(x => x !== a)), updated_at: new Date().toISOString() }, { onConflict: 'key' }), 'ลบแล้ว'); });
 }
 function goalCard() {
   const st = S.settings, G = st.goal; if (!G) return '';
