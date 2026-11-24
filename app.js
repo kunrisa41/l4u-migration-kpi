@@ -1213,17 +1213,16 @@ function annCard() {
 }
 /* 🏆 Star of the week (calculated in the database; posted to Google Chat every Friday 16:00) */
 function starCard() {
-  const j = S.star; if (!j) return '';
-  const s = j.star, R = j.rows || [], t = j.tops || {};
-  const top = (k, v) => v > 0 && String(v) === String(t[k]) ? ' <span class="badge b-ok">สูงสุด</span>' : '';
+  const j0 = S.star; if (!j0) return '';
+  const j = j0.star ? j0 : (j0.prev || j0), s = j.star, last = !j0.star && !!j0.prev;
   const wk = `${fd(j.week_start)} – ${fd(j.week_end)}`;
-  const reasons = s ? (j.text || '').split('\n').filter(l => l.startsWith('- ')).map(l => `<li>${esc(l.slice(2))}</li>`).join('') : '';
-  return `<div class="card starcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🏆 Star of the week <small>${wk} · คำนวณจาก LIVE, นัดใหม่, นัดที่ปิดได้, No-show, Pre-Live ครบ, ปิดปัญหา, การโทร · ส่งเข้า Google Chat ทุกศุกร์ 16:00</small></h2>
-      ${isMgr() && s ? '<button class="btn s p" id="starpost">📣 ส่งชื่นชมเข้าแชทตอนนี้</button>' : ''}</div>
-    ${s ? `<div class="starhero"><div class="starname">👏 ขอชื่นชม <b>${esc(s.name)}</b></div><ul>${reasons}</ul></div>` : '<div class="muted small" style="margin:8px 0">สัปดาห์นี้ยังไม่มีผลงานที่บันทึก — จะเลือก Star อัตโนมัติเมื่อมี LIVE / นัด / Pre-Live</div>'}
-    <div class="tw" style="margin-top:8px"><table><thead><tr><th>คน</th><th class="num">🔴 LIVE</th><th class="num">📅 นัดใหม่</th><th class="num">✅ นัดปิด LIVE</th><th class="num">❌ No-show</th><th class="num">🧾 Pre-Live ครบ</th><th class="num">🛠️ ปิดปัญหา</th><th class="num">📞 โทร</th><th class="num">คะแนน</th></tr></thead><tbody>
-    ${R.map((r, i) => `<tr ${s && i === 0 ? 'class="starrow"' : ''}><td><b>${s && i === 0 ? '🏆 ' : ''}${esc(r.name)}</b></td><td class="num">${r.live}${top('live', r.live)}</td><td class="num">${r.booked}${top('booked', r.booked)}</td><td class="num">${r.appt_live}/${r.appt_done}</td><td class="num">${r.noshow}</td><td class="num">${r.prelive}${top('prelive', r.prelive)}</td><td class="num">${r.solved}</td><td class="num">${r.calls}${top('calls', r.calls)}</td><td class="num"><b>${Math.round(r.score * 10) / 10}</b></td></tr>`).join('')}</tbody></table></div>
-    <div class="small muted" style="margin-top:6px">คะแนน = LIVE×5 + นัดใหม่×2 + Pre-Live ครบ×2 + ปิดปัญหา×1 + โทร×0.2 − No-show×2 · ไม่รวม Manager</div></div>`;
+  const head = `<div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🏆 Star of the week <small>${last ? 'สัปดาห์ที่แล้ว · ' : ''}${wk} · ส่งเข้า Google Chat ทุกศุกร์ 16:00</small></h2>${isMgr() && s && !last ? '<button class="btn s p" id="starpost">📣 ส่งชื่นชมเข้าแชทตอนนี้</button>' : ''}</div>`;
+  if (!s) return `<div class="card starcard">${head}<div class="muted small" style="margin-top:8px">ยังไม่มีผลงานที่บันทึก — จะขึ้นชื่อ Star อัตโนมัติเมื่อมี LIVE / นัด / Pre-Live</div></div>`;
+  const m = S.members.find(x => x.code === s.code) || { name: s.name, role: '' };
+  const ini = (m.name || '?').replace(/\(.*\)/, '').trim().slice(0, 1).toUpperCase();
+  const pic = m.photo_url ? `<img class="starpic" src="${esc(m.photo_url)}" alt="">` : `<div class="starpic starini">${esc(ini)}</div>`;
+  const reasons = (j.text || '').split('\n').filter(l => l.startsWith('- ')).map(l => `<li>${esc(l.slice(2))}</li>`).join('');
+  return `<div class="card starcard">${head}<div class="starhero">${pic}<div style="flex:1"><div class="starname">👏 ขอชื่นชม <b>${esc(m.name)}</b> <span class="small muted">${esc(m.role || '')}</span></div><ul>${reasons}</ul></div></div></div>`;
 }
 async function loadStar() {
   if (S.starAt && Date.now() - S.starAt < 60000) return bindStar();
