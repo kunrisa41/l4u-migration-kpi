@@ -1137,6 +1137,7 @@ function viewHome() {
       ${big('🗓️ นัดของวันนี้', todayAp.length, 0, '', `รอ ${todayAp.filter(a => a.status === 'Scheduled' || a.status === 'Rescheduled').length} · LIVE ${todayAp.filter(a => a.status === 'LIVE Completed').length}`)}
       ${big('❌ No-show / ⚠️ ติดปัญหา วันนี้', todayAp.filter(a => a.status === 'No-show' || a.status === 'Problem').length, 0, '', `No-show ${todayAp.filter(a => a.status === 'No-show').length} · ปัญหา ${todayAp.filter(a => a.status === 'Problem').length}`)}</div></div>
   <div class="mgrid">${team.map(mcard).join('')}</div>
+  ${weekCallsCard()}
   <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">ปฏิทินนัดหมาย & LIVE <small>กดชื่อร้านเพื่อเปิดนัด · กดช่องวันเพื่อดูรายการ</small></h2>
     <select id="calf" style="width:auto">${[['', 'ทั้งหมด'], ['open', '📅 ยังรออยู่'], ['noshow', '❌ มี No-show'], ['problem', '⚠️ มีปัญหา']].map(o => `<option value="${o[0]}" ${o[0] === (S.calF || '') ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>
     <button class="btn s" id="cp">◀</button><b>${first.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</b><button class="btn s" id="cn">▶</button><button class="btn s" id="ct">วันนี้</button></div>
@@ -1156,7 +1157,7 @@ function viewHome() {
   const shift = n => { const d = new Date(cy, cm - 1 + n, 1); S.calMonth = C.iso(d).slice(0, 7); render(); };
   $('#cp').onclick = () => shift(-1); $('#cn').onclick = () => shift(1); $('#ct').onclick = () => { S.calMonth = null; S.selDate = null; render(); };
   document.querySelectorAll('[data-day]').forEach(b => b.onclick = e => { if (e.target.closest('[data-act]')) return; S.selDate = b.dataset.day; render(); });
-  bindActButtons(); bindRecorder(); bindSheet(); bindRecLog(); bindAnn(); loadStar();
+  bindActButtons(); bindRecorder(); bindSheet(); bindRecLog(); bindAnn(); loadStar(); if ($('#wcf')) $('#wcf').onchange = e => { S.wcF = e.target.value; render(); };
   $('#hcall').onclick = () => { S.dailyDate = C.iso(C.today()); callModal(null); };
   document.querySelectorAll('[data-fudone]').forEach(b => b.onclick = async () => {
     const a = S.acts.find(x => String(x.id) === b.dataset.fudone); if (!confirm(`ตามงานร้าน ${a.store_name} เสร็จแล้ว และอัปเดต 486 Monday เป็น Completed แล้ว?`)) return;
@@ -1258,6 +1259,21 @@ function bindRecLog() {
   if ($('#rlall')) $('#rlall').onclick = () => { S.rlAll = true; render(); };
 }
 /* 📢 Daily announcements / update log (Manager posts, everyone reads) */
+/* 📞 This week's call log (Mon–Sun) on the home page */
+function weekCallsCard() {
+  const t = C.today(), wd = (t.getDay() + 6) % 7, ws = C.iso(new Date(t.getFullYear(), t.getMonth(), t.getDate() - wd)), we = C.iso(new Date(t.getFullYear(), t.getMonth(), t.getDate() - wd + 6));
+  const f = S.wcF || '';
+  const all = (S.calls || []).filter(c => c.call_date >= ws && c.call_date <= we);
+  const list = all.filter(c => !f || c.member_code === f).sort((a, b) => (b.call_date || '').localeCompare(a.call_date || '') || (b.created_at || '').localeCompare(a.created_at || ''));
+  const cnt = k => list.filter(c => c.result === k).length;
+  const who = [...new Set(all.map(c => c.member_code))];
+  return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">📞 บันทึกการโทร สัปดาห์นี้ <small>${fd(ws)} – ${fd(we)} · ${list.length} สาย · ได้นัด ${cnt('Appointment')} · ไม่รับสาย ${cnt('Not pickup')} · โทรกลับ ${cnt('Call back')}</small></h2>
+    <select id="wcf" style="width:auto"><option value="">ทุกคน</option>${who.map(c => `<option value="${esc(c)}" ${c === f ? 'selected' : ''}>${esc(memberName(c))}</option>`).join('')}</select></div>
+    <div class="tw" style="margin-top:10px;max-height:360px"><table><thead><tr><th>วันที่</th><th>โดย</th><th>ร้าน</th><th>ผล</th><th>ผู้ติดต่อ / เบอร์</th><th>หมายเหตุ</th></tr></thead><tbody>
+    ${list.map(c => `<tr><td class="small" style="white-space:nowrap">${fd(c.call_date)}</td><td>${esc(memberName(c.member_code))}</td><td><b>${esc(c.store_name || '')}</b></td>
+      <td>${esc(RESULTS[c.result] || c.result || '')}${c.result === 'Appointment' && c.appt_at ? `<div class="small muted">${esc(dualTime(c.appt_at, c.tz))}</div>` : ''}</td>
+      <td class="small">${esc([c.contact, c.phone].filter(Boolean).join(' · '))}</td><td class="small">${esc(c.notes || '')}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">สัปดาห์นี้ยังไม่มีบันทึกการโทร — กด 📞 บันทึกการโทรประจำวัน ด้านบน</td></tr>'}</tbody></table></div></div>`;
+}
 function annList() { try { const v = JSON.parse(content('announcements') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
 function annAcks() { try { const v = JSON.parse(content('ann_acks') || '{}'); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; } }
 function annCard() {
