@@ -1231,6 +1231,10 @@ async function openReport(id) {
   const { data, error } = await sb.storage.from('audit-reports').createSignedUrl(r.file_path, 600);
   if (error) { if (w) w.close(); return toast(error.message, true); } if (w) w.location = data.signedUrl; else location.href = data.signedUrl;
 }
+const recheckUrl = r => { const sm = r.summary || {}; const q = new URLSearchParams({ recheck: '1', shop: r.store_name || '' }); if (sm.newUrl) q.set('new', sm.newUrl); if (sm.oldUrl) q.set('old', sm.oldUrl); if (r.mode) q.set('mode', r.mode); return 'http://localhost:3210/?' + q.toString(); };
+const recheckBtn = r => `<button class="btn s t" data-recheck="${r.id}" title="เปิด LFY Recorder ด้วยร้านและลิงก์เดิม แล้วเริ่มตรวจเองใน 5 วินาที">🔁 Recheck (ลิงก์เดิม)</button>`;
+function bindRecheck() { document.querySelectorAll('[data-recheck]').forEach(b => b.onclick = e => { e.stopPropagation(); const r = (S.runs || []).find(x => String(x.id) === b.dataset.recheck); if (!r) return;
+  window.open(recheckUrl(r), '_blank', 'noopener'); toast('เปิด LFY Recorder แล้ว · จะเริ่มตรวจเองใน 5 วินาที (ต้อง login NEW ตามปกติ) · ตรวจเสร็จผลใหม่จะขึ้นที่นี่เอง'); }); }
 const hideCheck = c => /check@gmail/i.test(c.field || '') || /receipt logo/i.test((c.field || '') + ' ' + (c.area || ''));
 const MI_ST = { MISSING_IN_NEW: ['ไม่มีใน NEW', 'bad'], EXTRA_IN_NEW: ['มีใน NEW แต่ OLD ไม่มี', 'warn'] };
 function menuIssuesHtml(r) {
@@ -1256,7 +1260,7 @@ function recLog() {
       ${open ? `<tr><td colspan="9" style="background:#F8FAFC">${bad.length ? Object.entries(groups).map(([g, l]) => `<div class="sec" style="margin-top:6px">${esc(g)} (${l.length})</div><table class="small issues"><thead><tr><th></th><th>รายการ</th><th>OLD / ต้องเป็น</th><th>NEW ตอนนี้</th><th>ต้องทำ</th></tr></thead><tbody>
         ${l.slice(0, 80).map(c => `<tr><td>${c.status === 'FAIL' ? '❌' : '❓'}</td><td><b>${esc(c.field)}</b></td><td>${esc(String(c.old || '').replace(/\s*\(\+\s*Check@gmail\.com\)/i, ''))}</td><td>${esc(c.new)}</td><td>${esc(c.action)}</td></tr>`).join('')}</tbody></table>`).join('')
         : '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงทุกจุดที่ตรวจ</p>'}${menuIssuesHtml(r)}
-        <div class="row" style="margin-top:6px">${pdfOf(r) ? `<button class="btn s p" data-dl="${pdfOf(r).id}">📄 เปิด Compare Report (PDF)</button>` : ''}<button class="btn s" data-rlpl="${esc(r.store_name)}">เปิด Pre-Live ของร้านนี้</button>${content('mig_drive') ? `<a class="btn s" href="${esc(content('mig_drive'))}" target="_blank" rel="noopener">📁 วิดีโอใน MIG Audit Check</a>` : ''}</div></td></tr>` : ''}`; };
+        <div class="row" style="margin-top:6px">${recheckBtn(r)}${pdfOf(r) ? `<button class="btn s p" data-dl="${pdfOf(r).id}">📄 เปิด Compare Report (PDF)</button>` : ''}<button class="btn s" data-rlpl="${esc(r.store_name)}">เปิด Pre-Live ของร้านนี้</button>${content('mig_drive') ? `<a class="btn s" href="${esc(content('mig_drive'))}" target="_blank" rel="noopener">📁 วิดีโอใน MIG Audit Check</a>` : ''}</div></td></tr>` : ''}`; };
   return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🧪 Log การตรวจเช็ค (LFY Recorder) <small>คะแนน + สิ่งที่ต้องแก้ ส่งมาเองทุกครั้งที่ตรวจเสร็จ (PDF ส่งมาด้วยตั้งแต่ V18.29)</small></h2>
       <input id="rlq" placeholder="ค้นหาชื่อร้าน" value="${esc(S.rlQ || '')}" style="width:220px"></div>
     <div class="tw" style="margin-top:10px"><table><thead><tr><th>วันที่</th><th>ร้าน</th><th>โหมด</th><th>โดย</th><th class="num">เมนู</th><th class="num">หลังบ้าน</th><th class="num">รวม</th><th>ผล</th><th></th></tr></thead><tbody>
@@ -1265,6 +1269,7 @@ function recLog() {
 }
 function bindRecLog() {
   document.querySelectorAll('#main [data-dl]').forEach(b => b.onclick = e => { e.stopPropagation(); openReport(b.dataset.dl); });
+  bindRecheck();
   document.querySelectorAll('[data-rl]').forEach(t => t.onclick = () => { const id = +t.dataset.rl; S.rlOpen = S.rlOpen === id ? null : id; const y = window.scrollY; render(); window.scrollTo(0, y); });
   document.querySelectorAll('[data-rlpl]').forEach(b => b.onclick = e => { e.stopPropagation(); const n = b.dataset.rlpl.trim().toLowerCase(); const p = (S.prelive || []).find(x => x.store_name.trim().toLowerCase() === n);
     S.pl = p ? Object.assign({}, p) : { store_name: b.dataset.rlpl, checks: {}, inspector: S.me.code }; S.tab = 'prelive'; render(); window.scrollTo(0, 0); });
@@ -1478,7 +1483,7 @@ function viewPrelive() {
     return `<div class="autobox">${head}${list ? `<details><summary class="small">ดูรายละเอียด</summary><ul class="small">${list}</ul></details>` : ''}</div>`; };
   const runPanel = run ? (() => { const bad = (run.checks || []).filter(c => (c.status === 'FAIL' || c.status === 'REVIEW') && !hideCheck(c));
     const groups = {}; bad.forEach(c => { (groups[c.area || 'อื่นๆ'] = groups[c.area || 'อื่นๆ'] || []).push(c); });
-    return `<div class="runpanel"><div class="row" style="align-items:center"><b style="flex:1">🤖 ผลจาก LFY Recorder ${esc(run.version || '')}</b><span class="small muted">${fmtDT(run.created_at)} · ${esc(run.mode || '')}${run.operator ? ' · ' + esc(run.operator) : ''}</span></div>
+    return `<div class="runpanel"><div class="row" style="align-items:center"><b style="flex:1">🤖 ผลจาก LFY Recorder ${esc(run.version || '')}</b>${recheckBtn(run)}&nbsp;<span class="small muted">${fmtDT(run.created_at)} · ${esc(run.mode || '')}${run.operator ? ' · ' + esc(run.operator) : ''}</span></div>
       <div class="grid g3" style="margin-top:8px">${[['เมนู (OLD vs NEW)', run.menu_percent, run.items_need_fixing !== null && run.items_need_fixing !== undefined ? `ต้องแก้ ${run.items_need_fixing} รายการ` : (run.menu_status || '')],
         ['หลังบ้าน (Backend)', run.backend_percent, `${bad.length} จุดต้องดู`], ['รวม (Overall)', run.overall_percent, '']].map(x => `<div class="kpi"><div class="l">${x[0]}</div><div class="v">${x[1] === null || x[1] === undefined ? '–' : x[1] + '%'}</div><div class="s">${esc(x[2])}</div></div>`).join('')}</div>
       ${bad.length ? `<details open style="margin-top:8px"><summary><b>รายการที่ Recorder พบว่าไม่ตรง / ต้องแก้ (${bad.length})</b> — OLD มีอะไร / NEW เป็นอะไร</summary>
@@ -1515,6 +1520,7 @@ function viewPrelive() {
   $('#pl_all').onclick = () => { const c = collect(); delete c._r; PRELIVE.forEach(x => { c.checks['i' + x.n] = true; if (x.all) c.checks['o' + x.n] = x.opts.slice(); }); c.done = PL_REQ; S.pl = c; render(); };
   $('#pl_new').onclick = () => { S.pl = null; render(); };
   bindWording();
+  bindRecheck();
   $('#pl_rec').onclick = () => { const n = $('#pl_r').value.trim(); if (!n) { toast('ใส่ชื่อร้านก่อน (ชื่อเดียวกับที่จะใส่ใน Recorder)', true); $('#pl_r').focus(); return; }
     const c = collect(); delete c._r; S.pl = c; window.open('http://localhost:3210/?shop=' + encodeURIComponent(n), '_blank', 'noopener');
     toast('เปิด LFY Recorder แล้ว · ตรวจเสร็จผลจะขึ้นที่นี่เอง'); };
