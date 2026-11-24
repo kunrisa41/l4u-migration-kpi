@@ -533,3 +533,4 @@ html,body{overflow-x:clip}
 .mpair td{padding:2px 10px 2px 0;border:0}
 .mov{display:flex;gap:24px;flex-wrap:wrap;font-size:13px}
 .mact{font-size:12px;color:#047857;margin-top:3px}
+.mcard.gang{border-color:#7DD3FC;background:#F0F9FF}

@@ -1237,7 +1237,7 @@ function bindRecheck() { document.querySelectorAll('[data-recheck]').forEach(b =
   window.open(recheckUrl(r), '_blank', 'noopener'); toast('เปิด LFY Recorder แล้ว · จะเริ่มตรวจเองใน 5 วินาที (ต้อง login NEW ตามปกติ) · ตรวจเสร็จผลใหม่จะขึ้นที่นี่เอง'); }); }
 const hideCheck = c => /check@gmail/i.test(c.field || '') || /receipt logo/i.test((c.field || '') + ' ' + (c.area || ''));
 /* menu issues: grouped (same problem in many items = one card), lists as chips, Thai titles */
-const MI_T = [[/option missing|missing from new|option presence/i, 'ตัวเลือกที่ NEW ยังไม่มี → ต้องเพิ่ม', 'add'], [/extra option/i, 'ตัวเลือกที่ NEW มีเกิน → ต้องลบ', 'del'],
+const MI_T = [[/extra prefix/i, 'ต้องเติม "Extra" หน้าชื่อตัวเลือก (กลุ่มไม่บังคับ / Extra — เครื่องปริ้นไม่พิมพ์ชื่อกลุ่ม)', 'pair'], [/option missing|missing from new|option presence/i, 'ตัวเลือกที่ NEW ยังไม่มี → ต้องเพิ่ม', 'add'], [/extra option/i, 'ตัวเลือกที่ NEW มีเกิน → ต้องลบ', 'del'],
   [/option spelling/i, 'ชื่อตัวเลือกสะกดไม่ตรง', 'pair'], [/option price/i, 'ราคาตัวเลือกไม่ตรง', 'pair'], [/modifier group|group name/i, 'กลุ่มตัวเลือก', 'group'],
   [/^price|item price/i, 'ราคาเมนู', 'ov'], [/label/i, 'ป้ายเมนู (Label)', 'ov'], [/description/i, 'คำอธิบายเมนู', 'ov'], [/menu order|order/i, 'ลำดับเมนู', 'ov'],
   [/menu name|missing in new|name/i, 'ชื่อเมนู', 'ov'], [/required|min|max|quantity/i, 'จำนวนที่ต้องเลือก (Required / Min / Max)', 'ov']];
@@ -1257,7 +1257,7 @@ function miDetail(d) {
   let body = '';
   if (t[2] === 'add') body = miChips(o.length ? o : n, 'add');
   else if (t[2] === 'del') body = miChips(n, 'del');
-  else if (t[2] === 'pair') { const m = Math.max(o.length, n.length); body = `<table class="mpair"><thead><tr><th>OLD (ต้องเป็น)</th><th></th><th>NEW ตอนนี้</th></tr></thead><tbody>${Array.from({ length: m }, (_, i) => `<tr><td><b>${esc(o[i] || '')}</b></td><td>→</td><td>${esc(n[i] || '')}</td></tr>`).join('')}</tbody></table>`; }
+  else if (t[2] === 'pair') { const m = Math.max(o.length, n.length); body = `<table class="mpair"><thead><tr><th>ต้องเป็น</th><th></th><th>NEW ตอนนี้</th></tr></thead><tbody>${Array.from({ length: m }, (_, i) => `<tr><td><b>${esc(o[i] || '')}</b></td><td>→</td><td>${esc(n[i] || '')}</td></tr>`).join('')}</tbody></table>`; }
   else if (t[2] === 'group') {
     const os = String(Array.isArray(d.o) ? d.o.join(' ') : d.o || ''), ns = String(Array.isArray(d.n) ? d.n.join(' ') : d.n || '');
     const gm = os.match(/^(.*?)\s*Options?:\s*(.*)$/i);
@@ -1267,21 +1267,38 @@ function miDetail(d) {
   } else body = `<div class="mov"><span>OLD: <b>${esc(o.join(', ') || '—')}</b></span><span>NEW: <b>${esc(n.join(', ') || '—')}</b></span></div>`;
   return `<div class="mdet"><div class="mdt">${esc(t[1])}</div>${body}${act && !['add', 'del', 'pair'].includes(t[2]) && t[2] !== 'group' ? `<div class="mact">ต้องทำ: ${esc(act)}</div>` : ''}</div>`;
 }
+/* rule: in an optional / Extra choice group NEW names options "Extra X" (printer does not print the group name) -> OLD "X" = NEW "Extra X" is correct */
+function miExtraRule(mi) {
+  const isX = (o, n) => String(n || '').trim().toLowerCase() === ('extra ' + String(o || '').trim()).toLowerCase();
+  return mi.map(x => { let ds = (x.d || []).map(d => {
+      if (/option spelling/i.test(d.f || '')) { const o = miList(d.o), n = miList(d.n); const keep = o.map((v, i) => [v, n[i]]).filter(([v, w]) => w && !isX(v, w)); if (keep.length === o.length) return d; return keep.length ? { ...d, o: keep.map(k => k[0]), n: keep.map(k => k[1] || '') } : null; }
+      return d; }).filter(Boolean);
+    const mi_ = ds.find(d => /option missing in new/i.test(d.f || '')), ex_ = ds.find(d => /extra option in new/i.test(d.f || ''));
+    if (mi_ && ex_) { const ml = miList(mi_.o), el = miList(ex_.n); const used = new Set(); const km = ml.filter(m => { const i = el.findIndex((e, j) => !used.has(j) && isX(m, e)); if (i >= 0) { used.add(i); return false; } return true; });
+      if (used.size) { ds = ds.map(d => d === mi_ ? (km.length ? { ...d, o: km, n: km } : null) : d === ex_ ? (el.filter((_, j) => !used.has(j)).length ? { ...d, n: el.filter((_, j) => !used.has(j)), o: [] } : null) : d).filter(Boolean); } }
+    return { ...x, d: ds }; }).filter(x => x.d.length || MI_ST[x.st]);
+}
 const MI_ST = { MISSING_IN_NEW: ['ไม่มีใน NEW', 'bad'], EXTRA_IN_NEW: ['มีใน NEW แต่ OLD ไม่มี', 'warn'] };
 function menuIssuesHtml(r) {
-  const n = r.items_need_fixing; const mi = (r.summary && Array.isArray(r.summary.menuIssues)) ? r.summary.menuIssues : null;
+  const n = r.items_need_fixing; let mi = (r.summary && Array.isArray(r.summary.menuIssues)) ? r.summary.menuIssues : null;
   if (!n && !(mi && mi.length)) return '';
   if (!mi) return `<p class="small">🍽️ เมนู: ต้องแก้ ${n} รายการ — รายละเอียดอยู่ใน Compare Report (PDF) · ผลตรวจจาก Recorder V18.49 ขึ้นไปจะแสดงรายการที่นี่</p>`;
+  mi = miExtraRule(mi);
   const tot = (r.summary.menuIssuesTotal || mi.length);
-  /* same problem in many items -> one card */
-  const sig = x => JSON.stringify([x.st, (x.d || []).map(d => [d.f, miList(d.o), miList(d.n)])]);
-  const groups = []; const by = {};
-  mi.forEach(x => { const k = sig(x); if (!by[k]) { by[k] = { x, items: [], cats: new Set() }; groups.push(by[k]); } by[k].items.push(x.item); by[k].cats.add(x.cat || ''); });
-  const card = g => { const st = MI_ST[g.x.st]; const many = g.items.length > 1;
-    return `<div class="mcard"><div class="mhead">${g.x.st === 'EXTRA_IN_NEW' ? '❓' : '❌'} ${many ? `<b>ปัญหาเดียวกัน ${g.items.length} เมนู</b>` : `<b>${esc(g.items[0])}</b>`}${st ? ' ' + badge(st[0], st[1]) : ''}<span class="small muted"> · ${esc([...g.cats].filter(Boolean).join(', '))}</span></div>
-      ${many ? `<div class="mitems">${g.items.map(i => `<span class="mchip item">${esc(i)}</span>`).join('')}</div>` : ''}
-      ${(g.x.d || []).map(miDetail).join('')}</div>`; };
-  return `<div class="sec" style="margin-top:10px">🍽️ เมนูที่ต้องแก้ (${tot} เมนู${groups.length < mi.length ? ` · รวมเป็น ${groups.length} ปัญหา` : ''}${tot > mi.length ? `, แสดง ${mi.length}` : ''})</div><div class="migrid">${groups.map(card).join('')}</div>`;
+  /* V18.53: the SAME fix shared by several items (same choices) = one "gang" card; what is left is shown per item */
+  const dsig = d => JSON.stringify([d.f, miList(d.o), miList(d.n)]);
+  const share = {}; mi.forEach(x => (x.d || []).forEach(d => { const k = dsig(d); (share[k] = share[k] || { d, items: [], cats: new Set() }); if (!share[k].items.includes(x.item)) { share[k].items.push(x.item); share[k].cats.add(x.cat || ''); } }));
+  /* gangs: identical item lists merge into one card with several fixes */
+  const gangs = {}; Object.values(share).filter(g => g.items.length > 1).forEach(g => { const k = g.items.join('\u0001'); (gangs[k] = gangs[k] || { items: g.items, cats: g.cats, ds: [] }).ds.push(g.d); });
+  const gangList = Object.values(gangs).sort((a, b) => b.items.length - a.items.length);
+  const own = mi.map(x => ({ x, ds: (x.d || []).filter(d => share[dsig(d)].items.length === 1) })).filter(o => o.ds.length || MI_ST[o.x.st]);
+  const gangCard = g => `<div class="mcard gang"><div class="mhead">🔗 <b>แก้ทีเดียว ${g.items.length} เมนู</b> <span class="small muted">· ใช้ตัวเลือกชุดเดียวกัน · ${esc([...g.cats].filter(Boolean).join(', '))}</span></div>
+      <div class="mitems">${g.items.map(i => `<span class="mchip item">${esc(i)}</span>`).join('')}</div>${g.ds.map(miDetail).join('')}</div>`;
+  const ownCard = o => { const st = MI_ST[o.x.st];
+    return `<div class="mcard"><div class="mhead">${o.x.st === 'EXTRA_IN_NEW' ? '❓' : '❌'} <b>${esc(o.x.item)}</b>${st ? ' ' + badge(st[0], st[1]) : ''}<span class="small muted"> · ${esc(o.x.cat || '')}</span>${gangList.some(g => g.items.includes(o.x.item)) ? '<span class="small muted"> · มีอีกส่วนอยู่ในการ์ด 🔗 ด้านบน</span>' : ''}</div>${o.ds.map(miDetail).join('')}</div>`; };
+  return `<div class="sec" style="margin-top:10px">🍽️ เมนูที่ต้องแก้ (${tot} เมนู${tot > mi.length ? `, แสดง ${mi.length}` : ''})</div>
+    ${gangList.length ? `<div class="small" style="margin:6px 0 2px;font-weight:700">🔗 แก้เป็นกลุ่ม — เมนูที่ใช้ตัวเลือกชุดเดียวกัน แก้ครั้งเดียวได้ทั้งแก๊ง (${gangList.length})</div><div class="migrid">${gangList.map(gangCard).join('')}</div>` : ''}
+    ${own.length ? `<div class="small" style="margin:12px 0 2px;font-weight:700">แก้รายเมนู (${own.length})</div><div class="migrid">${own.map(ownCard).join('')}</div>` : ''}`;
 }
 function recLog() {
   const runs = S.runs || []; const q = (S.rlQ || '').toLowerCase();
