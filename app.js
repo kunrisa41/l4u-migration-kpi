@@ -1614,6 +1614,7 @@ function flyerBlock() {
         ${content('customer_file_url') ? `<a class="btn s" href="${esc(content('customer_file_url'))}" target="_blank" rel="noopener">📁 เปิด Customer File</a>` : ''}${isMgr() ? ' <button class="btn s" id="cf_set">⚙️ ตั้งลิงก์ Customer File</button>' : ''}${tk('e4', 'เก็บใบปลิว + Dine-in QR Code ใน Customer File ของร้านแล้ว')}</div>
     </div><div class="exrow"><div class="exi"><div class="small muted">ตัวอย่างใบปลิว (ข้อ 1)</div><img src="img/ex_flyer.jpg" alt="ตัวอย่างใบปลิว" data-zoom="img/ex_flyer.jpg" class="real"></div>
       <div class="exi"><div class="small muted">ตัวอย่าง Dine-in QR Code ติดโต๊ะ (ข้อ 1)</div><img src="img/ex_dinein_qr.jpg" alt="ตัวอย่าง Dine-in QR Code" data-zoom="img/ex_dinein_qr.jpg" class="real"></div>
+      <div class="exi"><div class="small muted">ตัวอย่างข้อความ + ใบปลิวใน respond.io (ข้อ 2)</div><img src="img/ex_respond_chat.jpg" alt="ตัวอย่าง respond.io" data-zoom="img/ex_respond_chat.jpg" class="real"></div>
       <div class="exi"><div class="small muted">ตัวอย่าง Customer Files › ชื่อร้าน › Dine-in by MIG (ข้อ 4)</div><img src="img/ex_customer_file.jpg" alt="ตัวอย่าง Customer File" data-zoom="img/ex_customer_file.jpg" class="real"></div></div></div></div>`;
 }
 function bindFlyers() {
