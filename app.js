@@ -310,7 +310,7 @@ function toolsEditor() {
 const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['tools', '🧰 Tools'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
   ['blockers', 'ปัญหา & Followup'], ['howto', '🎬 How-to'], ['perf', 'Team Performance'], ['audit', 'Audit Reports']];
 const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['tracker', 'รายชื่อร้าน'], ['settings', 'KPI Settings'], ['team', 'Team & Logins'], ['chlog', '📜 Log การแก้ไข'], ['gcal', '🔔 Calendar & Chat']];
-const VIEWS = { howto: () => viewHowto(), tools: () => viewTools(), home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
+const VIEWS = { run: () => viewRun(), howto: () => viewHowto(), tools: () => viewTools(), home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
   perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), gcal: () => viewGcal(), chlog: () => viewChlog(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
 function render() {
   S.charts.forEach(c => c.destroy()); S.charts = [];
@@ -320,6 +320,7 @@ function render() {
     $('#app').innerHTML = `<div class="login"><h1>Account not linked</h1><p>You are signed in as <b>${esc(S.session.user.email)}</b>, but this e-mail is not on the team list yet. Ask the Manager to add you in the Team tab.</p><button class="btn" id="out">Sign out</button></div>`;
     $('#out').onclick = () => sb.auth.signOut(); return;
   }
+  { const hm = location.hash.match(/^#run=(\d+)/); if (hm) { S.tab = 'run'; S.runId = +hm[1]; } else if (S.tab === 'run') S.tab = 'home'; }
   if (S.tab === 'daily') S.tab = 'perf';
   if (S.tab === 'feedback') { S.tab = 'flow'; S.scrollFb = true; }
   const inKpi = KPI_TABS.some(t => t[0] === S.tab);
@@ -348,7 +349,7 @@ function render() {
   };
   if ($('#munlock')) $('#munlock').onclick = () => unlockModal();
   if ($('#actor')) $('#actor').onclick = () => { S.needActor = true; render(); };
-  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; render(); });
+  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; if (/^#run=/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search); render(); });
   document.querySelectorAll('.top [data-new]').forEach(b => b.onclick = () => activityModal(b.dataset.new));
   VIEWS[S.tab]();
 }
@@ -1283,8 +1284,8 @@ function menuIssuesHtml(r) {
   const n = r.items_need_fixing; let mi = (r.summary && Array.isArray(r.summary.menuIssues)) ? r.summary.menuIssues : null;
   if (!n && !(mi && mi.length)) return '';
   if (!mi) return `<p class="small">🍽️ เมนู: ต้องแก้ ${n} รายการ — รายละเอียดอยู่ใน Compare Report (PDF) · ผลตรวจจาก Recorder V18.49 ขึ้นไปจะแสดงรายการที่นี่</p>`;
-  mi = miExtraRule(mi);
-  const tot = (r.summary.menuIssuesTotal || mi.length);
+  const sent = mi.length; mi = miExtraRule(mi); const okByRule = sent - mi.length;
+  const tot = Math.max(0, (r.summary.menuIssuesTotal || sent) - okByRule);
   /* V18.53: the SAME fix shared by several items (same choices) = one "gang" card; what is left is shown per item */
   const dsig = d => JSON.stringify([d.f, miList(d.o), miList(d.n)]);
   const share = {}; mi.forEach(x => (x.d || []).forEach(d => { const k = dsig(d); (share[k] = share[k] || { d, items: [], cats: new Set() }); if (!share[k].items.includes(x.item)) { share[k].items.push(x.item); share[k].cats.add(x.cat || ''); } }));
@@ -1300,10 +1301,45 @@ function menuIssuesHtml(r) {
       <div class="mitems">${g.items.map(i => `<span class="mchip item">${esc(i)}</span>`).join('')}</div>${g.ds.map(miDetail).join('')}</div>`;
   const ownCard = o => { const st = MI_ST[o.x.st];
     return `<div class="mcard"><div class="mhead">${o.x.st === 'EXTRA_IN_NEW' ? '❓' : '❌'} <b>${esc(o.x.item)}</b>${st ? ' ' + badge(st[0], st[1]) : ''}<span class="small muted"> · ${esc(o.x.cat || '')}</span></div>${o.ds.map(miDetail).join('')}</div>`; };
-  return `<div class="sec" style="margin-top:10px">🍽️ เมนูที่ต้องแก้ (${tot} เมนู${tot > mi.length ? `, แสดง ${mi.length}` : ''})</div>
+  return `<div class="sec" style="margin-top:10px">🍽️ เมนูที่ต้องแก้ (${tot} เมนู${tot > mi.length ? `, แสดง ${mi.length}` : ''}${okByRule ? ` · อีก ${okByRule} เมนูถูกแล้วตามกฎ Extra` : ''})</div>
     ${gangList.length ? `<div class="small" style="margin:6px 0 2px;font-weight:700">🔗 แก้เป็นกลุ่ม — เมนูที่ใช้ตัวเลือกชุดเดียวกัน แก้ครั้งเดียวได้ทั้งแก๊ง (${gangList.length})</div><div class="migrid">${gangList.map(gangCard).join('')}</div>` : ''}
     ${own.length ? `<div class="small" style="margin:12px 0 2px;font-weight:700">แก้รายเมนู (${own.length})</div><div class="migrid">${own.map(ownCard).join('')}</div>` : ''}`;
 }
+
+/* ---------- shareable page for ONE Recorder result: #run=<id> ---------- */
+const runLink = r => location.origin + location.pathname + '#run=' + r.id;
+const runLinkBtn = r => `<button class="btn s" data-runlink="${r.id}" title="คัดลอกลิงก์หน้านี้ ส่งให้ทีมเปิดดูสิ่งที่ต้องแก้">🔗 คัดลอกลิงก์ส่งทีม</button>`;
+function bindRunLink() { document.querySelectorAll('[data-runlink]').forEach(b => b.onclick = async e => { e.stopPropagation(); const r = (S.runs || []).find(x => String(x.id) === b.dataset.runlink) || { id: b.dataset.runlink };
+  const t = runLink(r); try { await navigator.clipboard.writeText(t); toast('คัดลอกลิงก์แล้ว — วางส่งทีมได้เลย: ' + t); } catch { prompt('คัดลอกลิงก์นี้', t); } }); }
+function backendIssuesHtml(r) {
+  const bad = (r.checks || []).filter(c => (c.status === 'FAIL' || c.status === 'REVIEW') && !hideCheck(c));
+  if (!bad.length) return '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงทุกจุดที่ตรวจ</p>';
+  const groups = {}; bad.forEach(c => { (groups[c.area || 'อื่นๆ'] = groups[c.area || 'อื่นๆ'] || []).push(c); });
+  return Object.entries(groups).map(([g, l]) => `<div class="sec" style="margin-top:6px">${esc(g)} (${l.length})</div><table class="small issues"><thead><tr><th></th><th>รายการ</th><th>OLD / ต้องเป็น</th><th>NEW ตอนนี้</th><th>ต้องทำ</th></tr></thead><tbody>
+    ${l.slice(0, 80).map(c => `<tr><td>${c.status === 'FAIL' ? '❌' : '❓'}</td><td><b>${esc(c.field)}</b></td><td>${esc(String(c.old || '').replace(/\s*\(\+\s*Check@gmail\.com\)/i, ''))}</td><td>${esc(c.new)}</td><td>${esc(c.action)}</td></tr>`).join('')}</tbody></table>`).join('');
+}
+function viewRun() {
+  const r = (S.runs || []).find(x => x.id === S.runId);
+  if (!r) {
+    $('#main').innerHTML = `<div class="card"><h2>ผลตรวจ #${esc(S.runId)}</h2><p class="muted">กำลังโหลด…</p></div>`;
+    if (!S.__runFetch) { S.__runFetch = true; sb.from('recorder_runs').select('*').eq('id', S.runId).maybeSingle().then(({ data }) => { S.__runFetch = false; if (data) { S.runs = [data, ...(S.runs || []).filter(x => x.id !== data.id)]; render(); } else $('#main').innerHTML = '<div class="card"><h2>ไม่พบผลตรวจนี้</h2><p class="muted">ลิงก์อาจผิด หรือผลตรวจถูกลบไปแล้ว</p></div>'; }); }
+    return;
+  }
+  const pct = v => v === null || v === undefined ? '–' : v + '%';
+  const bad = (r.checks || []).filter(c => (c.status === 'FAIL' || c.status === 'REVIEW') && !hideCheck(c));
+  $('#main').innerHTML = `<div class="card">
+    <div class="row" style="align-items:center;flex-wrap:wrap;gap:8px"><h2 style="flex:1;margin:0">🧪 ผลตรวจ: ${esc(r.store_name)} <small>${fmtDT(r.created_at)} · ${esc(r.mode || '')} · ${esc(r.version || '')}${r.operator ? ' · ' + esc(r.operator) : ''}</small></h2>
+      ${runLinkBtn(r)}${recheckBtn(r)}${pdfOf(r) ? `<button class="btn s p" data-dl="${pdfOf(r).id}">📄 PDF</button>` : ''}<button class="btn s" data-rlpl="${esc(r.store_name)}">เปิด Pre-Live ของร้านนี้</button><button class="btn s" data-tab="home">← หน้าแรก</button></div>
+    <div class="grid g3" style="margin-top:10px">${[['เมนู (OLD vs NEW)', r.menu_percent, r.items_need_fixing ? `ต้องแก้ ${r.items_need_fixing} เมนู` : ''], ['หลังบ้าน (Backend)', r.backend_percent, `${bad.length} จุดต้องดู`], ['รวม (Overall)', r.overall_percent, '']].map(x => `<div class="kpi"><div class="l">${x[0]}</div><div class="v">${pct(x[1])}</div><div class="s">${esc(x[2])}</div></div>`).join('')}</div>
+    ${r.summary && r.summary.newUrl ? `<p class="small muted" style="margin:8px 0 0">NEW: <a href="${esc(r.summary.newUrl)}" target="_blank" rel="noopener">${esc(r.summary.newUrl)}</a>${r.summary.oldUrl ? ` · OLD: <a href="${esc(r.summary.oldUrl)}" target="_blank" rel="noopener">${esc(r.summary.oldUrl)}</a>` : ''}</p>` : ''}
+    <h3 style="margin:16px 0 4px">🛠️ หลังบ้าน</h3>${backendIssuesHtml(r)}
+    <h3 style="margin:18px 0 4px">🍽️ เมนู</h3>${menuIssuesHtml(r) || '<p class="small" style="color:var(--goodT)">✅ เมนูตรงทั้งหมด</p>'}</div>`;
+  document.querySelectorAll('#main [data-tab]').forEach(b => b.onclick = () => { history.replaceState(null, '', location.pathname + location.search); S.tab = b.dataset.tab; render(); });
+  bindRunLink(); bindRecheck();
+  document.querySelectorAll('#main [data-dl]').forEach(b => b.onclick = () => openReport(b.dataset.dl));
+  document.querySelectorAll('#main [data-rlpl]').forEach(b => b.onclick = () => { history.replaceState(null, '', location.pathname + location.search); const n = b.dataset.rlpl.trim().toLowerCase(); const p = (S.prelive || []).find(x => x.store_name.trim().toLowerCase() === n); S.pl = p ? Object.assign({}, p) : { store_name: b.dataset.rlpl, checks: {}, inspector: S.me.code }; S.tab = 'prelive'; render(); });
+}
+window.addEventListener('hashchange', () => { if (/^#run=/.test(location.hash) && S.me) render(); });
 function recLog() {
   const runs = S.runs || []; const q = (S.rlQ || '').toLowerCase();
   const list = runs.filter(r => !q || r.store_name.toLowerCase().includes(q)).slice(0, S.rlAll ? 300 : 15);
@@ -1316,7 +1352,7 @@ function recLog() {
       ${open ? `<tr><td colspan="9" style="background:#F8FAFC">${bad.length ? Object.entries(groups).map(([g, l]) => `<div class="sec" style="margin-top:6px">${esc(g)} (${l.length})</div><table class="small issues"><thead><tr><th></th><th>รายการ</th><th>OLD / ต้องเป็น</th><th>NEW ตอนนี้</th><th>ต้องทำ</th></tr></thead><tbody>
         ${l.slice(0, 80).map(c => `<tr><td>${c.status === 'FAIL' ? '❌' : '❓'}</td><td><b>${esc(c.field)}</b></td><td>${esc(String(c.old || '').replace(/\s*\(\+\s*Check@gmail\.com\)/i, ''))}</td><td>${esc(c.new)}</td><td>${esc(c.action)}</td></tr>`).join('')}</tbody></table>`).join('')
         : '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงทุกจุดที่ตรวจ</p>'}${menuIssuesHtml(r)}
-        <div class="row" style="margin-top:6px">${recheckBtn(r)}${pdfOf(r) ? `<button class="btn s p" data-dl="${pdfOf(r).id}">📄 เปิด Compare Report (PDF)</button>` : ''}<button class="btn s" data-rlpl="${esc(r.store_name)}">เปิด Pre-Live ของร้านนี้</button>${content('mig_drive') ? `<a class="btn s" href="${esc(content('mig_drive'))}" target="_blank" rel="noopener">📁 วิดีโอใน MIG Audit Check</a>` : ''}</div></td></tr>` : ''}`; };
+        <div class="row" style="margin-top:6px">${runLinkBtn(r)}${recheckBtn(r)}${pdfOf(r) ? `<button class="btn s p" data-dl="${pdfOf(r).id}">📄 เปิด Compare Report (PDF)</button>` : ''}<button class="btn s" data-rlpl="${esc(r.store_name)}">เปิด Pre-Live ของร้านนี้</button>${content('mig_drive') ? `<a class="btn s" href="${esc(content('mig_drive'))}" target="_blank" rel="noopener">📁 วิดีโอใน MIG Audit Check</a>` : ''}</div></td></tr>` : ''}`; };
   return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🧪 Log การตรวจเช็ค (LFY Recorder) <small>คะแนน + สิ่งที่ต้องแก้ ส่งมาเองทุกครั้งที่ตรวจเสร็จ (PDF ส่งมาด้วยตั้งแต่ V18.29)</small></h2>
       <input id="rlq" placeholder="ค้นหาชื่อร้าน" value="${esc(S.rlQ || '')}" style="width:220px"></div>
     <div class="tw" style="margin-top:10px"><table><thead><tr><th>วันที่</th><th>ร้าน</th><th>โหมด</th><th>โดย</th><th class="num">เมนู</th><th class="num">หลังบ้าน</th><th class="num">รวม</th><th>ผล</th><th></th></tr></thead><tbody>
@@ -1325,7 +1361,7 @@ function recLog() {
 }
 function bindRecLog() {
   document.querySelectorAll('#main [data-dl]').forEach(b => b.onclick = e => { e.stopPropagation(); openReport(b.dataset.dl); });
-  bindRecheck();
+  bindRecheck(); bindRunLink();
   document.querySelectorAll('[data-rl]').forEach(t => t.onclick = () => { const id = +t.dataset.rl; S.rlOpen = S.rlOpen === id ? null : id; const y = window.scrollY; render(); window.scrollTo(0, y); });
   document.querySelectorAll('[data-rlpl]').forEach(b => b.onclick = e => { e.stopPropagation(); const n = b.dataset.rlpl.trim().toLowerCase(); const p = (S.prelive || []).find(x => x.store_name.trim().toLowerCase() === n);
     S.pl = p ? Object.assign({}, p) : { store_name: b.dataset.rlpl, checks: {}, inspector: S.me.code }; S.tab = 'prelive'; render(); window.scrollTo(0, 0); });
@@ -1539,7 +1575,7 @@ function viewPrelive() {
     return `<div class="autobox">${head}${list ? `<details><summary class="small">ดูรายละเอียด</summary><ul class="small">${list}</ul></details>` : ''}</div>`; };
   const runPanel = run ? (() => { const bad = (run.checks || []).filter(c => (c.status === 'FAIL' || c.status === 'REVIEW') && !hideCheck(c));
     const groups = {}; bad.forEach(c => { (groups[c.area || 'อื่นๆ'] = groups[c.area || 'อื่นๆ'] || []).push(c); });
-    return `<div class="runpanel"><div class="row" style="align-items:center"><b style="flex:1">🤖 ผลจาก LFY Recorder ${esc(run.version || '')}</b>${recheckBtn(run)}&nbsp;<span class="small muted">${fmtDT(run.created_at)} · ${esc(run.mode || '')}${run.operator ? ' · ' + esc(run.operator) : ''}</span></div>
+    return `<div class="runpanel"><div class="row" style="align-items:center"><b style="flex:1">🤖 ผลจาก LFY Recorder ${esc(run.version || '')}</b>${runLinkBtn(run)}&nbsp;${recheckBtn(run)}&nbsp;<span class="small muted">${fmtDT(run.created_at)} · ${esc(run.mode || '')}${run.operator ? ' · ' + esc(run.operator) : ''}</span></div>
       <div class="grid g3" style="margin-top:8px">${[['เมนู (OLD vs NEW)', run.menu_percent, run.items_need_fixing !== null && run.items_need_fixing !== undefined ? `ต้องแก้ ${run.items_need_fixing} รายการ` : (run.menu_status || '')],
         ['หลังบ้าน (Backend)', run.backend_percent, `${bad.length} จุดต้องดู`], ['รวม (Overall)', run.overall_percent, '']].map(x => `<div class="kpi"><div class="l">${x[0]}</div><div class="v">${x[1] === null || x[1] === undefined ? '–' : x[1] + '%'}</div><div class="s">${esc(x[2])}</div></div>`).join('')}</div>
       ${bad.length ? `<details open style="margin-top:8px"><summary><b>รายการที่ Recorder พบว่าไม่ตรง / ต้องแก้ (${bad.length})</b> — OLD มีอะไร / NEW เป็นอะไร</summary>
@@ -1576,7 +1612,7 @@ function viewPrelive() {
   $('#pl_all').onclick = () => { const c = collect(); delete c._r; PRELIVE.forEach(x => { c.checks['i' + x.n] = true; if (x.all) c.checks['o' + x.n] = x.opts.slice(); }); c.done = PL_REQ; S.pl = c; render(); };
   $('#pl_new').onclick = () => { S.pl = null; render(); };
   bindWording();
-  bindRecheck();
+  bindRecheck(); bindRunLink();
   $('#pl_rec').onclick = () => { const n = $('#pl_r').value.trim(); if (!n) { toast('ใส่ชื่อร้านก่อน (ชื่อเดียวกับที่จะใส่ใน Recorder)', true); $('#pl_r').focus(); return; }
     const c = collect(); delete c._r; S.pl = c; window.open('http://localhost:3210/?shop=' + encodeURIComponent(n), '_blank', 'noopener');
     toast('เปิด LFY Recorder แล้ว · ตรวจเสร็จผลจะขึ้นที่นี่เอง'); };
