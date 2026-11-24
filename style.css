@@ -504,3 +504,4 @@ html,body{overflow-x:clip}
 .webex{margin-top:12px}.webex img{width:100%;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;margin-top:4px;display:block}
 .flyc .webex img{max-height:420px;object-fit:contain;background:#F1F5F9}
 .sp{display:flex;flex-direction:column}.sp .webex{margin-top:auto;padding-top:12px}.sp .webex img{height:auto;aspect-ratio:1100/662;object-fit:cover;object-position:top center;background:#fff}
+.flyc pre.msg,#fly_prev{max-height:none!important;overflow:visible}
