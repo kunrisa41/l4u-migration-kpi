@@ -1005,9 +1005,19 @@ function activityModal(kind, a, pre) {
       <div class="small muted" id="af_cnt"></div>
     </div>` : ''}
   <label>หมายเหตุ</label><textarea id="a_n">${esc(a.notes || '')}</textarea>
+  ${isAp ? `<div class="sec">💬 ข้อความแจ้งร้าน (Before appointment) <span class="small muted">วัน-เวลาดึงจากช่องนัดด้านบน (เวลาของร้าน)</span></div>
+    <div class="row" style="gap:6px;align-items:center"><input id="a_wl" placeholder="ลิงก์เว็บใหม่ของร้าน" value="${esc(chk.weblink || '')}" style="flex:1">
+      <button type="button" class="btn s p" data-awc="both">📋 Copy ไทย + English</button><button type="button" class="btn s" data-awc="th">ไทย</button><button type="button" class="btn s" data-awc="en">English</button></div>` : ''}
   <div class="actions">${!isNew ? '<button class="btn r s" id="del" style="margin-right:auto">ลบ</button>' : ''}
     ${isAp && !isNew && a.status !== 'LIVE Completed' ? '<button class="btn" id="ns">❌ No-show</button><button class="btn r" id="golive">🔴 บันทึก LIVE ร้านนี้</button>' : ''}
     <button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">บันทึก</button></div>`);
+  document.querySelectorAll('[data-awc]').forEach(b => b.onclick = async () => {
+    const v = ($('#a_at') || {}).value || ''; let date = '', time = '';
+    if (v) { const d = new Date(v); date = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
+    const prev = S.word; S.word = { date, time, link: ($('#a_wl').value || '').trim() }; const x = WORDING[0], l = b.dataset.awc;
+    const t = wordFill(l === 'th' ? x.th : l === 'en' ? x.en : x.th + '\n\n——————\n\n' + x.en); S.word = prev;
+    if (!v) toast('ยังไม่ได้ใส่วันเวลานัด — ข้อความจะเป็น ........', true);
+    try { await navigator.clipboard.writeText(t); if (v) toast('คัดลอกข้อความแล้ว — วางในแชทได้เลย'); } catch (e) { toast('คัดลอกไม่ได้', true); } });
   const hvc = () => { const e = $('#hv_c'); if (e) e.textContent = `${document.querySelectorAll('[data-hv]:checked').length} / ${HANDOVER.length} เรียบร้อย`; };
   hvc(); document.querySelectorAll('[data-hv]').forEach(x => x.onchange = hvc);
   const afn = () => { const e = $('#af_cnt'); if (!e) return; const all = document.querySelectorAll('[data-af]'); e.textContent = `หลังวางสาย A–E: ติ๊กแล้ว ${[...all].filter(x => x.checked).length} / ${all.length}`; };
@@ -1032,7 +1042,7 @@ function activityModal(kind, a, pre) {
     if (!name) return toast('กรุณาใส่ชื่อร้าน', true);
     if (isAp) {
       const v = $('#a_at').value; if (!v) return toast('กรุณาใส่วันเวลานัด', true);
-      rec.checklist.tz = $('#a_tz').value; S.lastTz = rec.checklist.tz; rec.appt_at = zonedToUtc(v, rec.checklist.tz).toISOString(); rec.contact = $('#a_c').value.trim() || null; rec.act_date = a.act_date;
+      rec.checklist.tz = $('#a_tz').value; S.lastTz = rec.checklist.tz; rec.appt_at = zonedToUtc(v, rec.checklist.tz).toISOString(); rec.contact = $('#a_c').value.trim() || null; if ($('#a_wl')) rec.checklist.weblink = $('#a_wl').value.trim() || undefined; rec.act_date = a.act_date;
       const sEl = document.querySelector('[name="a_s"]:checked'); rec.status = sEl ? sEl.value : 'Scheduled';
       if (!isNew && a.appt_at && rec.appt_at !== a.appt_at && rec.status === 'Scheduled') rec.status = 'Rescheduled';
       rec.issue_category = (rec.status === 'Problem' || rec.status === 'No-show') && $('#a_ic') ? $('#a_ic').value || null : null;
