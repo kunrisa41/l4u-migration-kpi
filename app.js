@@ -1602,7 +1602,7 @@ function flyerBlock() {
   return `<div class="ac" id="flyers"><div class="an">B</div><div><b>Create & Send Flyers</b> <span class="small muted">ทำใบปลิวใหม่ให้ตรงกับระบบสั่งอาหารใหม่ แล้วส่งให้ร้าน</span>
     <div class="flygrid">
       <div class="flyc"><div class="spt">1️⃣ สร้างใบปลิว + Dine-in QR Code</div><p class="small" style="margin:4px 0 8px">เปิดเครื่องมือสร้าง Flyers ใส่ข้อมูลร้าน / โดเมน / ส่วนลด แล้วดาวน์โหลดรูปใบปลิว</p>
-        ${u ? `<a class="btn p s" href="${esc(u)}" target="_blank" rel="noopener">🎨 เปิด Create Flyers</a>` : ''}${tk('e1', 'สร้างใบปลิวของร้านนี้แล้ว')}${tk('e5', 'สร้าง Dine-in QR Code ของร้านแล้ว')}<div class="webex"><div class="small muted">ตัวอย่างใบปลิว</div><img src="img/ex_flyer.jpg" alt="ตัวอย่างใบปลิว + QR Code" data-zoom="img/ex_flyer.jpg" class="real"></div><div class="webex"><div class="small muted">ตัวอย่าง Dine-in QR Code (ติดโต๊ะ)</div><img src="img/ex_dinein_qr.jpg" alt="ตัวอย่าง Dine-in QR Code" data-zoom="img/ex_dinein_qr.jpg" class="real"></div></div>
+        ${u ? `<a class="btn p s" href="${esc(u)}" target="_blank" rel="noopener">🎨 เปิด Create Flyers</a>` : ''}${tk('e1', 'สร้างใบปลิวของร้านนี้แล้ว')}${tk('e5', 'สร้าง Dine-in QR Code ของร้านแล้ว')}</div>
       <div class="flyc"><div class="spt">2️⃣ ส่งให้ร้านทาง respond.io chat</div><p class="small" style="margin:4px 0 8px">แนบรูปใบปลิว + ส่งข้อความนี้ (ไทย + อังกฤษ)</p>
         <div class="row"><button class="btn p s" data-cpt="flyer_chat">📋 Copy ข้อความแชต</button>${isMgr() ? '<button class="btn s" data-edt="flyer_chat">แก้ไขข้อความ</button>' : ''}</div>
         <details class="small"><summary>ดูข้อความ</summary><pre class="msg">${esc(content('flyer_chat'))}</pre></details>${tk('e2', 'ส่งใบปลิว + ข้อความให้ร้านทาง respond.io แล้ว')}</div>
@@ -1611,8 +1611,10 @@ function flyerBlock() {
         <div class="row"><button class="btn p s" id="fly_cp">📋 Copy ข้อความโพสต์</button>${isMgr() ? '<button class="btn s" data-edt="flyer_post">แก้ไขข้อความ</button>' : ''}</div>
         <pre class="msg" id="fly_prev">${esc(flyerPost())}</pre>${tk('e3', 'เตรียมข้อความโพสต์ (ใส่โดเมน + % ส่วนลด) แล้ว')}</div>
       <div class="flyc"><div class="spt">4️⃣ เก็บใน Customer File ของร้าน</div><p class="small" style="margin:4px 0 8px">อัปโหลดรูปใบปลิว + Dine-in QR Code (และข้อความโพสต์) เข้า <b>Customer File</b> ของร้านนี้ ให้ทีมหาเจอทีหลัง</p>
-        ${content('customer_file_url') ? `<a class="btn s" href="${esc(content('customer_file_url'))}" target="_blank" rel="noopener">📁 เปิด Customer File</a>` : ''}${isMgr() ? ' <button class="btn s" id="cf_set">⚙️ ตั้งลิงก์ Customer File</button>' : ''}${tk('e4', 'เก็บใบปลิว + Dine-in QR Code ใน Customer File ของร้านแล้ว')}<div class="webex"><div class="small muted">ตัวอย่าง: Customer Files › ชื่อร้าน › โฟลเดอร์ Dine-in by MIG</div><img src="img/ex_customer_file.jpg" alt="ตัวอย่าง: Customer Files › ชื่อร้าน › โฟลเดอร์ Dine-in by MIG" data-zoom="img/ex_customer_file.jpg" class="real"></div></div>
-    </div></div></div>`;
+        ${content('customer_file_url') ? `<a class="btn s" href="${esc(content('customer_file_url'))}" target="_blank" rel="noopener">📁 เปิด Customer File</a>` : ''}${isMgr() ? ' <button class="btn s" id="cf_set">⚙️ ตั้งลิงก์ Customer File</button>' : ''}${tk('e4', 'เก็บใบปลิว + Dine-in QR Code ใน Customer File ของร้านแล้ว')}</div>
+    </div><div class="exrow"><div class="exi"><div class="small muted">ตัวอย่างใบปลิว (ข้อ 1)</div><img src="img/ex_flyer.jpg" alt="ตัวอย่างใบปลิว" data-zoom="img/ex_flyer.jpg" class="real"></div>
+      <div class="exi"><div class="small muted">ตัวอย่าง Dine-in QR Code ติดโต๊ะ (ข้อ 1)</div><img src="img/ex_dinein_qr.jpg" alt="ตัวอย่าง Dine-in QR Code" data-zoom="img/ex_dinein_qr.jpg" class="real"></div>
+      <div class="exi"><div class="small muted">ตัวอย่าง Customer Files › ชื่อร้าน › Dine-in by MIG (ข้อ 4)</div><img src="img/ex_customer_file.jpg" alt="ตัวอย่าง Customer File" data-zoom="img/ex_customer_file.jpg" class="real"></div></div></div></div>`;
 }
 function bindFlyers() {
   if ($('#cf_set')) $('#cf_set').onclick = async () => { const v = prompt('ลิงก์โฟลเดอร์ Customer File (Google Drive):', content('customer_file_url')); if (v === null) return;
