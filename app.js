@@ -1401,6 +1401,29 @@ function bindRecorder() {
 }
 
 // --- Pre-Live Checklist ---
+/* 💬 Wording templates to send the shop (from the Wording Template Google Doc) */
+const WORDING = [
+  { k: 'before', t: '📅 Before appointment (ส่งเว็บใหม่ให้ร้านดูก่อนนัด)', d: 'ใส่วันที่ / เวลานัด / ลิงก์เว็บใหม่ แล้วกด Copy',
+    th: 'สวัสดีค่ะ 😊 เรามีนัดกันวันที่ {date} เวลา {time} นะคะ\n\nระหว่างนี้ทางร้านสามารถตรวจสอบ Website ใหม่ จากลิ้งค์ด้านล่าง ได้เลยค่ะ\n{link}\n\nหากมีจุดไหนต้องการแก้ไข สามารถแจ้งมาได้เลย หรือทำลิสต์ไว้แจ้งพร้อมกันตอนทีมโทรไปแนะนำระบบตามเวลานัดได้เช่นกันค่ะ 💙',
+    en: 'Hi 😊 We have an appointment scheduled for {date} at {time}.\n\nIn the meantime, you can review your new website using the link below.\n{link}\n\nIf there’s anything you’d like us to update, feel free to let us know. You can also make a list and go through the changes together with our team when we call you at the scheduled time. 💙' },
+  { k: 'qr', t: '🔲 Dine-in QR Code (แจ้งร้านก่อนส่ง QR Code)', d: 'ส่งตอนจัดส่ง Dine-in QR Code ล่วงหน้า',
+    th: 'สวัสดีค่ะ 😊\n\nทางเรากำลังจะมีการอัปเกรดระบบสั่งอาหารออนไลน์เป็นเวอร์ชันใหม่นะคะ ซึ่งจะมีการปรับเปลี่ยนหน้าตาและรูปแบบการใช้งานของระบบรับออเดอร์ให้สะดวกมากยิ่งขึ้นค่ะ\n\nโดยทางเราจะมีการจัดส่ง Dine-in QR Code สำหรับระบบใหม่ไปให้ทางร้านล่วงหน้านะคะ หากทางร้านได้รับแล้ว สามารถเก็บ QR Code ไว้เพื่อรอใช้งานกับระบบใหม่ได้เลยค่ะ\n\nสำหรับการอัปเกรดระบบ ทางเราจะค่อย ๆ ดำเนินการให้แต่ละร้านตามแผนที่กำหนดไว้นะคะ เมื่อถึงกำหนดอัปเกรดของทางร้าน ทีมงานจะติดต่อเข้าไปแจ้งรายละเอียดและแนะนำการใช้งานอีกครั้งค่ะ\n\nขอบคุณมากค่ะ 🙏',
+    en: 'Hello! 😊\n\nWe would like to let you know that we will be upgrading our online ordering system to a new version, featuring a refreshed interface and improvements to the order management system to make it easier and more convenient to use.\n\nWe will also be sending you a new Dine-in QR Code in advance. Once received, please kindly keep it for use with the new system after the upgrade is completed.\n\nThe system upgrades will be carried out gradually according to our planned schedule. When your restaurant is scheduled for the upgrade, our team will get in touch with you to provide further details and guidance.\n\nThank you for your understanding and cooperation! 😊' }];
+function wordFill(x) { const w = S.word || {}; return x.replace('{date}', w.date || '........').replace('{time}', w.time || '........').replace('{link}', w.link || ''); }
+function wordingCard() {
+  const w = S.word || {};
+  return `<div class="card wordcard"><h2>💬 ข้อความส่งร้าน (Wording Template) <small>กด Copy แล้ววางในแชท respond.io · ไทย + อังกฤษ</small></h2>
+    <div class="wordgrid">${WORDING.map(x => `<div class="wordbox"><b>${x.t}</b><div class="small muted">${x.d}</div>
+      ${x.k === 'before' ? `<div class="row" style="gap:6px;margin:6px 0"><input id="wd_date" placeholder="วันที่ เช่น 3 Dec" value="${esc(w.date || '')}" style="flex:1"><input id="wd_time" placeholder="เวลา เช่น 10:00 AM" value="${esc(w.time || '')}" style="flex:1"><input id="wd_link" placeholder="ลิงก์เว็บใหม่" value="${esc(w.link || '')}" style="flex:2"></div>` : ''}
+      <div class="row" style="gap:6px;margin:6px 0"><button class="btn s p" data-wcp="${x.k}" data-wl="both">📋 Copy ไทย + English</button><button class="btn s" data-wcp="${x.k}" data-wl="th">ไทย</button><button class="btn s" data-wcp="${x.k}" data-wl="en">English</button></div>
+      <details class="small"><summary>ดูข้อความ</summary><pre class="msg" id="wp_${x.k}">${esc(wordFill(x.th + '\n\n' + x.en))}</pre></details></div>`).join('')}</div></div>`;
+}
+function bindWording() {
+  ['date', 'time', 'link'].forEach(k => { const el = $('#wd_' + k); if (el) el.oninput = () => { S.word = Object.assign({}, S.word, { [k]: el.value.trim() }); const x = WORDING[0]; const p = $('#wp_before'); if (p) p.textContent = wordFill(x.th + '\n\n' + x.en); }; });
+  document.querySelectorAll('[data-wcp]').forEach(b => b.onclick = async () => { const x = WORDING.find(y => y.k === b.dataset.wcp), l = b.dataset.wl;
+    const t = wordFill(l === 'th' ? x.th : l === 'en' ? x.en : x.th + '\n\n——————\n\n' + x.en);
+    try { await navigator.clipboard.writeText(t); toast('คัดลอกข้อความแล้ว — วางในแชทได้เลย'); } catch (e) { toast('คัดลอกไม่ได้', true); } });
+}
 function viewPrelive() {
   const cur = S.pl || { checks: {}, inspector: S.me.code };
   const ck = cur.checks || {};
@@ -1424,7 +1447,7 @@ function viewPrelive() {
           ${list.slice(0, 60).map(c => `<tr><td>${c.status === 'FAIL' ? '❌' : '❓'}</td><td><b>${esc(c.field)}</b></td><td>${esc(c.old)}</td><td>${esc(c.new)}</td><td>${esc(c.action)}</td></tr>`).join('')}</tbody></table>`).join('')}</details>` : '<p class="small" style="color:var(--goodT)">✅ หลังบ้านตรงตามมาตรฐานทุกจุดที่ Recorder ตรวจ</p>'}
       ${ck.old_system && (ck.old_system.o6 || ck.old_system.o8 || ck.old_system.o10) ? `<p class="small" style="margin:8px 0 0">🏚️ <b>ระบบเก่า (OLD) มี:</b> ${(ck.old_system.o6 || []).map(x => `<span class="badge b-blue">${esc(x)}</span>`).join(' ')} ${(ck.old_system.o8 || []).map(x => `<span class="badge b-grey">💳 ${esc(x)}</span>`).join(' ')} ${(ck.old_system.o10 || []).map(x => `<span class="badge b-warn">🌐 ${esc(x)}${x === 'GF Web' ? ' → คุณต้น LIVE เว็บ' : ''}</span>`).join(' ')} <span class="muted">— เลือกไว้ให้ในข้อ All Services และ Payment แล้ว</span></p>` : ''}
       <p class="small muted" style="margin:6px 0 0">ข้อที่ Recorder ตรวจแล้วผ่านจะติ๊กให้อัตโนมัติ ข้อที่ไม่ผ่านจะไม่ติ๊ก — แก้ใน NEW แล้วรัน Recorder ใหม่ หรือติ๊กเองได้</p></div>`; })() : '';
-  $('#main').innerHTML = `${restList()}<div class="two">
+  $('#main').innerHTML = `${restList()}${wordingCard()}<div class="two">
   <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Pre-Live System Checklist <small>ตรวจความพร้อมก่อน LIVE · ${PRELIVE.length} ข้อ</small></h2>
     <button class="btn t" id="pl_rec" title="เปิด LFY Recorder ในเครื่องนี้ พร้อมใส่ชื่อร้านให้">🧪 ตรวจด้วย LFY Recorder</button><button class="btn s" id="pl_ref" title="ดึงผลตรวจล่าสุด">🔄 ดึงผลล่าสุด</button></div>
     <p class="small muted" style="margin:4px 0 10px">ใส่ชื่อร้านก่อน แล้วกด 🧪 · Recorder ตรวจเสร็จ ผลจะติ๊กข้อที่ผ่านให้เองในหน้านี้ (ต้องติดตั้ง LFY Recorder บน Mac เครื่องนี้แล้ว)</p>
@@ -1452,6 +1475,7 @@ function viewPrelive() {
   document.querySelectorAll('[data-pi],[data-po]').forEach(x => x.onchange = () => { const c = collect(); delete c._r; S.pl = c; render(); });
   $('#pl_all').onclick = () => { const c = collect(); delete c._r; PRELIVE.forEach(x => { c.checks['i' + x.n] = true; if (x.all) c.checks['o' + x.n] = x.opts.slice(); }); c.done = PL_REQ; S.pl = c; render(); };
   $('#pl_new').onclick = () => { S.pl = null; render(); };
+  bindWording();
   $('#pl_rec').onclick = () => { const n = $('#pl_r').value.trim(); if (!n) { toast('ใส่ชื่อร้านก่อน (ชื่อเดียวกับที่จะใส่ใน Recorder)', true); $('#pl_r').focus(); return; }
     const c = collect(); delete c._r; S.pl = c; window.open('http://localhost:3210/?shop=' + encodeURIComponent(n), '_blank', 'noopener');
     toast('เปิด LFY Recorder แล้ว · ตรวจเสร็จผลจะขึ้นที่นี่เอง'); };
