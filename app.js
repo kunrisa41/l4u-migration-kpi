@@ -219,6 +219,36 @@ function drawChlog() {
 
 // ---------------- Tools (team bookmarks, one place) ----------------
 function toolsList() { try { const v = JSON.parse(content('tools_links') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+/* 🎬 How-to videos (Local For You YouTube playlists) — copy link to send to the shop */
+const HOWTO = [
+  { t: '🖥️ Backend — Online Ordering System', d: 'คู่มือการใช้งานหลังบ้าน (Backend)', pl: 'https://www.youtube.com/playlist?list=PLDFTrIZmT9vE', v: [
+    ['XUxEIfRxpLY', 'How to View and Email the Sales Report', '1:45'], ['IG57_7tu0Rc', 'How to Review Accept and Reprint Print an Order on Application', '1:41'],
+    ['ig_hmmsqnIU', 'How to update order and Add More time to Order', '1:12'], ['uFtncRRMZ8k', 'How to Switch to Uber Driver', '1:49'],
+    ['Ak7JA00oJUM', 'How to Check Transaction and Refund Online payment', '1:02'], ['JwnNiYx2Mxg', 'How to customize receipt', '2:10'],
+    ['Zhk4B0janmA', 'How to Track Uber Driver', '1:02'], ['iNA1scy1oUk', 'Setup additional charge', '1:58'], ['0-WGTbEDlBc', 'How to update menu', '1:40'],
+    ['Yh0URt4hGQE', 'Check and confirm booking', '0:46'], ['lBUHnnKFen4', 'How to Sold Out Menu', '1:08'], ['2PVRxVbkr0k', 'How to Pause service', '0:57'],
+    ['QRe_s4Q3bsA', 'Check Notification & Sound', '0:31']] },
+  { t: '📱 Application — Introduce Online Ordering Application', d: 'วิดีโอแนะนำการใช้งาน Application (แอปรับออเดอร์)', pl: 'https://www.youtube.com/playlist?list=PLAZzTPdvL7wM', v: [
+    ['oQ47P_tbijg', 'How to Cancel an Order with a Reason', '0:50'], ['mfpHcCKJzZc', 'How to Accept Orders for Later and View Order History', '1:39'],
+    ['zotz2BcsUZs', 'Whats New in Order Taking App (2.0.2+60)', '2:58'], ['VZO0vcgjqfQ', 'How to Check and Track an Uber Delivery Order', '3:49'],
+    ['ugrohHOfJIo', 'How to Add a Bluetooth Printer', '1:03'], ['t2pdE0YTWhM', 'How to Add a WiFi Network Printer', '1:11'],
+    ['3IKWQP_CQDI', 'How to Set Default Order Accept Behaviour', '1:37'], ['-1qI2VF6Qn0', 'How to Set Alert Sounds and Voice', '1:19'],
+    ['Bf8QG33LRQE', 'How to Change Appearance Settings', '1:02'], ['36RwH6fW5R4', 'How to Confirm a Table Booking', '0:44'],
+    ['qpERVZRpWC8', 'How to Change an Order Status', '0:35'], ['FKLgH1w9crs', 'How to Pause and Resume Services', '0:57'],
+    ['IG57_7tu0Rc', 'How to Review Accept and Reprint Print an Order on Application', '1:41']] }];
+function viewHowto() {
+  const q = (S.howQ || '').toLowerCase();
+  const yt = id => 'https://youtu.be/' + id;
+  $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🎬 How-to Videos <small>กด 📋 เพื่อคัดลอกลิงก์ไปส่งให้ร้านได้เลย · ▶ เปิดดูวิดีโอ</small></h2>
+      <input id="hq" placeholder="ค้นหา เช่น printer, refund, menu" value="${esc(S.howQ || '')}" style="width:260px"></div>
+    <div class="row" style="margin-top:10px;gap:8px"><button class="btn p s" data-cpl="${esc(HOWTO.map(p => p.d + ': ' + p.pl).join('\n'))}">📋 Copy ลิงก์ Playlist ทั้ง 2 อัน</button></div></div>
+    <div class="howgrid">${HOWTO.map(p => { const vs = p.v.filter(v => !q || v[1].toLowerCase().includes(q)); return `<div class="card"><h2>${esc(p.t)} <small>${p.v.length} วิดีโอ</small></h2>
+      <div class="howpl"><span class="small">${esc(p.d)} — <b>Playlist รวม</b></span><a class="btn s" href="${esc(p.pl)}" target="_blank" rel="noopener">▶ เปิด</a><button class="btn s p" data-cpl="${esc(p.pl)}">📋 Copy ลิงก์ Playlist</button></div>
+      ${vs.map((v, i) => `<div class="howrow"><span class="hown">${p.v.indexOf(v) + 1}</span><span class="howt">${esc(v[1])} <span class="small muted">${v[2]}</span></span>
+        <a class="btn s" href="${yt(v[0])}" target="_blank" rel="noopener">▶</a><button class="btn s" data-cpl="${yt(v[0])}">📋 Copy ลิงก์</button></div>`).join('') || '<div class="muted small">ไม่พบวิดีโอที่ค้นหา</div>'}</div>`; }).join('')}</div>`;
+  document.querySelectorAll('[data-cpl]').forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.cpl); toast('คัดลอกลิงก์แล้ว — วางส่งให้ร้านได้เลย'); } catch (e) { toast('คัดลอกไม่ได้', true); } });
+  $('#hq').oninput = e => { S.howQ = e.target.value; const pos = e.target.selectionStart; viewHowto(); const n = $('#hq'); n.focus(); n.setSelectionRange(pos, pos); };
+}
 function viewTools() {
   const q = (S.toolQ || '').toLowerCase(); const all = toolsList(); const list = all.filter(t => !q || (t.n + ' ' + t.g).toLowerCase().includes(q));
   const groups = [...new Set(list.map(t => t.g || 'อื่นๆ'))];
@@ -267,9 +297,9 @@ function toolsEditor() {
 
 // ---------------- shell ----------------
 const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['tools', '🧰 Tools'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
-  ['blockers', 'ปัญหา & Followup'], ['perf', 'Team Performance'], ['audit', 'Audit Reports']];
+  ['blockers', 'ปัญหา & Followup'], ['howto', '🎬 How-to Videos'], ['perf', 'Team Performance'], ['audit', 'Audit Reports']];
 const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['tracker', 'รายชื่อร้าน'], ['settings', 'KPI Settings'], ['team', 'Team & Logins'], ['chlog', '📜 Log การแก้ไข'], ['gcal', '🔔 Calendar & Chat']];
-const VIEWS = { tools: () => viewTools(), home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
+const VIEWS = { howto: () => viewHowto(), tools: () => viewTools(), home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
   perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), gcal: () => viewGcal(), chlog: () => viewChlog(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
 function render() {
   S.charts.forEach(c => c.destroy()); S.charts = [];

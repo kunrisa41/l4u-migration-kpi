@@ -510,3 +510,5 @@ html,body{overflow-x:clip}
 
 .webex.inbox img{height:300px;object-fit:contain;background:#F1F5F9}
 .sp .webex img{object-fit:contain;background:#fff}
+
+.howgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.howpl{display:flex;gap:8px;align-items:center;padding:10px 12px;background:#EEF2FF;border-radius:10px;margin:6px 0 10px}.howpl span{flex:1}.howrow{display:flex;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)}.howrow:last-child{border-bottom:0}.hown{width:24px;height:24px;border-radius:50%;background:#F1F5F9;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none}.howt{flex:1;font-size:14px}@media(max-width:1000px){.howgrid{grid-template-columns:1fr}}
