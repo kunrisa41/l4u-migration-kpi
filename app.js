@@ -14,7 +14,7 @@ const L = {
   BOOK: ['Not Booked', 'Booked', 'Rescheduled', 'Attended', 'No-show', 'Cancelled by Customer'],
   MIG: ['Not Ready', 'Ready to Live', 'Live Scheduled', 'Live In Progress', 'Live Completed', 'On Hold', 'Cancelled'],
   CHK: ['', 'Yes', 'No', 'N/A'],
-  ISSUE: ['Pre-Live Incomplete', 'Website Button (External)', 'No-show', 'Customer Not Responding', 'Customer Requested Reschedule', 'Missing Menu / Info from Customer', 'Marketing Delay', 'Technical / System Issue', 'Printer / Hardware Issue', 'Payment Setup Issue', 'Employee Error / Delay', 'Other'],
+  ISSUE: ['Back to queue to go live', 'Pre-Live Incomplete', 'Website Button (External)', 'No-show', 'Customer Not Responding', 'Customer Requested Reschedule', 'Missing Menu / Info from Customer', 'Marketing Delay', 'Technical / System Issue', 'Printer / Hardware Issue', 'Payment Setup Issue', 'Employee Error / Delay', 'Other'],
   PARTY: ['Employee', 'Shared', 'Customer', 'Marketing', 'Technical / Development', 'Third Party', 'Manager'],
   BST: ['Open', 'Follow-up Done', 'Resolved', 'Escalated'],
   REVIEW: ['Pending', 'Confirmed External', 'Rejected - Employee Responsible', 'Needs More Info'],
@@ -545,7 +545,7 @@ function viewBlockers() {
     const can = isMgr() || b.employee === S.me.code;
     return `<tr class="${done ? 'done' : ''}"><td style="text-align:center"><input type="checkbox" class="tick" data-tick="${b.id}" ${done ? 'checked' : ''} ${can ? '' : 'disabled'} title="ติ๊กเมื่อแก้เสร็จ"></td>
     <td class="small">${fd(b.log_date)}${!done && days > 0 ? `<div style="color:${days >= 2 ? 'var(--badT)' : 'var(--warnT)'};font-weight:700">${days} วัน</div>` : ''}${done && b.res_date ? `<div class="small" style="color:var(--goodT)">เสร็จ ${fd(b.res_date)}</div>` : ''}</td>
-    <td><b>${esc(rn(b))}</b></td><td>${esc(memberName(b.employee))}</td><td class="small">${esc(b.category || '')}${b.party ? `<div class="muted">${esc(b.party)}</div>` : ''}</td>
+    <td><b>${esc(rn(b))}</b></td><td>${esc(memberName(b.employee))}</td><td class="small">${esc(b.category || '')}${b.activity_id && b.status !== 'Resolved' ? `<div>${badge('⏳ LIVE รอติ๊ก', 'warn')}</div>` : ''}${b.party ? `<div class="muted">${esc(b.party)}</div>` : ''}</td>
     <td class="small">${esc(b.description || '')}${b.evidence ? ` <a href="${esc(b.evidence)}" target="_blank" rel="noopener">หลักฐาน</a>` : ''}${(b.images || []).length ? `<div class="bthumbs">${b.images.map(p => `<a data-bimg="${esc(p)}" target="_blank" rel="noopener"><img data-bimgsrc="${esc(p)}" alt="🖼️"></a>`).join('')}</div>` : ''}</td>
     <td class="small">${fd(b.fu_due)}${!done && i.fu === 'Overdue' ? ' ' + badge('เลยกำหนด', 'bad') : ''}</td>
     <td><select class="mini" data-bst="${b.id}" ${can ? '' : 'disabled'}>${BST2.map(o => `<option value="${o[0]}" ${(b.status || 'Open') === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></td>
@@ -570,7 +570,7 @@ function viewBlockers() {
       S.flowStore = p ? p.store_name : ''; S.tab = 'flow'; render(); setTimeout(() => { const el = $('#fpick'); if (el) el.scrollIntoView(); }, 600);
       return toast('บันทึก LIVE ร้านนี้ได้แล้ว — กด ✅ LIVE สำเร็จ');
     }
-    if (x.checked) { if (!confirm(`แก้เสร็จแล้ว?\n${rn(b)} — ${b.category || ''}\n\nระบบจะหยุดเตือน และแจ้ง Google Chat ว่าแก้เรียบร้อย`)) { x.checked = false; return; } await setBlocker(b, { status: 'Resolved' }, 'เรียบร้อย ✅ แจ้ง Google Chat แล้ว'); }
+    if (x.checked) { if (!confirm(b.activity_id ? `แก้เสร็จแล้ว?\n${rn(b)} — ${b.category || ''}\n\nระบบจะนับ LIVE ร้านนี้ เปลี่ยน 486 เป็น Completed และแจ้ง Google Chat` : `แก้เสร็จแล้ว?\n${rn(b)} — ${b.category || ''}\n\nระบบจะหยุดเตือน และแจ้ง Google Chat ว่าแก้เรียบร้อย`)) { x.checked = false; return; } await setBlocker(b, { status: 'Resolved' }, 'เรียบร้อย ✅ แจ้ง Google Chat แล้ว'); }
     else { if (!confirm('เปิดปัญหานี้ใหม่? (ระบบจะเริ่มเตือนอีกครั้ง)')) { x.checked = true; return; } await setBlocker(b, { status: 'Open' }, 'เปิดใหม่แล้ว'); }
   });
   document.querySelectorAll('[data-bst]').forEach(x => x.onchange = async () => {
