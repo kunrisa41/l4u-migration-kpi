@@ -1216,17 +1216,27 @@ function annModal(a) {
   openModal(`<h2>${a.id ? 'แก้ไขประกาศ' : '📢 ประกาศใหม่'}</h2><label>วันที่</label><input id="and" type="date" value="${esc(a.d)}">
     <label>หัวข้อ</label><input id="ant" value="${esc(a.t)}" placeholder="เช่น Recorder V18.41 — Final Proof ซ้าย-ขวา">
     <label>รายละเอียด (ไม่ใส่ก็ได้)</label><textarea id="anb" rows="5" placeholder="อัปเดตอะไร / ทีมต้องทำอะไร">${esc(a.b || '')}</textarea>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="anchat" checked style="width:auto"> ส่งเข้าแชทกลุ่ม Google Chat ด้วย</label>
     <div class="actions"><button class="btn" id="ancx">ยกเลิก</button><button class="btn p" id="ansv">บันทึก</button></div>`);
   $('#ancx').onclick = closeModal;
   $('#ansv').onclick = async () => {
     const t = $('#ant').value.trim(); if (!t) return toast('ใส่หัวข้อก่อน', true);
     const L = annList(); const rec = { id: a.id || Date.now(), d: $('#and').value || C.iso(C.today()), t, b: $('#anb').value.trim(), by: a.by || S.me.name };
     const i = L.findIndex(x => x.id === a.id); if (i >= 0) L[i] = rec; else L.push(rec);
-    closeModal(); await save(sb.from('content').upsert({ key: 'announcements', body: JSON.stringify(L), updated_at: new Date().toISOString() }, { onConflict: 'key' }), 'บันทึกประกาศแล้ว');
+    const chat = $('#anchat').checked;
+    closeModal(); const ok = await save(sb.from('content').upsert({ key: 'announcements', body: JSON.stringify(L), updated_at: new Date().toISOString() }, { onConflict: 'key' }), 'บันทึกประกาศแล้ว');
+    if (ok && chat) {
+      const txt = `${a.id ? '✏️ *แก้ไขประกาศ*' : '📢 *ประกาศใหม่*'} (${fd(rec.d)})\n*${rec.t}*${rec.b ? '\n' + rec.b : ''}\n— ${rec.by}\n👍 กดรับทราบที่ Dashboard: ${location.origin}/`;
+      const r = await sb.rpc('gchat_post', { p_text: txt }); toast(r.error ? 'บันทึกแล้ว แต่ส่ง Google Chat ไม่สำเร็จ: ' + r.error.message : 'บันทึกแล้ว + ส่งเข้า Google Chat แล้ว', !!r.error);
+    }
   };
 }
 function bindAnn() {
-  document.querySelectorAll('[data-annack]').forEach(b => b.onclick = async () => { b.disabled = true; await save(sb.rpc('ann_ack', { p_id: b.dataset.annack, p_code: S.me.code, p_name: S.me.name }), 'รับทราบแล้ว 👍'); });
+  document.querySelectorAll('[data-annack]').forEach(b => b.onclick = async () => { b.disabled = true; const id = b.dataset.annack;
+    const ok = await save(sb.rpc('ann_ack', { p_id: id, p_code: S.me.code, p_name: S.me.name }), 'รับทราบแล้ว 👍'); if (!ok) return;
+    const a = annList().find(x => String(x.id) === id), acks = annAcks()[id] || []; if (!a) return;
+    const need = S.members.filter(m => m.active && !m.is_team && m.name !== a.by);
+    if (need.length && need.every(m => acks.some(k => k.code === m.code))) await sb.rpc('gchat_post', { p_text: `✅ ทุกคนรับทราบแล้ว: *${a.t}*\n${acks.map(k => k.name).join(', ')}` }); });
   if ($('#annnew')) $('#annnew').onclick = () => annModal(null);
   document.querySelectorAll('[data-anned]').forEach(b => b.onclick = () => annModal(annList().find(x => String(x.id) === b.dataset.anned)));
   document.querySelectorAll('[data-anndel]').forEach(b => b.onclick = async () => { const L = annList(); const a = L.find(x => String(x.id) === b.dataset.anndel); if (!a || !confirm(`ลบประกาศ "${a.t}"?`)) return;
