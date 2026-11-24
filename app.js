@@ -222,11 +222,25 @@ function toolsList() { try { const v = JSON.parse(content('tools_links') || '[]'
 function viewTools() {
   const q = (S.toolQ || '').toLowerCase(); const all = toolsList(); const list = all.filter(t => !q || (t.n + ' ' + t.g).toLowerCase().includes(q));
   const groups = [...new Set(list.map(t => t.g || 'อื่นๆ'))];
-  const fav = u => { try { return 'https://www.google.com/s2/favicons?sz=64&domain=' + new URL(u).hostname; } catch (e) { return ''; } };
+  const s2 = d => 'https://www.google.com/s2/favicons?sz=64&domain=' + d;
+  const GI = { docs: 'https://ssl.gstatic.com/docs/documents/images/kix-favicon-2023q4.ico', sheets: 'https://ssl.gstatic.com/docs/spreadsheets/spreadsheets_2023q4.ico',
+    drive: 'https://ssl.gstatic.com/images/branding/product/2x/drive_2020q4_48dp.png', gmail: 'https://ssl.gstatic.com/ui/v1/icons/mail/rfr/gmail.ico',
+    gsc: 'https://ssl.gstatic.com/search-console/scfe/search_console-64.png' };
+  /* real product logo: by name first (e.g. "Stripe"), then by the kind of link */
+  const fav = (u, n) => { try { const h = new URL(u).hostname, p = new URL(u).pathname;
+    if (/stripe/i.test(n || '')) return s2('stripe.com');
+    if (/kml|map/i.test(n || '') && /drive\.google/.test(h)) return GI.drive;
+    if (/docs\.google\.com$/.test(h)) return /\/spreadsheets\//.test(p) ? GI.sheets : /\/presentation\//.test(p) ? s2('slides.google.com') : GI.docs;
+    if (/drive\.google\.com$/.test(h)) return GI.drive;
+    if (/mail\.google\.com$/.test(h)) return GI.gmail;
+    if (/search\.google\.com$/.test(h)) return GI.gsc;
+    if (/monday\.com$/.test(h)) return s2('monday.com');
+    if (/localforyou\.com$/.test(h) || /netlify\.app$/.test(h)) return s2('localforyou.com');
+    return s2(h); } catch (e) { return ''; } };
   $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🧰 Tools <small>ลิงก์ทั้งหมดที่ทีมใช้ — เปิดจากที่นี่ที่เดียว ไม่ต้องใช้ bookmark</small></h2>
       <input id="tq" placeholder="ค้นหา เช่น Stripe, KML, Monday" value="${esc(S.toolQ || '')}" style="width:260px">${isMgr() ? '<button class="btn p s" id="tedit">✏️ จัดการลิงก์</button>' : ''}</div></div>
     ${groups.map(g => `<div class="card"><h2>${esc(g)}</h2><div class="toolgrid">${list.filter(t => (t.g || 'อื่นๆ') === g).map(t => t.u
-      ? `<a class="tool" href="${esc(t.u)}" target="_blank" rel="noopener"><img src="${esc(fav(t.u))}" alt="" onerror="this.style.visibility='hidden'"><span>${esc(t.n)}</span></a>`
+      ? `<a class="tool" href="${esc(t.u)}" target="_blank" rel="noopener"><img src="${esc(fav(t.u, t.n))}" alt="" onerror="this.onerror=null;this.src='https://www.google.com/s2/favicons?sz=64&domain='+new URL(this.closest('a').href).hostname"><span>${esc(t.n)}</span></a>`
       : `<div class="tool off" title="ยังไม่มีลิงก์ — Manager ใส่ได้ที่ ✏️ จัดการลิงก์"><span>${esc(t.n)}</span><small>รอลิงก์</small></div>`).join('')}</div></div>`).join('') || '<div class="card"><p class="muted">ไม่พบลิงก์</p></div>'}`;
   $('#tq').oninput = e => { S.toolQ = e.target.value; const pos = e.target.selectionStart; viewTools(); const n = $('#tq'); n.focus(); n.setSelectionRange(pos, pos); };
   if ($('#tedit')) $('#tedit').onclick = () => toolsEditor();
