@@ -516,3 +516,20 @@ html,body{overflow-x:clip}
 .higgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}.hig{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;display:flex;flex-direction:column}.hig img{width:100%;height:320px;object-fit:cover;object-position:top;cursor:zoom-in;border-bottom:1px solid var(--line)}.hgt{padding:10px 12px}@media(max-width:1000px){.higgrid{grid-template-columns:1fr}}
 
 .wordgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}.wordbox{border:1px solid var(--line);border-radius:12px;padding:12px;background:#F8FAFC}.wordcard pre.msg{max-height:none}@media(max-width:1000px){.wordgrid{grid-template-columns:1fr}}
+/* menu issues (grouped cards) */
+.migrid{display:grid;gap:10px;margin-top:6px}
+.mcard{border:1px solid var(--line,#E2E8F0);border-radius:12px;background:#fff;padding:10px 14px}
+.mhead{font-size:15px;margin-bottom:4px}
+.mitems{margin:4px 0 6px}
+.mdet{border-top:1px dashed #E2E8F0;padding:7px 0}
+.mdet:first-of-type{border-top:0}
+.mdt{font-weight:700;font-size:13px;color:#334155;margin-bottom:4px}
+.mchip{display:inline-block;padding:2px 9px;margin:2px 4px 2px 0;border-radius:999px;background:#F1F5F9;font-size:13px;line-height:1.5}
+.mchip.add{background:#DCFCE7;color:#166534}
+.mchip.del{background:#FEE2E2;color:#991B1B;text-decoration:line-through}
+.mchip.item{background:#E0F2FE;color:#075985;font-weight:600}
+.mpair{border-collapse:collapse;font-size:13px;width:auto}
+.mpair th{font-size:12px;color:#64748B;text-align:left;padding:2px 10px 2px 0;background:none}
+.mpair td{padding:2px 10px 2px 0;border:0}
+.mov{display:flex;gap:24px;flex-wrap:wrap;font-size:13px}
+.mact{font-size:12px;color:#047857;margin-top:3px}

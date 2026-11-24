@@ -1236,17 +1236,52 @@ const recheckBtn = r => `<button class="btn s t" data-recheck="${r.id}" title="�
 function bindRecheck() { document.querySelectorAll('[data-recheck]').forEach(b => b.onclick = e => { e.stopPropagation(); const r = (S.runs || []).find(x => String(x.id) === b.dataset.recheck); if (!r) return;
   window.open(recheckUrl(r), '_blank', 'noopener'); toast('เปิด LFY Recorder แล้ว · จะเริ่มตรวจเองใน 5 วินาที (ต้อง login NEW ตามปกติ) · ตรวจเสร็จผลใหม่จะขึ้นที่นี่เอง'); }); }
 const hideCheck = c => /check@gmail/i.test(c.field || '') || /receipt logo/i.test((c.field || '') + ' ' + (c.area || ''));
+/* menu issues: grouped (same problem in many items = one card), lists as chips, Thai titles */
+const MI_T = [[/option missing|missing from new|option presence/i, 'ตัวเลือกที่ NEW ยังไม่มี → ต้องเพิ่ม', 'add'], [/extra option/i, 'ตัวเลือกที่ NEW มีเกิน → ต้องลบ', 'del'],
+  [/option spelling/i, 'ชื่อตัวเลือกสะกดไม่ตรง', 'pair'], [/option price/i, 'ราคาตัวเลือกไม่ตรง', 'pair'], [/modifier group|group name/i, 'กลุ่มตัวเลือก', 'group'],
+  [/^price|item price/i, 'ราคาเมนู', 'ov'], [/label/i, 'ป้ายเมนู (Label)', 'ov'], [/description/i, 'คำอธิบายเมนู', 'ov'], [/menu order|order/i, 'ลำดับเมนู', 'ov'],
+  [/menu name|missing in new|name/i, 'ชื่อเมนู', 'ov'], [/required|min|max|quantity/i, 'จำนวนที่ต้องเลือก (Required / Min / Max)', 'ov']];
+function miList(v) {
+  if (Array.isArray(v)) return v.map(x => String(x || '').trim().replace(/^MISSING:\s*/i, '').replace(/^"(.*)"$/, '$1')).filter(x => x && !/^not in old$/i.test(x));
+  let t = String(v || '').trim(); if (!t || /^(none|missing|\[blank\]|—|-)$/i.test(t)) return [];
+  if (/^(not in old\s*)+$/i.test(t)) return [];
+  if (/"[^"]+"/.test(t)) return (t.match(/"[^"]+"/g) || []).map(x => x.slice(1, -1));
+  if (/MISSING:\s/.test(t)) return t.split(/\s*MISSING:\s*/).map(x => x.trim()).filter(Boolean);
+  if (/[+-]\d+\.\d{2}/.test(t)) return t.split(/(?<=[+-]\d+\.\d{2})\s+/).map(x => x.trim()).filter(Boolean);
+  return [t];
+}
+const miChips = (l, k) => l.map(x => `<span class="mchip ${k || ''}">${esc(x)}</span>`).join('');
+function miDetail(d) {
+  const t = MI_T.find(x => x[0].test(d.f || '')) || [null, d.f || 'อื่นๆ', 'ov'];
+  const o = miList(d.o), n = miList(d.n), act = (Array.isArray(d.a) ? d.a : [d.a]).filter(Boolean).join(' · ');
+  let body = '';
+  if (t[2] === 'add') body = miChips(o.length ? o : n, 'add');
+  else if (t[2] === 'del') body = miChips(n, 'del');
+  else if (t[2] === 'pair') { const m = Math.max(o.length, n.length); body = `<table class="mpair"><thead><tr><th>OLD (ต้องเป็น)</th><th></th><th>NEW ตอนนี้</th></tr></thead><tbody>${Array.from({ length: m }, (_, i) => `<tr><td><b>${esc(o[i] || '')}</b></td><td>→</td><td>${esc(n[i] || '')}</td></tr>`).join('')}</tbody></table>`; }
+  else if (t[2] === 'group') {
+    const os = String(Array.isArray(d.o) ? d.o.join(' ') : d.o || ''), ns = String(Array.isArray(d.n) ? d.n.join(' ') : d.n || '');
+    const gm = os.match(/^(.*?)\s*Options?:\s*(.*)$/i);
+    if (gm && /^missing$/i.test(ns.trim())) body = `<div>NEW ยังไม่มีกลุ่ม <b>"${esc(gm[1])}"</b> — ต้องเพิ่มพร้อมตัวเลือก:</div>${miChips(gm[2].split(/,\s*/).filter(Boolean), 'add')}`;
+    else if (/^none$/i.test(os.trim())) body = `<div>NEW มีกลุ่ม <b>"${esc(ns)}"</b> แต่ OLD ไม่มี — ต้องลบออก</div>`;
+    else body = `<div class="mov"><span>OLD: <b>${esc(os)}</b></span><span>NEW: <b>${esc(ns)}</b></span></div>`;
+  } else body = `<div class="mov"><span>OLD: <b>${esc(o.join(', ') || '—')}</b></span><span>NEW: <b>${esc(n.join(', ') || '—')}</b></span></div>`;
+  return `<div class="mdet"><div class="mdt">${esc(t[1])}</div>${body}${act && !['add', 'del', 'pair'].includes(t[2]) && t[2] !== 'group' ? `<div class="mact">ต้องทำ: ${esc(act)}</div>` : ''}</div>`;
+}
 const MI_ST = { MISSING_IN_NEW: ['ไม่มีใน NEW', 'bad'], EXTRA_IN_NEW: ['มีใน NEW แต่ OLD ไม่มี', 'warn'] };
 function menuIssuesHtml(r) {
   const n = r.items_need_fixing; const mi = (r.summary && Array.isArray(r.summary.menuIssues)) ? r.summary.menuIssues : null;
   if (!n && !(mi && mi.length)) return '';
   if (!mi) return `<p class="small">🍽️ เมนู: ต้องแก้ ${n} รายการ — รายละเอียดอยู่ใน Compare Report (PDF) · ผลตรวจจาก Recorder V18.49 ขึ้นไปจะแสดงรายการที่นี่</p>`;
-  const groups = {}; mi.forEach(x => { (groups[x.cat || 'ไม่ระบุหมวด'] = groups[x.cat || 'ไม่ระบุหมวด'] || []).push(x); });
   const tot = (r.summary.menuIssuesTotal || mi.length);
-  return `<div class="sec" style="margin-top:10px">🍽️ เมนูที่ต้องแก้ (${tot}${tot > mi.length ? `, แสดง ${mi.length}` : ''})</div>` + Object.entries(groups).map(([g, l]) => `<div class="small" style="margin:8px 0 2px;font-weight:700;color:var(--accT,#0f766e)">เมนู › ${esc(g)} (${l.length})</div>
-    <table class="small issues" style="table-layout:fixed;width:100%"><colgroup><col style="width:34px"><col style="width:22%"><col style="width:16%"><col style="width:18%"><col style="width:18%"><col></colgroup><thead><tr><th></th><th>เมนู</th><th>เรื่อง</th><th>OLD / ต้องเป็น</th><th>NEW ตอนนี้</th><th>ต้องทำ</th></tr></thead><tbody>
-    ${l.map(x => { const st = MI_ST[x.st]; const d = (x.d && x.d.length) ? x.d : [{ f: '', o: '', n: '', a: '' }];
-      return d.map((y, i) => `<tr>${i === 0 ? `<td rowspan="${d.length}">${x.st === 'EXTRA_IN_NEW' ? '❓' : '❌'}</td><td rowspan="${d.length}"><b>${esc(x.item)}</b>${st ? `<div>${badge(st[0], st[1])}</div>` : ''}</td>` : ''}<td>${esc(y.f)}</td><td>${esc(y.o)}</td><td>${esc(y.n)}</td><td>${esc(y.a)}</td></tr>`).join(''); }).join('')}</tbody></table>`).join('');
+  /* same problem in many items -> one card */
+  const sig = x => JSON.stringify([x.st, (x.d || []).map(d => [d.f, miList(d.o), miList(d.n)])]);
+  const groups = []; const by = {};
+  mi.forEach(x => { const k = sig(x); if (!by[k]) { by[k] = { x, items: [], cats: new Set() }; groups.push(by[k]); } by[k].items.push(x.item); by[k].cats.add(x.cat || ''); });
+  const card = g => { const st = MI_ST[g.x.st]; const many = g.items.length > 1;
+    return `<div class="mcard"><div class="mhead">${g.x.st === 'EXTRA_IN_NEW' ? '❓' : '❌'} ${many ? `<b>ปัญหาเดียวกัน ${g.items.length} เมนู</b>` : `<b>${esc(g.items[0])}</b>`}${st ? ' ' + badge(st[0], st[1]) : ''}<span class="small muted"> · ${esc([...g.cats].filter(Boolean).join(', '))}</span></div>
+      ${many ? `<div class="mitems">${g.items.map(i => `<span class="mchip item">${esc(i)}</span>`).join('')}</div>` : ''}
+      ${(g.x.d || []).map(miDetail).join('')}</div>`; };
+  return `<div class="sec" style="margin-top:10px">🍽️ เมนูที่ต้องแก้ (${tot} เมนู${groups.length < mi.length ? ` · รวมเป็น ${groups.length} ปัญหา` : ''}${tot > mi.length ? `, แสดง ${mi.length}` : ''})</div><div class="migrid">${groups.map(card).join('')}</div>`;
 }
 function recLog() {
   const runs = S.runs || []; const q = (S.rlQ || '').toLowerCase();
