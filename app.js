@@ -181,7 +181,7 @@ async function lockMgr(msg) {
 setInterval(() => { if (S.mgrOn && Date.now() - (S.lastAct || 0) > MGR_IDLE) lockMgr('ล็อก Manager อัตโนมัติ (ไม่ได้ใช้งาน 30 นาที)'); }, 60000);
 
 // ---------------- change log (manager) ----------------
-const TBL_TH = { activities: 'นัด / LIVE', blockers: 'ปัญหา / No-show', prelive: 'Pre-Live Checklist', restaurants: 'ร้าน', call_log: 'บันทึกการโทร', feedback: 'Feedback',
+const TBL_TH = { activities: 'นัด / LIVE', blockers: 'ปัญหา & Followup', prelive: 'Pre-Live Checklist', restaurants: 'ร้าน', call_log: 'บันทึกการโทร', feedback: 'Feedback',
   content: 'ข้อความ / ลิงก์ / โน้ต', reports: 'Audit Report', members: 'ทีม', settings: 'KPI Settings', kpi_months: 'KPI รายเดือน' };
 const ACT_TH = { INSERT: ['เพิ่ม', 'good'], UPDATE: ['แก้ไข', 'blue'], DELETE: ['ลบ', 'bad'] };
 async function viewChlog() {
@@ -267,7 +267,7 @@ function toolsEditor() {
 
 // ---------------- shell ----------------
 const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['tools', '🧰 Tools'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
-  ['blockers', 'ปัญหา / No-show'], ['perf', 'Team Performance'], ['audit', 'Audit Reports']];
+  ['blockers', 'ปัญหา & Followup'], ['perf', 'Team Performance'], ['audit', 'Audit Reports']];
 const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['tracker', 'รายชื่อร้าน'], ['settings', 'KPI Settings'], ['team', 'Team & Logins'], ['chlog', '📜 Log การแก้ไข'], ['gcal', '🔔 Calendar & Chat']];
 const VIEWS = { tools: () => viewTools(), home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
   perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), gcal: () => viewGcal(), chlog: () => viewChlog(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
@@ -342,7 +342,7 @@ function viewDash() {
   </div>
   <div class="card"><h2>Project overview <small>all time</small></h2><div class="grid">
     ${card('Go-Live target', D.total, 'project scope')}${card('Live completed', D.live, 'verified checklist only')}${card('Remaining to Live', Math.max(0, D.total - D.live))}
-    ${card('Appointments booked', D.booked, 'booked + rescheduled')}${card('Open problems', S.blockers.filter(b => b.status !== 'Resolved').length, 'ปัญหา / No-show ที่ยังไม่เสร็จ')}${card('Forecast (Live)', fc(s.fcL), 'at current pace')}</div>
+    ${card('Appointments booked', D.booked, 'booked + rescheduled')}${card('Open problems', S.blockers.filter(b => b.status !== 'Resolved').length, 'ปัญหา & Followup ที่ยังไม่เสร็จ')}${card('Forecast (Live)', fc(s.fcL), 'at current pace')}</div>
     <div style="margin-top:14px"><label>Live progress</label>${prog(D.live, 'live')}</div></div>
   <div class="card"><h2>Selected period <small>${esc(p.label)} · ${fd(p.start)} – ${fd(p.end)}</small></h2><div class="grid">
     ${card('Live in period', D.liveP, 'target ' + D.liveTargetP)}${card('No-show rate', pct(D.noShowRate), D.noShows + ' no-shows')}${card('Technical blockers', D.techOpen, 'open, incl. printer')}
@@ -493,7 +493,7 @@ function viewBlockers() {
   const rn = b => (S.rests.find(r => r.rid === b.rid) || {}).name || b.store_name || b.rid || '';
   const openN = S.blockers.filter(b => b.status !== 'Resolved').length;
   const list = S.blockers.filter(b => !S.bOpen || b.status !== 'Resolved');
-  $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><button class="btn p" id="addb">+ บันทึกปัญหา / No-show</button><button class="btn" id="expb">Export CSV</button>
+  $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><button class="btn p" id="addb">+ บันทึกปัญหา & Followup</button><button class="btn" id="expb">Export CSV</button>
     <div style="flex:1"></div><label class="small" style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="bopen" style="width:auto" ${S.bOpen ? 'checked' : ''}> แสดงเฉพาะที่ยังไม่เสร็จ (${openN})</label></div>
   <div class="note" style="margin-top:10px">💬 บันทึกแล้วแจ้งเข้า <b>Google Chat</b> ทันที และ<b>เตือนซ้ำทุก 2 วัน</b>จนกว่าจะ<b>ติ๊ก ✓ เสร็จ</b> · วันที่แก้เสร็จ = วันที่ติ๊ก · เปลี่ยนสถานะได้จากตารางนี้เลย</div>
   <div class="tw"><table class="blk"><thead><tr><th>เสร็จ</th><th>วันที่</th><th>ร้าน</th><th>ผู้ดูแล</th><th>ปัญหา</th><th>รายละเอียด</th><th>ต้องตามภายใน</th><th>สถานะ</th><th>Manager Noted</th><th></th></tr></thead><tbody>
@@ -541,7 +541,7 @@ function blockerModal(b) {
   const f = (n, l, t = 'text') => `<div><label>${l}</label><input name="${n}" type="${t}" value="${esc(b[n] ?? '')}"></div>`;
   const s = (n, l, list) => `<div><label>${l}</label><select name="${n}">${opts(list, b[n], true)}</select></div>`;
   const r0 = S.rests.find(r => r.rid === b.rid);
-  openModal(`<h3>${isNew ? '🚨 บันทึกปัญหา / No-show' : 'แก้ไขปัญหา'}</h3>${isNew ? '<p class="small muted">บันทึกแล้วจะแจ้งเข้า Google Chat ทันที และเตือนซ้ำทุก 2 วันจนกว่าจะติ๊ก ✓ เสร็จ ในตาราง</p>' : ''}${restList()}
+  openModal(`<h3>${isNew ? '🚨 บันทึกปัญหา & Followup' : 'แก้ไขปัญหา'}</h3>${isNew ? '<p class="small muted">บันทึกแล้วจะแจ้งเข้า Google Chat ทันที และเตือนซ้ำทุก 2 วันจนกว่าจะติ๊ก ✓ เสร็จ ในตาราง</p>' : ''}${restList()}
     <div id="bf"><div class="fg">
     ${f('log_date', 'วันที่', 'date')}<div style="grid-column:span 2"><label>ชื่อร้าน *</label><input id="b_r" list="restlist" value="${esc(r0 ? r0.name : '')}" placeholder="พิมพ์ชื่อร้าน"></div>
     <div><label>ผู้ดูแล</label><select name="employee" ${isMgr() ? '' : 'disabled'}>${memberOpts(b.employee)}</select></div>${s('category', 'ประเภทปัญหา *', L.ISSUE)}${s('party', 'ปัญหามาจากใคร', L.PARTY)}
@@ -934,7 +934,7 @@ function activityModal(kind, a, pre) {
     <div id="iss" class="fg" style="${a.status === 'Problem' || a.status === 'No-show' ? '' : 'display:none'}">
       <div><label>ปัญหาที่ทำให้ LIVE ไม่ได้</label><select id="a_ic">${opts(L.ISSUE, a.issue_category || (a.status === 'No-show' ? 'No-show' : ''), true)}</select></div>
       <div style="grid-column:span 2"><label>รายละเอียดปัญหา / สิ่งที่ต้องทำต่อ</label><input id="a_id" value="${esc(a.issue_detail || '')}" placeholder="เช่น ร้านยังไม่ส่งเมนู, เครื่องปริ้นเตอร์เสีย, ลูกค้าขอเลื่อน"></div></div>
-    <p class="small muted">No-show / ติดปัญหา จะถูกบันทึกลง "ปัญหา / No-show" ให้อัตโนมัติ (ใช้ปรับเป้า KPI ให้ยุติธรรม) · ถ้าเลื่อนนัด ให้เปลี่ยนวันเวลานัดด้านบนแล้วเลือก "เลื่อนนัด"</p>` : ''}
+    <p class="small muted">No-show / ติดปัญหา จะถูกบันทึกลง "ปัญหา & Followup" ให้อัตโนมัติ (ใช้ปรับเป้า KPI ให้ยุติธรรม) · ถ้าเลื่อนนัด ให้เปลี่ยนวันเวลานัดด้านบนแล้วเลือก "เลื่อนนัด"</p>` : ''}
   ${!isAp ? `<div class="sec">ระหว่างโทร (ต้องเป็น ✓ หรือ N/A ครบ ถึงจะนับเป็น LIVE ใน KPI)</div>
     <div class="cl">${LIVE_STEPS.map(x => `<div class="ls"><span>${esc(x.t)}${x.opt ? ' <span class="small muted">(ไม่บังคับ)</span>' : ' <span class="req">*</span>'}</span>
       <span class="seg">${(x.opt ? ['Yes', 'No'] : x.na ? ['Yes', 'N/A', 'No'] : ['Yes', 'No']).map(v => `<label><input type="radio" name="ck_${x.k}" data-ck="${x.k}" value="${v}" ${chk[x.k] === v ? 'checked' : ''}><b>${v === 'Yes' ? '✓' : v === 'No' ? '✗' : 'N/A'}</b></label>`).join('')}</span></div>`).join('')}</div>
@@ -1437,7 +1437,7 @@ function viewPrelive() {
       if (openB.length) await sb.from('blockers').update({ description: txt, employee: c.inspector || openB[0].employee }).eq('id', openB[0].id);
       else await sb.from('blockers').insert({ log_date: C.iso(C.today()), rid: r.rid, employee: c.inspector || S.me.code, category: 'Pre-Live Incomplete', party: 'Employee', description: txt, fu_due: due, status: 'Open', review: 'Pending' });
       await sb.from('restaurants').update({ mig_status: 'Not Ready', blocker: txt.slice(0, 300) }).eq('rid', r.rid);
-      msg = `⚠️ ยังไม่ครบ ${miss.length} ข้อ → ส่งไป "ปัญหา / No-show" (follow-up) และแจ้ง Google Chat แล้ว`;
+      msg = `⚠️ ยังไม่ครบ ${miss.length} ข้อ → ส่งไป "ปัญหา & Followup" (follow-up) และแจ้ง Google Chat แล้ว`;
     }
     S.pl = null; toast(msg); await loadAll(); render();
   };
@@ -1506,7 +1506,7 @@ function webGate(p) {
   if (webExternal(p)) {
     const fu = webFu(p), open = fu.find(b => b.status !== 'Resolved'), done = fu.find(b => b.status === 'Resolved');
     out.push(`<div class="webgate red">🔴 <b>เว็บ / โดเมนไม่ได้อยู่กับเรา</b> (${esc(o.filter(x => /other|not with us/i.test(x)).join(', '))}) — ต้องให้ร้าน / เจ้าของเว็บติดปุ่ม Online Order & Table Reservation ให้ ·
-      ${open ? `<b>มี follow-up ค้างอยู่</b> — ติ๊ก ✓ ที่ "ปัญหา / No-show" เมื่อติดปุ่มเสร็จ แล้วกลับมาบันทึก LIVE ได้ <a href="#" data-gofu="1">ไปที่ follow-up</a>`
+      ${open ? `<b>มี follow-up ค้างอยู่</b> — ติ๊ก ✓ ที่ "ปัญหา & Followup" เมื่อติดปุ่มเสร็จ แล้วกลับมาบันทึก LIVE ได้ <a href="#" data-gofu="1">ไปที่ follow-up</a>`
         : done ? '✅ follow-up ติดปุ่มเสร็จแล้ว บันทึก LIVE ได้' : 'กด ✅ LIVE สำเร็จ ระบบจะส่ง follow-up ให้ก่อน (ยังบันทึก LIVE ไม่ได้จนกว่าจะติ๊ก ✓ ที่ follow-up)'}</div>`);
   }
   if (o.includes('Add button with us')) out.push(`<div class="webgate yel">🟡 <b>Add button with us</b> — แจ้งร้านเสมอว่า <b>ใช้งานได้วันถัดไป / ภายใน 24 ชม.</b> และแจ้งใน Monday IT board ให้อัปเดตปุ่ม ${it ? `<a class="btn s" href="${esc(it)}" target="_blank" rel="noopener" onclick="window.open(this.href,'itboard','width=1200,height=850');return false;">🔗 เปิด IT board</a>` : ''}</div>`);
@@ -1524,7 +1524,7 @@ function flowStorePick() {
       </div>
       ${p ? webGate(p) : ''}
       ${p ? `<div class="row" style="margin-top:10px"><button class="btn ok big" id="fok">✅ LIVE สำเร็จ</button><button class="btn r big" id="fno">❌ ไม่สำเร็จ / ติดปัญหา</button></div>
-        <p class="small muted" style="margin:6px 0 0">✅ สำเร็จ → กรอกฟอร์ม Record LIVE แล้วระบบแจ้งกลุ่ม Google Chat ว่า LIVE สำเร็จ · ❌ ไม่สำเร็จ → ใส่ว่าติดอะไร ระบบส่งไปที่ "ปัญหา / No-show" แจ้ง Google Chat และเตือนทุก 2 วันจนกว่าจะแก้เสร็จ</p>` : ''}
+        <p class="small muted" style="margin:6px 0 0">✅ สำเร็จ → กรอกฟอร์ม Record LIVE แล้วระบบแจ้งกลุ่ม Google Chat ว่า LIVE สำเร็จ · ❌ ไม่สำเร็จ → ใส่ว่าติดอะไร ระบบส่งไปที่ "ปัญหา & Followup" แจ้ง Google Chat และเตือนทุก 2 วันจนกว่าจะแก้เสร็จ</p>` : ''}
       ${p ? `<div class="small" style="margin-top:6px">${p.done >= PL_REQ ? badge('✓ Pre-Live Checklist ครบ ' + PL_REQ + ' ข้อ', 'good') : badge(`⚠️ Pre-Live ยังไม่ครบ (${p.done}/${PL_REQ})`, 'warn') + ' <a href="#" id="fpl">ไปเช็กต่อ</a>'} · ตรวจโดย ${esc(memberName(p.inspector))} · ${fmtDT(p.updated_at)}${isLiveDone(p.store_name) ? ' · ' + badge('ร้านนี้บันทึก LIVE ไปแล้ว', 'blue') : ''}</div>` : ''}`
     : `<p class="small muted" style="margin:6px 0">ยังไม่มีร้านใน Pre-Live Checklist — ทำ Pre-Live Checklist ของร้านก่อน แล้วชื่อร้านจะขึ้นที่นี่</p>`}</div></div>`;
 }
@@ -1536,7 +1536,7 @@ function bindFlowPick() {
     const p = plStores().find(x => x.store_name === S.flowStore); if (!p) return;
     if (webExternal(p)) {
       const fu = webFu(p);
-      if (fu.some(b => b.status !== 'Resolved')) return toast('ยังบันทึก LIVE ไม่ได้ — ต้องติ๊ก ✓ follow-up "ติดปุ่มเว็บ" ที่หน้า ปัญหา / No-show ก่อน', true);
+      if (fu.some(b => b.status !== 'Resolved')) return toast('ยังบันทึก LIVE ไม่ได้ — ต้องติ๊ก ✓ follow-up "ติดปุ่มเว็บ" ที่หน้า ปัญหา & Followup ก่อน', true);
       if (!fu.length) {
         if (!confirm(`เว็บ / โดเมนของ ${p.store_name} ไม่ได้อยู่กับเรา\nระบบจะส่ง follow-up ให้ร้าน / เจ้าของเว็บติดปุ่ม Online Order & Table Reservation\nบันทึก LIVE ได้หลังติ๊ก ✓ ที่ follow-up นี้ — ส่งเลยไหม?`)) return;
         const r = await ensureRest(p.store_name); if (!r) return;
@@ -1555,7 +1555,7 @@ function bindFlowPick() {
   };
   if ($('#fno')) $('#fno').onclick = () => {
     const p = plStores().find(x => x.store_name === S.flowStore); if (!p) return;
-    openModal(`<h3>❌ LIVE ไม่สำเร็จ · ${esc(p.store_name)}</h3><p class="small muted">ระบบจะบันทึกไว้ที่ "ปัญหา / No-show" แจ้งกลุ่ม Google Chat ทันที และเตือนทุก 2 วันจนกว่าจะติ๊ก ✓ เสร็จ</p>
+    openModal(`<h3>❌ LIVE ไม่สำเร็จ · ${esc(p.store_name)}</h3><p class="small muted">ระบบจะบันทึกไว้ที่ "ปัญหา & Followup" แจ้งกลุ่ม Google Chat ทันที และเตือนทุก 2 วันจนกว่าจะติ๊ก ✓ เสร็จ</p>
       <div class="fg"><div><label>ติดปัญหาเรื่องอะไร *</label><select id="nf_c">${opts(L.ISSUE, '', true)}</select></div><div><label>ปัญหามาจากใคร</label><select id="nf_p">${opts(L.PARTY, 'Customer', true)}</select></div>
         <div><label>ต้องตามภายในวันที่</label><input id="nf_d" type="date" value="${C.iso(C.addWorkdays(C.today(), 2, C.holidaySet(S.settings)))}"></div></div>
       <label>ต้อง follow-up อะไรต่อ <span class="muted">(ไม่บังคับ ถ้าไม่ใส่จะใช้ชื่อปัญหาแทน)</span></label><textarea id="nf_t" class="lightph" placeholder="ตัวอย่าง: ร้านไม่มีเครื่องปริ้น รอซื้อใหม่ / ขอนัดใหม่พรุ่งนี้ 10:00"></textarea>
