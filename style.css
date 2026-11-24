@@ -498,3 +498,5 @@ html,body{overflow-x:clip}
 .starcard{border:2px solid #FCD34D;background:linear-gradient(180deg,#FFFBEB,#fff 60%)}.starhero{margin:10px 0;padding:12px 16px;border-radius:12px;background:#FEF3C7}.starname{font-size:18px;margin-bottom:6px}.starhero ul{margin:0;padding-left:20px}.starhero li{margin:3px 0}tr.starrow td{background:#FFFBEB}
 
 .starhero{display:flex;gap:18px;align-items:center}.starpic{width:110px;height:110px;border-radius:50%;object-fit:cover;border:4px solid #FCD34D;flex:none;background:#fff}.starini{display:flex;align-items:center;justify-content:center;font-size:44px;font-weight:800;color:#B45309;background:#FEF3C7}
+
+.starhero{flex-direction:column;justify-content:center;text-align:center;gap:10px;padding:18px}.starbody{display:flex;flex-direction:column;align-items:center}.starhero ul{display:inline-block;text-align:left;margin:4px auto 0}

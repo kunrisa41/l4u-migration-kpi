@@ -1217,12 +1217,12 @@ function starCard() {
   const j = j0.star ? j0 : (j0.prev || j0), s = j.star, last = !j0.star && !!j0.prev;
   const wk = `${fd(j.week_start)} – ${fd(j.week_end)}`;
   const head = `<div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🏆 Star of the week <small>${last ? 'สัปดาห์ที่แล้ว · ' : ''}${wk} · ส่งเข้า Google Chat ทุกศุกร์ 16:00</small></h2>${isMgr() && s && !last ? '<button class="btn s p" id="starpost">📣 ส่งชื่นชมเข้าแชทตอนนี้</button>' : ''}</div>`;
-  if (!s) return `<div class="card starcard">${head}<div class="muted small" style="margin-top:8px">ยังไม่มีผลงานที่บันทึก — จะขึ้นชื่อ Star อัตโนมัติเมื่อมี LIVE / นัด / Pre-Live</div></div>`;
+  if (!s) return `<div class="card starcard">${head}<div class="muted small" style="margin-top:8px;text-align:center">ยังไม่มีผลงานที่บันทึก — จะขึ้นชื่อ Star อัตโนมัติเมื่อมี LIVE / นัด / Pre-Live</div></div>`;
   const m = S.members.find(x => x.code === s.code) || { name: s.name, role: '' };
   const ini = (m.name || '?').replace(/\(.*\)/, '').trim().slice(0, 1).toUpperCase();
   const pic = m.photo_url ? `<img class="starpic" src="${esc(m.photo_url)}" alt="">` : `<div class="starpic starini">${esc(ini)}</div>`;
   const reasons = (j.text || '').split('\n').filter(l => l.startsWith('- ')).map(l => `<li>${esc(l.slice(2))}</li>`).join('');
-  return `<div class="card starcard">${head}<div class="starhero">${pic}<div style="flex:1"><div class="starname">👏 ขอชื่นชม <b>${esc(m.name)}</b> <span class="small muted">${esc(m.role || '')}</span></div><ul>${reasons}</ul></div></div></div>`;
+  return `<div class="card starcard">${head}<div class="starhero">${pic}<div class="starbody"><div class="starname">👏 ขอชื่นชม <b>${esc(m.name)}</b> <span class="small muted">${esc(m.role || '')}</span></div><ul>${reasons}</ul></div></div></div>`;
 }
 async function loadStar() {
   if (S.starAt && Date.now() - S.starAt < 60000) return bindStar();
