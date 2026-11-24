@@ -247,9 +247,9 @@ function viewHowto() {
   $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🎬 How-to Videos <small>กด 📋 เพื่อคัดลอกลิงก์ไปส่งให้ร้านได้เลย · ▶ เปิดดูวิดีโอ</small></h2>
       <input id="hq" placeholder="ค้นหา เช่น printer, refund, menu" value="${esc(S.howQ || '')}" style="width:260px"></div>
     <div class="row" style="margin-top:10px;gap:8px"><button class="btn p s" data-cpl="${esc(HOWTO.map(p => p.d + ': ' + p.pl).join('\n'))}">📋 Copy ลิงก์ Playlist ทั้ง 2 อัน</button></div></div>
-    <div class="card"><h2>📘 How-to Guides (รูปคู่มือส่งให้ร้าน) <small>📋 Copy รูป แล้ววางในแชท respond.io ได้เลย · หรือดาวน์โหลด / Copy ลิงก์รูป</small></h2>
+    <div class="card"><h2>📘 How-to Guides (รูปคู่มือส่งให้ร้าน) <small>📋 Copy รูป แล้ววางในแชท respond.io ได้เลย · หรือดาวน์โหลด</small></h2>
       <div class="higgrid">${HOWTO_IMG.map((g, i) => `<div class="hig"><img src="${g.f}" alt="${esc(g.t)}" data-zoom="${g.f}" class="real"><div class="hgt"><b>${esc(g.t)}</b><div class="small muted">${esc(g.d)}</div>
-        <div class="row" style="gap:6px;margin-top:8px"><button class="btn s p" data-cpimg="${g.f}">📋 Copy รูป</button><a class="btn s" href="${g.f}" download>⬇️ ดาวน์โหลด</a><button class="btn s" data-cpl="${esc(location.origin + '/' + g.f)}">🔗 Copy ลิงก์รูป</button><button class="btn s" data-cpl="${esc(g.m)}">💬 Copy ข้อความ</button></div></div></div>`).join('')}</div></div>
+        <div class="row" style="gap:6px;margin-top:8px"><button class="btn s p" data-cpimg="${g.f}">📋 Copy รูป</button><a class="btn s" href="${g.f}" download>⬇️ ดาวน์โหลด</a></div></div></div>`).join('')}</div></div>
     <div class="howgrid">${HOWTO.map(p => { const vs = p.v.filter(v => !q || v[1].toLowerCase().includes(q)); return `<div class="card"><h2>${esc(p.t)} <small>${p.v.length} วิดีโอ</small></h2>
       <div class="howpl"><span class="small">${esc(p.d)} — <b>Playlist รวม</b></span><a class="btn s" href="${esc(p.pl)}" target="_blank" rel="noopener">▶ เปิด</a><button class="btn s p" data-cpl="${esc(p.pl)}">📋 Copy ลิงก์ Playlist</button></div>
       ${vs.map((v, i) => `<div class="howrow"><span class="hown">${p.v.indexOf(v) + 1}</span><span class="howt">${esc(v[1])} <span class="small muted">${v[2]}</span></span>
