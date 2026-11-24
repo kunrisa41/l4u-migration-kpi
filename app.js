@@ -534,6 +534,19 @@ async function setBlocker(b, patch, msg) {
   if (patch.status && patch.status !== 'Resolved' && b.status === 'Resolved') patch.res_date = null;
   await save(sb.from('blockers').update(patch).eq('id', b.id), msg);
 }
+/* LIVE follow-up fixed -> choose: LIVE done, or another call is needed */
+function liveOutcomeModal(b, name, onCancel) {
+  openModal(`<h2>✅ แก้เสร็จแล้ว — ${esc(name)}</h2><p class="small muted">${esc(b.category || '')}${b.description ? ' · ' + esc(b.description) : ''}</p>
+    <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+      <button class="btn p" id="lo_live" style="padding:16px;font-size:16px">🎉 LIVE แล้ว<div class="small" style="font-weight:400;opacity:.9;margin-top:4px">นับ LIVE ร้านนี้ · 486 = Completed · แจ้งแชท</div></button>
+      <button class="btn t" id="lo_call" style="padding:16px;font-size:16px">📅 Another call is needed<div class="small" style="font-weight:400;opacity:.9;margin-top:4px">ยังไม่นับ LIVE · ลงประกาศให้ทีมนัด LIVE call ใหม่</div></button></div>
+    <div class="actions"><button class="btn" id="lo_cx">ยกเลิก</button></div>`);
+  $('#lo_cx').onclick = () => { closeModal(); if (onCancel) onCancel(); };
+  $('#lo_live').onclick = async () => { closeModal(); await setBlocker(b, { status: 'Resolved', outcome: 'live' }, 'LIVE แล้ว 🎉 นับ LIVE ร้านนี้แล้ว'); };
+  $('#lo_call').onclick = async () => { closeModal(); await setBlocker(b, { status: 'Resolved', outcome: 'call' }, 'บันทึกแล้ว — ยังไม่นับ LIVE');
+    annModal({ d: C.iso(C.today()), blk: b.id, t: `📅 Need to reschedule LIVE call — ${name}`,
+      b: `สิ่งที่ทำให้ LIVE ไม่ได้ แก้เรียบร้อยแล้ว (${b.category || ''}${b.description ? ': ' + b.description : ''})\nต้องนัดร้าน LIVE call ใหม่ · ผู้ดูแล: ${memberName(b.employee)}\nนัดแล้วลงใน Dashboard & Calendar` }); };
+}
 function viewBlockers() {
   const a = asof();
   const rn = b => (S.rests.find(r => r.rid === b.rid) || {}).name || b.store_name || b.rid || '';
@@ -547,12 +560,12 @@ function viewBlockers() {
     const can = isMgr() || b.employee === S.me.code;
     return `<tr class="${done ? 'done' : ''}${S.blkHi === b.id ? ' blkhi' : ''}" data-blkrow="${b.id}"><td style="text-align:center"><input type="checkbox" class="tick" data-tick="${b.id}" ${done ? 'checked' : ''} ${can ? '' : 'disabled'} title="ติ๊กเมื่อแก้เสร็จ"></td>
     <td class="small">${fd(b.log_date)}${!done && days > 0 ? `<div style="color:${days >= 2 ? 'var(--badT)' : 'var(--warnT)'};font-weight:700">${days} วัน</div>` : ''}${done && b.res_date ? `<div class="small" style="color:var(--goodT)">เสร็จ ${fd(b.res_date)}</div>` : ''}</td>
-    <td><b>${esc(rn(b))}</b></td><td>${esc(memberName(b.employee))}</td><td class="small">${esc(b.category || '')}${b.activity_id && b.status !== 'Resolved' ? `<div>${badge('⏳ LIVE รอติ๊ก', 'warn')}</div>` : ''}${b.party ? `<div class="muted">${esc(b.party)}</div>` : ''}</td>
+    <td><b>${esc(rn(b))}</b></td><td>${esc(memberName(b.employee))}</td><td class="small">${esc(b.category || '')}${b.activity_id && b.status !== 'Resolved' ? `<div>${badge('⏳ LIVE รอติ๊ก', 'warn')}</div>` : b.activity_id && b.outcome === 'call' ? `<div>${badge('📅 ต้องนัด call ใหม่', 'warn')}</div>` : b.activity_id && done ? `<div>${badge('🎉 LIVE แล้ว', 'good')}</div>` : ''}${b.party ? `<div class="muted">${esc(b.party)}</div>` : ''}</td>
     <td class="small">${esc(b.description || '')}${b.evidence ? ` <a href="${esc(b.evidence)}" target="_blank" rel="noopener">หลักฐาน</a>` : ''}${(b.images || []).length ? `<div class="bthumbs">${b.images.map(p => `<a data-bimg="${esc(p)}" target="_blank" rel="noopener"><img data-bimgsrc="${esc(p)}" alt="🖼️"></a>`).join('')}</div>` : ''}</td>
     <td class="small">${fd(b.fu_due)}${!done && i.fu === 'Overdue' ? ' ' + badge('เลยกำหนด', 'bad') : ''}</td>
     <td><select class="mini" data-bst="${b.id}" ${can ? '' : 'disabled'}>${BST2.map(o => `<option value="${o[0]}" ${(b.status || 'Open') === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select></td>
     <td>${isMgr() ? `<select class="mini" data-brv="${b.id}">${REVIEW2.map(o => `<option value="${o[0]}" ${(b.review || 'Pending') === o[0] ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>` : `<span class="small">${esc((REVIEW2.find(o => o[0] === (b.review || 'Pending')) || ['', ''])[1])}</span>`}</td>
-    <td>${can ? `<button class="btn s" data-b="${b.id}">แก้ไข</button>` : ''}${done && (b.activity_id || /back to queue|no-show|reschedule/i.test(b.category || '')) ? (annList().some(x => x.blk === b.id) ? `<div class="small" style="color:var(--goodT);margin-top:4px">📢 ประกาศนัด LIVE ใหม่แล้ว</div>` : `<button class="btn s t" style="margin-top:4px" data-resched="${b.id}" title="สิ่งที่ทำให้ LIVE ไม่ได้แก้แล้ว — ต้องนัด LIVE call ใหม่ · ลงประกาศให้ทีม">📅 Need to reschedule LIVE call</button>`) : ''}</td></tr>`; }).join('') || '<tr><td colspan="10" class="muted">ยังไม่มีปัญหาที่บันทึกไว้</td></tr>'}</tbody></table></div></div>`;
+    <td>${can ? `<button class="btn s" data-b="${b.id}">แก้ไข</button>` : ''}${done && (b.activity_id ? b.outcome === 'call' : /no-show|reschedule/i.test(b.category || '')) ? (annList().some(x => x.blk === b.id) ? `<div class="small" style="color:var(--goodT);margin-top:4px">📢 ประกาศนัด LIVE ใหม่แล้ว</div>` : `<button class="btn s t" style="margin-top:4px" data-resched="${b.id}" title="สิ่งที่ทำให้ LIVE ไม่ได้แก้แล้ว — ต้องนัด LIVE call ใหม่ · ลงประกาศให้ทีม">📅 Need to reschedule LIVE call</button>`) : ''}</td></tr>`; }).join('') || '<tr><td colspan="10" class="muted">ยังไม่มีปัญหาที่บันทึกไว้</td></tr>'}</tbody></table></div></div>`;
   { const ps = [...document.querySelectorAll('[data-bimgsrc]')].map(x => x.dataset.bimgsrc); if (ps.length) blkImgUrls(ps).then(u => { document.querySelectorAll('[data-bimgsrc]').forEach(im => { if (u[im.dataset.bimgsrc]) { im.src = u[im.dataset.bimgsrc]; im.parentElement.href = u[im.dataset.bimgsrc]; } }); }); }
   if (S.blkHi) { const row = document.querySelector(`[data-blkrow="${S.blkHi}"]`); if (row) setTimeout(() => row.scrollIntoView({ block: 'center' }), 50); else if (S.blockers.length) toast('ไม่พบรายการนี้ (อาจถูกลบไปแล้ว)', true); setTimeout(() => { S.blkHi = null; }, 15000); }
   document.querySelectorAll('[data-resched]').forEach(x => x.onclick = () => { const b = S.blockers.find(y => String(y.id) === x.dataset.resched); if (!b) return;
@@ -576,12 +589,14 @@ function viewBlockers() {
       S.flowStore = p ? p.store_name : ''; S.tab = 'flow'; render(); setTimeout(() => { const el = $('#fpick'); if (el) el.scrollIntoView(); }, 600);
       return toast('บันทึก LIVE ร้านนี้ได้แล้ว — กด ✅ LIVE สำเร็จ');
     }
+    if (x.checked && b.activity_id) { x.checked = false; return liveOutcomeModal(b, rn(b)); }
     if (x.checked) { if (!confirm(b.activity_id ? `แก้เสร็จแล้ว?\n${rn(b)} — ${b.category || ''}\n\nระบบจะนับ LIVE ร้านนี้ เปลี่ยน 486 เป็น Completed และแจ้ง Google Chat` : `แก้เสร็จแล้ว?\n${rn(b)} — ${b.category || ''}\n\nระบบจะหยุดเตือน และแจ้ง Google Chat ว่าแก้เรียบร้อย`)) { x.checked = false; return; } await setBlocker(b, { status: 'Resolved' }, 'เรียบร้อย ✅ แจ้ง Google Chat แล้ว'); }
     else { if (!confirm('เปิดปัญหานี้ใหม่? (ระบบจะเริ่มเตือนอีกครั้ง)')) { x.checked = true; return; } await setBlocker(b, { status: 'Open' }, 'เปิดใหม่แล้ว'); }
   });
   document.querySelectorAll('[data-bst]').forEach(x => x.onchange = async () => {
     const b = S.blockers.find(y => String(y.id) === x.dataset.bst);
     if (x.value === 'Resolved' && b.category === 'Pre-Live Incomplete') { x.value = b.status || 'Open'; return toPrelive(b); }
+    if (x.value === 'Resolved' && b.activity_id) { const prev = b.status || 'Open'; x.value = prev; return liveOutcomeModal(b, rn(b)); }
     if (x.value === 'Resolved' && !confirm('แก้เสร็จแล้ว? ระบบจะหยุดเตือน')) { x.value = b.status || 'Open'; return; }
     await setBlocker(b, { status: x.value }, 'อัปเดตสถานะแล้ว');
   });
