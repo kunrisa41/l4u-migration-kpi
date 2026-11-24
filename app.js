@@ -236,17 +236,28 @@ const HOWTO = [
     ['Bf8QG33LRQE', 'How to Change Appearance Settings', '1:02'], ['36RwH6fW5R4', 'How to Confirm a Table Booking', '0:44'],
     ['qpERVZRpWC8', 'How to Change an Order Status', '0:35'], ['FKLgH1w9crs', 'How to Pause and Resume Services', '0:57'],
     ['IG57_7tu0Rc', 'How to Review Accept and Reprint Print an Order on Application', '1:41']] }];
+const HOWTO_IMG = [
+  { f: 'img/howto_printer.png', t: '🖨️ การเชื่อมต่อเครื่องปริ้นเตอร์กับอุปกรณ์ (Printer Connection)', d: 'STAR (Chinese Pushprinter) · Epson Bluetooth · LAN · Epson 2 ระบบ + ตั้ง Receipt เป็น STAR',
+    m: 'คู่มือการเชื่อมต่อเครื่องปริ้นเตอร์กับอุปกรณ์ค่ะ (STAR / Epson Bluetooth / LAN) — Printer connection guide for your shop.' },
+  { f: 'img/howto_stripe.png', t: '💳 วิธีเชื่อมต่อระบบชำระเงินออนไลน์ (Stripe)', d: 'เปิดลิงก์ลงทะเบียน → ใส่อีเมล → มีบัญชีแล้ว / สมัครใหม่ → ตั้งบัญชีรับเงิน → แจ้งทีม',
+    m: 'วิธีเชื่อมต่อระบบชำระเงินออนไลน์ด้วย Stripe ค่ะ เมื่อทำเสร็จแล้วรบกวนแจ้งทีมงานเพื่อตรวจสอบและเปิดใช้งานนะคะ — How to connect Online Payment with Stripe. Please let us know once completed.' }];
 function viewHowto() {
   const q = (S.howQ || '').toLowerCase();
   const yt = id => 'https://youtu.be/' + id;
   $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🎬 How-to Videos <small>กด 📋 เพื่อคัดลอกลิงก์ไปส่งให้ร้านได้เลย · ▶ เปิดดูวิดีโอ</small></h2>
       <input id="hq" placeholder="ค้นหา เช่น printer, refund, menu" value="${esc(S.howQ || '')}" style="width:260px"></div>
     <div class="row" style="margin-top:10px;gap:8px"><button class="btn p s" data-cpl="${esc(HOWTO.map(p => p.d + ': ' + p.pl).join('\n'))}">📋 Copy ลิงก์ Playlist ทั้ง 2 อัน</button></div></div>
+    <div class="card"><h2>📘 How-to Guides (รูปคู่มือส่งให้ร้าน) <small>📋 Copy รูป แล้ววางในแชท respond.io ได้เลย · หรือดาวน์โหลด / Copy ลิงก์รูป</small></h2>
+      <div class="higgrid">${HOWTO_IMG.map((g, i) => `<div class="hig"><img src="${g.f}" alt="${esc(g.t)}" data-zoom="${g.f}" class="real"><div class="hgt"><b>${esc(g.t)}</b><div class="small muted">${esc(g.d)}</div>
+        <div class="row" style="gap:6px;margin-top:8px"><button class="btn s p" data-cpimg="${g.f}">📋 Copy รูป</button><a class="btn s" href="${g.f}" download>⬇️ ดาวน์โหลด</a><button class="btn s" data-cpl="${esc(location.origin + '/' + g.f)}">🔗 Copy ลิงก์รูป</button><button class="btn s" data-cpl="${esc(g.m)}">💬 Copy ข้อความ</button></div></div></div>`).join('')}</div></div>
     <div class="howgrid">${HOWTO.map(p => { const vs = p.v.filter(v => !q || v[1].toLowerCase().includes(q)); return `<div class="card"><h2>${esc(p.t)} <small>${p.v.length} วิดีโอ</small></h2>
       <div class="howpl"><span class="small">${esc(p.d)} — <b>Playlist รวม</b></span><a class="btn s" href="${esc(p.pl)}" target="_blank" rel="noopener">▶ เปิด</a><button class="btn s p" data-cpl="${esc(p.pl)}">📋 Copy ลิงก์ Playlist</button></div>
       ${vs.map((v, i) => `<div class="howrow"><span class="hown">${p.v.indexOf(v) + 1}</span><span class="howt">${esc(v[1])} <span class="small muted">${v[2]}</span></span>
         <a class="btn s" href="${yt(v[0])}" target="_blank" rel="noopener">▶</a><button class="btn s" data-cpl="${yt(v[0])}">📋 Copy ลิงก์</button></div>`).join('') || '<div class="muted small">ไม่พบวิดีโอที่ค้นหา</div>'}</div>`; }).join('')}</div>`;
   document.querySelectorAll('[data-cpl]').forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.cpl); toast('คัดลอกลิงก์แล้ว — วางส่งให้ร้านได้เลย'); } catch (e) { toast('คัดลอกไม่ได้', true); } });
+  document.querySelectorAll('[data-cpimg]').forEach(b => b.onclick = async () => {
+    try { const blob = await (await fetch(b.dataset.cpimg)).blob(); await navigator.clipboard.write([new ClipboardItem({ [blob.type || 'image/png']: blob })]); toast('คัดลอกรูปแล้ว — กด Cmd+V วางในแชทได้เลย'); }
+    catch (e) { toast('เบราว์เซอร์นี้ Copy รูปไม่ได้ — ใช้ ⬇️ ดาวน์โหลด แทน', true); } });
   $('#hq').oninput = e => { S.howQ = e.target.value; const pos = e.target.selectionStart; viewHowto(); const n = $('#hq'); n.focus(); n.setSelectionRange(pos, pos); };
 }
 function viewTools() {
@@ -297,7 +308,7 @@ function toolsEditor() {
 
 // ---------------- shell ----------------
 const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['tools', '🧰 Tools'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
-  ['blockers', 'ปัญหา & Followup'], ['howto', '🎬 How-to Videos'], ['perf', 'Team Performance'], ['audit', 'Audit Reports']];
+  ['blockers', 'ปัญหา & Followup'], ['howto', '🎬 How-to'], ['perf', 'Team Performance'], ['audit', 'Audit Reports']];
 const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['tracker', 'รายชื่อร้าน'], ['settings', 'KPI Settings'], ['team', 'Team & Logins'], ['chlog', '📜 Log การแก้ไข'], ['gcal', '🔔 Calendar & Chat']];
 const VIEWS = { howto: () => viewHowto(), tools: () => viewTools(), home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
   perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), gcal: () => viewGcal(), chlog: () => viewChlog(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
