@@ -1531,10 +1531,24 @@ function annCard() {
 async function loadHof() {
   const box = $('#hof'); if (!box) return;
   if (!S.hof || Date.now() - (S.hofAt || 0) > 60000) {
-    const { data, error } = await sb.from('star_history').select('*').order('week_start', { ascending: false });
-    if (error) { box.innerHTML = ''; return; } S.hof = data || []; S.hofAt = Date.now();
+    try { const { data, error } = await sb.from('star_history').select('*').order('week_start', { ascending: false });
+      S.hof = error ? [] : (data || []); } catch { S.hof = []; } S.hofAt = Date.now();
   }
-  const b2 = $('#hof'); if (!b2) return; b2.innerHTML = hofCard(); if (S.scrollHof) { S.scrollHof = false; b2.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  if (!S.star || Date.now() - (S.starAt || 0) > 60000) { const r = await sb.rpc('weekly_star'); if (!r.error && r.data) { S.star = r.data; S.starAt = Date.now(); } }
+  const b2 = $('#hof'); if (!b2) return; b2.innerHTML = rulesCard() + hofCard(); if (S.scrollHof) { S.scrollHof = false; b2.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+}
+function rulesCard() {
+  const R = [['🎉', 'LIVE 1 ร้าน', 5], ['📅', 'ลงนัดใหม่ 1 นัด', 2], ['🙋', 'ร้านมาตามนัด (show)', 2], ['🧾', 'Pre-Live Checklist ครบ 1 ร้าน', 2], ['✅', 'แก้ปัญหา & Followup เสร็จ 1 เรื่อง', 1], ['📞', 'โทร 1 สาย (ทุกผล)', 0.2]];
+  const j = S.star && S.star.rows ? S.star : null; const rows = j ? j.rows : [];
+  const pts = (r, k, w) => (+r[k] || 0) * w;
+  const sb_ = rows.map((r, i) => { const m = S.members.find(x => x.code === r.code) || { name: r.name };
+    const parts = [['🎉', 'live', 5], ['📅', 'booked', 2], ['🙋', 'appt_show', 2], ['🧾', 'prelive', 2], ['✅', 'solved', 1], ['📞', 'calls', 0.2]].filter(([, k]) => +r[k] > 0).map(([e, k, w]) => `${e} ${r[k]} = ${+pts(r, k, w).toFixed(1)}`).join(' · ');
+    return `<tr${j.star && j.star.code === r.code ? ' class="starrow"' : ''}><td>${i === 0 ? '🏆' : i + 1}</td><td><b>${esc(m.name)}</b></td><td class="num"><b>${(+r.score).toFixed(1)}</b></td><td class="small">${parts || '<span class="muted">ยังไม่มีคะแนน</span>'}</td></tr>`; }).join('');
+  return `<div class="card rulecard"><h2>📏 กติกา Star of the week <small>นับจันทร์–อาทิตย์ · ประกาศทุกศุกร์ 16:00 · ไม่มีคะแนนติดลบ</small></h2>
+    <div class="rulegrid"><div><table class="rtab"><thead><tr><th>งาน</th><th class="num">คะแนน</th></tr></thead><tbody>${R.map(([e, t, v]) => `<tr><td>${e} ${t}</td><td class="num"><b>+${v}</b></td></tr>`).join('')}</tbody></table>
+      <ul class="small muted" style="margin:8px 0 0;padding-left:18px"><li>นัด 1 นัด: ร้านมา = 4 คะแนน · No-show = 2 คะแนน (ไม่หัก)</li><li>คะแนนเท่ากัน → LIVE มากกว่าชนะ → นัดใหม่มากกว่าชนะ</li><li>ต้องได้คะแนน <b>มากกว่า</b> Star ปัจจุบันถึงจะแซงได้ · Manager ไม่ร่วมแข่ง</li></ul></div>
+      <div><div class="small" style="font-weight:700;margin-bottom:6px">📊 คะแนนสัปดาห์นี้ ${j ? `(${fd(j.week_start)} – ${fd(j.week_end)})` : ''}</div>
+        ${rows.length ? `<table class="rtab"><thead><tr><th></th><th>ชื่อ</th><th class="num">คะแนน</th><th>ที่มา</th></tr></thead><tbody>${sb_}</tbody></table>` : '<p class="muted small">ยังไม่มีข้อมูล</p>'}</div></div></div>`;
 }
 function hofCard() {
   const H = S.hof || [];
