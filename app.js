@@ -676,7 +676,7 @@ function viewDaily() {
   const sumRow = m => { const r = byM(m.code); const n = k => r.filter(c => c.result === k).length;
     return `<tr><td><b>${esc(m.name)}</b></td><td class="num">${r.length}</td><td class="num">${n('Appointment')}</td><td class="num">${n('Not pickup')}</td><td class="num">${n('Call back') + n('Left message')}</td><td class="num">${n('Declined')}</td>
       <td>${r.length ? (r.every(c => c.posted_at) ? badge('✓ ส่งเข้า Chat แล้ว', 'good') : `<button class="btn s t" data-post="${m.code}" ${isMgr() || m.code === S.me.code ? '' : 'disabled'}>📤 ส่งสรุปเข้า Chat</button>`) : ''}</td></tr>`; };
-  const list = code => byM(code).map((c, i) => `<div class="call"><div class="cn">${i + 1}</div><div style="flex:1"><b>${esc(c.store_name)}</b> <span class="small">${RESULTS[c.result] || c.result}</span>
+  const list = code => byM(code).map((c, i) => `<div class="call"><div class="cn">${i + 1}</div><div style="flex:1"><b>${esc(c.store_name)}</b> <span class="small">${RESULTS[c.result] || c.result}</span>${logT(c) ? ` <span class="small muted">· 🕒 ${logT(c)}</span>` : ''}
       ${c.appt_at ? `<div class="small">📅 ${dualTime(c.appt_at, c.tz)}</div>` : ''}${c.phone || c.contact ? `<div class="small">📞 ${esc([c.phone, c.contact].filter(Boolean).join(' - '))}</div>` : ''}${c.notes ? `<div class="small muted">${esc(c.notes)}</div>` : ''}</div>
       ${isMgr() || c.member_code === S.me.code ? `<button class="btn s" data-cedit="${c.id}">แก้ไข</button>` : ''}</div>`).join('') || '<p class="muted small">ยังไม่มีรายการ</p>';
   const host = $('#dailybox') || $('#main');
@@ -701,6 +701,7 @@ function viewDaily() {
   });
 }
 // เบอร์ที่ขึ้นต้นด้วยรหัสประเทศ (61 AU, 64 NZ, 1 US, 44 UK, 66 TH) แต่ไม่มี + → เติม + ให้
+const logT = c => c && c.created_at ? new Date(c.created_at).toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' }) + ' น.' : '';
 function fmtPhone(v) { const t = String(v || '').trim(); if (!t || t.startsWith('+')) return t; const d = t.replace(/[\s-]/g, '');
   return /^(61|64|44|66)\d{8,10}$|^1\d{10}$/.test(d) ? '+' + t : t; }
 function callModal(c) {
@@ -1503,7 +1504,7 @@ function weekCallsCard() {
   return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">📞 บันทึกการโทร สัปดาห์นี้ <small>${fd(ws)} – ${fd(we)} · ${list.length} สาย · ได้นัด ${cnt('Appointment')} · ไม่รับสาย ${cnt('Not pickup')} · โทรกลับ ${cnt('Call back')}</small></h2>
     <select id="wcf" style="width:auto"><option value="">ทุกคน</option>${who.map(c => `<option value="${esc(c)}" ${c === f ? 'selected' : ''}>${esc(memberName(c))}</option>`).join('')}</select></div>
     <div class="tw" style="margin-top:10px;max-height:360px"><table><thead><tr><th>วันที่</th><th>เวลาที่ลง</th><th>โดย</th><th>ร้าน</th><th>ผล</th><th>ผู้ติดต่อ / เบอร์</th><th>หมายเหตุ</th></tr></thead><tbody>
-    ${list.map(c => `<tr><td class="small" style="white-space:nowrap">${fd(c.call_date)}</td><td class="small" style="white-space:nowrap">${c.created_at ? new Date(c.created_at).toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' }) + ' น.' : ''}</td><td>${esc(memberName(c.member_code))}</td><td><b>${esc(c.store_name || '')}</b></td>
+    ${list.map(c => `<tr><td class="small" style="white-space:nowrap">${fd(c.call_date)}</td><td class="small" style="white-space:nowrap">${logT(c)}</td><td>${esc(memberName(c.member_code))}</td><td><b>${esc(c.store_name || '')}</b></td>
       <td>${esc(RESULTS[c.result] || c.result || '')}${c.result === 'Appointment' && c.appt_at ? `<div class="small muted">${esc(dualTime(c.appt_at, c.tz))}</div>` : ''}</td>
       <td class="small">${esc([c.contact, c.phone].filter(Boolean).join(' · '))}</td><td class="small">${esc(c.notes || '')}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">สัปดาห์นี้ยังไม่มีบันทึกการโทร — กด 📞 บันทึกการโทรประจำวัน ด้านบน</td></tr>'}</tbody></table></div></div>`;
 }
@@ -2094,15 +2095,15 @@ function drawCallHist() {
       <div><label>ผล</label><select id="chr"><option value="">ทั้งหมด</option>${Object.entries(RESULTS).map(([k, v]) => `<option value="${esc(k)}" ${k === f.res ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></div>
       <div><label>ค้นหาร้าน</label><input id="chq" value="${esc(f.q || '')}" placeholder="ชื่อร้าน"></div>
       <button class="btn s" id="chcsv">Export CSV</button></div>
-    <div class="tw" style="margin-top:10px;max-height:520px"><table><thead><tr><th>วันที่</th><th>โดย</th><th>ร้าน</th><th>ผล</th><th>ผู้ติดต่อ / เบอร์</th><th>หมายเหตุ</th></tr></thead><tbody>
-    ${shown.map(c => `<tr><td class="small" style="white-space:nowrap">${fd(c.call_date)}</td><td>${esc(memberName(c.member_code))}</td><td><b>${esc(c.store_name || '')}</b></td>
+    <div class="tw" style="margin-top:10px;max-height:520px"><table><thead><tr><th>วันที่</th><th>เวลาที่ลง</th><th>โดย</th><th>ร้าน</th><th>ผล</th><th>ผู้ติดต่อ / เบอร์</th><th>หมายเหตุ</th></tr></thead><tbody>
+    ${shown.map(c => `<tr><td class="small" style="white-space:nowrap">${fd(c.call_date)}</td><td class="small" style="white-space:nowrap">${logT(c)}</td><td>${esc(memberName(c.member_code))}</td><td><b>${esc(c.store_name || '')}</b></td>
       <td>${esc(RESULTS[c.result] || c.result || '')}${c.result === 'Appointment' && c.appt_at ? `<div class="small muted">${esc(dualTime(c.appt_at, c.tz))}</div>` : ''}</td>
-      <td class="small">${esc([c.contact, c.phone].filter(Boolean).join(' · '))}</td><td class="small">${esc(c.notes || '')}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">ยังไม่มีบันทึกการโทร</td></tr>'}</tbody></table></div>
+      <td class="small">${esc([c.contact, c.phone].filter(Boolean).join(' · '))}</td><td class="small">${esc(c.notes || '')}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">ยังไม่มีบันทึกการโทร</td></tr>'}</tbody></table></div>
     ${list.length > shown.length ? `<div class="actions"><button class="btn s" id="chall">แสดงทั้งหมด (${list.length})</button></div>` : ''}</div>`;
   const set = (k, v) => { S.chF = Object.assign({}, S.chF, { [k]: v }); drawCallHist(); };
   $('#chw').onchange = e => set('who', e.target.value); $('#chr').onchange = e => set('res', e.target.value); $('#chq').onchange = e => set('q', e.target.value);
   if ($('#chall')) $('#chall').onclick = () => { S.chAll = true; drawCallHist(); };
-  $('#chcsv').onclick = () => download(`call-log-${mo || 'all'}.csv`, toCsv([['Date', 'By', 'Store', 'Result', 'Appointment', 'Contact', 'Phone', 'Notes']].concat(list.map(c => [c.call_date, memberName(c.member_code), c.store_name, RESULTS[c.result] || c.result, c.appt_at ? dualTime(c.appt_at, c.tz) : '', c.contact, c.phone, c.notes]))));
+  $('#chcsv').onclick = () => download(`call-log-${mo || 'all'}.csv`, toCsv([['Date', 'Logged at', 'By', 'Store', 'Result', 'Appointment', 'Contact', 'Phone', 'Notes']].concat(list.map(c => [c.call_date, logT(c), memberName(c.member_code), c.store_name, RESULTS[c.result] || c.result, c.appt_at ? dualTime(c.appt_at, c.tz) : '', c.contact, c.phone, c.notes]))));
 }
 
 // --- Google Calendar (Manager) ---
