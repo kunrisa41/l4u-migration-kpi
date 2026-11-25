@@ -1217,11 +1217,11 @@ function viewHome() {
 function embeds() { try { const v = JSON.parse(content('dash_embeds') || '[]'); if (v.length) return v; } catch { }
   return content('dash_sheet') ? [{ t: '📊 ชีตงาน Migration', u: content('dash_sheet') }] : []; }
 function gAcct() { let v = null; try { v = localStorage.getItem('l4u_gacct'); } catch { } return v || (S.session && S.session.user.email) || ''; }
-function embedSrc(u, mode) {
+function embedSrc(u, mode, jump) {
   const m = (u || '').match(/docs\.google\.com\/(spreadsheets|document|presentation)\/d\/([A-Za-z0-9_-]+)/); if (!m) return null;
   const [, kind, id] = m; const gid = ((u || '').match(/[#&?]gid=(\d+)/) || [])[1];
   const au = gAcct() ? '&authuser=' + encodeURIComponent(gAcct()) : '';
-  if (kind === 'spreadsheets') return mode === 'view' ? `https://docs.google.com/spreadsheets/d/${id}/htmlview?rm=minimal${au}${gid ? '&gid=' + gid : ''}` : `https://docs.google.com/spreadsheets/d/${id}/edit?rm=minimal${au}${gid ? '#gid=' + gid : ''}`;
+  if (kind === 'spreadsheets') return mode === 'view' ? `https://docs.google.com/spreadsheets/d/${id}/htmlview?rm=minimal${au}${gid ? '&gid=' + gid : ''}` : `https://docs.google.com/spreadsheets/d/${id}/edit?rm=minimal${au}${jump ? '&_=' + jump.t : ''}${gid || jump ? '#gid=' + (gid || 0) : ''}${jump ? '&range=' + jump.r : ''}`;
   if (kind === 'document') return mode === 'view' ? `https://docs.google.com/document/d/${id}/preview?${au.slice(1)}` : `https://docs.google.com/document/d/${id}/edit?rm=minimal${au}`;
   return `https://docs.google.com/presentation/d/${id}/${mode === 'view' ? 'embed?' + au.slice(1) : 'edit?rm=minimal' + au}`;
 }
@@ -1231,11 +1231,13 @@ function sheetCard() {
   S.emb = S.emb || {};
   return list.map((e, i) => { const st = S.emb[i] || {}; const mode = st.mode || 'view'; const open = st.open !== false;
     if (isDefaultsEmbed(e)) { const ds = embedSrc(e.u, 'view'); return defaultsCard(dctx(), e, Object.assign({}, st, { i, iframe: ds ? `<div class="sheetwrap"><iframe class="sheetframe" src="${esc(ds)}" loading="eager"></iframe><div class="sheetgut">⇕</div></div>` : '<p class="muted">ไม่มีลิงก์ Google Doc</p>' })); }
-    const src = embedSrc(e.u, mode);
+    const src = embedSrc(e.u, mode, mode === 'edit' ? st.jump : null); const isSh = /spreadsheets\/d\//.test(e.u || '');
     return `<div class="card sheetcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${esc(e.t)} <small>แก้ไขตรงนี้ได้เลย · อัปเดต real-time กับ Google</small></h2>
+      ${src && isSh && open ? `<span class="sfind"><input data-sf="${i}" value="${esc(st.q || '')}" placeholder="🔍 ค้นหาชื่อร้านในชีต…" autocomplete="off"></span>` : ''}
       ${src ? `<span class="seg"><label><input type="radio" name="em${i}" data-em="${i}" value="edit" ${mode === 'edit' ? 'checked' : ''}><b>✏️ แก้ไข</b></label><label><input type="radio" name="em${i}" data-em="${i}" value="view" ${mode === 'view' ? 'checked' : ''}><b>👁️ ดูอย่างเดียว</b></label></span>
       <button class="btn s" data-ebig="${i}">${st.big ? '↙️ ย่อ' : '↗️ ขยาย'}</button><a class="btn s" href="${esc(e.u)}" target="_blank" rel="noopener">เปิดในแท็บใหม่</a>` : ''}
       <button class="btn s" data-etg="${i}">${open ? 'ซ่อน' : 'แสดง'}</button></div>
+      ${src && isSh && open ? `<div class="sfres" id="sfres${i}"></div>` : ''}
       ${open ? (src ? `<div class="sheetwrap ${st.big ? 'big' : ''}"><iframe class="sheetframe ${st.big ? 'big' : ''}" src="${esc(src)}" loading="eager" allow="clipboard-read; clipboard-write"></iframe><div class="sheetgut" title="เลื่อนหน้า Dashboard ตรงนี้">⇕</div></div>` : '<p class="muted">ลิงก์นี้ไม่ใช่ Google Sheets / Docs</p>') : ''}</div>`; }).join('')
     + `<div class="card gacct"><div class="row" style="align-items:center;gap:8px"><span>🔑 เปิดเอกสารด้วยบัญชี Google: <b>${esc(gAcct() || '—')}</b></span>
       <button class="btn s" id="gchg">เปลี่ยนบัญชี</button><a class="btn s p" id="glogin" href="${esc(gLoginUrl(list[0] && list[0].u))}" target="_blank" rel="noopener">ล็อกอิน Google (ครั้งแรก)</a><button class="btn s" id="grel">🔄 โหลดเอกสารใหม่</button>
@@ -1244,14 +1246,70 @@ function sheetCard() {
 }
 const isDefaultsEmbed = e => /default/i.test(e.t || '') && /document\/d\//.test(e.u || '') || e.native === 'defaults';
 function dctx() { return { esc, toast, openModal, closeModal, content, isMgr, render, loadAll, sb: () => sb, me: () => (S.me && (S.me.code || S.me.name)) || '' }; }
+// 🔍 ค้นหาร้านในชีต: อ่านข้อมูลชีตผ่าน Google (JSONP ใช้การล็อกอิน Google เดียวกับที่เปิดชีต) แล้วกระโดดไปแถวนั้น
+const SHD = {};
+function gvizLoad(u) {
+  return new Promise((res, rej) => {
+    const m = (u || '').match(/spreadsheets\/d\/([A-Za-z0-9_-]+)/); if (!m) return rej(new Error('bad'));
+    const gid = ((u.match(/[#&?]gid=(\d+)/) || [])[1]) || '0';
+    const cb = '__gv' + Date.now() + Math.floor(Math.random() * 1e4); const sc = document.createElement('script');
+    const done = () => { clearTimeout(t); try { delete window[cb]; } catch { window[cb] = undefined; } sc.remove(); };
+    const t = setTimeout(() => { done(); rej(new Error('timeout')); }, 9000);
+    window[cb] = d => { done(); if (!d || d.status === 'error' || !d.table) return rej(new Error('noaccess')); res(d.table); };
+    sc.onerror = () => { done(); rej(new Error('load')); };
+    const au = gAcct() ? '&authuser=' + encodeURIComponent(gAcct()) : '';
+    sc.src = `https://docs.google.com/spreadsheets/d/${m[1]}/gviz/tq?tqx=out:json;responseHandler:${cb}&headers=1&gid=${gid}${au}`;
+    document.head.appendChild(sc);
+  });
+}
+const sfNorm = v => String(v == null ? '' : v).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^\p{L}\p{N}]+/gu, '');
+const colL = n => { let s = ''; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+function sfData(i) {
+  const e = embeds()[i]; if (!e) return Promise.reject(new Error('bad'));
+  if (!SHD[e.u] || SHD[e.u].err) SHD[e.u] = { p: gvizLoad(e.u).then(tb => {
+    const cols = (tb.cols || []).map((c, k) => c.label || colL(k));
+    const rows = (tb.rows || []).map((r, k) => ({ n: k + 2, v: (r.c || []).map(c => c ? (c.f != null ? c.f : c.v) : '') })).filter(r => r.v.some(x => String(x || '').trim()));
+    SHD[e.u].d = { cols, rows }; return SHD[e.u].d; }).catch(er => { SHD[e.u].err = er; throw er; }) };
+  return SHD[e.u].p;
+}
+function sfJump(i, row, ncol) {
+  S.emb[i] = Object.assign({}, S.emb[i], { mode: 'edit', jump: { r: `A${row}:${colL(Math.max(0, (ncol || 5) - 1))}${row}`, t: Date.now() } });
+  const y = window.scrollY; render(); window.scrollTo(0, y);
+  toast(`ไปที่แถว ${row} แล้ว (แถวถูกเลือกเป็นกรอบสีฟ้าในชีต)`);
+}
+function sfShow(i) {
+  const box = document.getElementById('sfres' + i); const q = sfNorm((S.emb[i] || {}).q); if (!box) return;
+  if (!q) { box.innerHTML = ''; return; }
+  box.innerHTML = '<span class="muted small">⏳ กำลังอ่านชีต…</span>';
+  sfData(i).then(d => {
+    if (sfNorm((S.emb[i] || {}).q) !== q) return;
+    const hits = d.rows.filter(r => r.v.some(x => sfNorm(x).includes(q)));
+    const nameCol = Math.max(0, d.cols.findIndex(c => /shop|store|ร้าน|name/i.test(c)));
+    const show = hits.slice(0, 8);
+    box.innerHTML = hits.length ? `<div class="small muted">เจอ ${hits.length} แถว${hits.length > 8 ? ' (แสดง 8 แถวแรก พิมพ์เพิ่มให้แคบลง)' : ''} · กดเพื่อไปที่แถวนั้นในชีต · กด Enter = แถวแรก</div>` + show.map(r => {
+      const nm = r.v[nameCol] || r.v.find(x => String(x || '').trim()) || '';
+      const extra = r.v.map((x, k) => k !== nameCol && String(x || '').trim() && !/^https?:/i.test(String(x)) ? `<span class="sfc"><i>${esc(d.cols[k] || '')}</i> ${esc(String(x).slice(0, 40))}</span>` : '').join('');
+      return `<button class="sfhit" data-sfj="${i}" data-row="${r.n}" data-nc="${d.cols.length}"><b>แถว ${r.n}</b> ${esc(nm)} ${extra}</button>`; }).join('')
+      : `<span class="muted small">ไม่เจอ "${esc((S.emb[i] || {}).q)}" ในชีตนี้</span>`;
+    box.querySelectorAll('[data-sfj]').forEach(b => b.onclick = () => sfJump(+b.dataset.sfj, +b.dataset.row, +b.dataset.nc));
+  }).catch(() => {
+    box.innerHTML = `<span class="small">อ่านข้อมูลชีตจากตรงนี้ไม่ได้ → ใช้วิธีนี้แทน: กด <button class="btn s" data-sfedit="${i}">✏️ สลับเป็นโหมดแก้ไข</button> แล้ว <b>คลิก 1 ครั้งในชีต</b> แล้วกด <b>⌘ Cmd + F</b> (Windows: Ctrl + F) ช่องค้นหาของ Google Sheets จะขึ้นมุมขวาบนของชีต</span>`;
+    const b = box.querySelector('[data-sfedit]'); if (b) b.onclick = () => { S.emb[i] = Object.assign({}, S.emb[i], { mode: 'edit' }); render(); };
+  });
+}
 function bindSheet() {
+  document.querySelectorAll('[data-sf]').forEach(x => { const i = +x.dataset.sf; let tm;
+    x.onfocus = () => { sfData(i).catch(() => { }); };
+    x.oninput = () => { S.emb[i] = Object.assign({}, S.emb[i], { q: x.value }); clearTimeout(tm); tm = setTimeout(() => sfShow(i), 200); };
+    x.onkeydown = ev => { if (ev.key === 'Enter') { const b = document.querySelector(`#sfres${i} [data-sfj]`); if (b) b.click(); } if (ev.key === 'Escape') { x.value = ''; x.oninput(); } };
+    if ((S.emb[i] || {}).q) sfShow(i); });
   bindDefaults(dctx(), m => { const i = embeds().findIndex(isDefaultsEmbed); S.emb[i] = Object.assign({}, S.emb[i], { mode: m }); const y = window.scrollY; render(); window.scrollTo(0, y); });
   document.querySelectorAll('.sheetframe').forEach(f => {
     f.onmouseenter = () => document.documentElement.classList.add('noscroll');
     f.onmouseleave = () => document.documentElement.classList.remove('noscroll');
   });
   document.documentElement.classList.remove('noscroll');
-  document.querySelectorAll('[data-em]').forEach(x => x.onchange = () => { const i = x.dataset.em; S.emb[i] = Object.assign({}, S.emb[i], { mode: x.value }); render(); });
+  document.querySelectorAll('[data-em]').forEach(x => x.onchange = () => { const i = x.dataset.em; S.emb[i] = Object.assign({}, S.emb[i], { mode: x.value, jump: null }); render(); });
   document.querySelectorAll('[data-ebig]').forEach(x => x.onclick = () => { const i = x.dataset.ebig; S.emb[i] = Object.assign({}, S.emb[i], { big: !(S.emb[i] || {}).big }); render(); });
   document.querySelectorAll('[data-etg]').forEach(x => x.onclick = () => { const i = x.dataset.etg; const o = (S.emb[i] || {}).open !== false; S.emb[i] = Object.assign({}, S.emb[i], { open: !o }); render(); });
   if ($('#gchg')) $('#gchg').onclick = () => { const v = prompt('บัญชี Google ที่มีสิทธิ์เปิดเอกสาร (อีเมล):', gAcct()); if (v === null) return; try { localStorage.setItem('l4u_gacct', v.trim()); } catch { } render(); };
