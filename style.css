@@ -562,3 +562,6 @@ tr.blkhi td{background:#FEF9C3 !important;box-shadow:inset 0 2px 0 #F59E0B,inset
 @media (max-width:1250px){.wfhpol{position:static;margin:4px auto 14px}}
 
 .annb,.annx{user-select:text;-webkit-user-select:text}
+/* Star of the week — green theme */
+.starcard{border-color:#34D399;background:linear-gradient(180deg,#ECFDF5,#fff 60%)}.starhero{background:#D1FAE5}
+.starpic{border-color:#34D399}.starini{color:#047857;background:#D1FAE5}tr.starrow td{background:#ECFDF5}
