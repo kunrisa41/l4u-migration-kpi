@@ -2236,7 +2236,67 @@ async function viewGcal() {
 
 // --- Audit Reports (PDF archive) ---
 /* 🍽️ Food Amigo — stand-alone training page for the new system (not linked to other data) */
+const AM_VIDEO = 'video/amigo_create_store.mp4';
+/* [step no, start time in video (s), title, detail] — screenshots: img/amigo/cs_NN.jpg */
+const AM_SECTIONS = [
+  ['A', 'เตรียมก่อนเริ่ม', [
+    [1, 11, 'เปิดเครื่องมือ', 'เปิด Chrome › All Bookmarks › Restaurant Migration ต้องเปิด 2 อย่าง: ชีท "4 shop a week" และ Restaurant Portal'],
+    [2, 21, 'Restaurant Portal', 'ที่ Restaurant Portal กด New Restaurant ที่เมนูด้านซ้าย'],
+    [3, 27, 'เลือกร้านจากชีท', 'ในชีท เปิดแท็บ USA (USA-AMG) แล้วหาร้านที่จะ setup — ในวิดีโอคือ Charng Thai Restaurant, Hackensack']]],
+  ['B', 'สร้างร้านใหม่', [
+    [4, 37, 'ข้อมูลพื้นฐาน (Basic information)', 'พิมพ์ชื่อร้านแล้วเลือกจากรายการของ Google ที่อยู่จะขึ้นเอง — ตรวจ Street, City, State และ Postal code ให้ถูก'],
+    [5, 48, 'หาร้านเดิมใน Admin', 'เปิด Admin Panel › Admin USA ค้นชื่อร้านแล้วเปิด — นี่คือร้านเดิมที่เราจะคัดลอกข้อมูลมา'],
+    [6, 66, 'Copy Smart Menu Order link', 'ใน Admin ไปที่ Publishing › Smart links แล้ว copy "Smart Menu Order link" — ใช้ import เมนูในขั้นตอนต่อไป'],
+    [7, 75, 'สร้างร้าน (Create restaurant)', 'กลับมาที่ Portal ใต้ Brand เลือก Create a new brand › กด Create restaurant › เปิด Launch']]],
+  ['C', 'Launch: Step 1–8', [
+    [8, 84, 'Step 1 · Location', 'ตรวจรายละเอียดร้าน แล้วกด Next task'],
+    [9, 90, 'Step 2 · Identity', 'เลือกประเภทร้าน (restaurant type) และ cuisine — ในวิดีโอคือ Thai › กด Next task'],
+    [10, 99, 'Step 3 · Brand — หาโลโก้', 'ชื่อร้านกรอกไว้ให้แล้ว หาโลโก้และรูปอาหารจาก Google และหน้า Facebook ของร้าน แล้ว save รูปโลโก้ลงเครื่อง'],
+    [11, 129, 'Step 3 · อัปโหลดโลโก้และรูป', 'อัปโหลดโลโก้ ตรวจ Primary colour และเพิ่มรูปใน Gallery photos › กด Next task'],
+    [12, 137, 'Step 4 · Location details', 'ใส่เบอร์โทรและอีเมล ตั้ง Preparation time ของ Pickup ตรวจ Order timing, VAT rate และเวลาเปิด–ปิด › กด Next task'],
+    [13, 152, 'Step 5 · Import เมนู', 'เลือก Import from a platform › GloriaFood วาง Smart Menu link ที่ copy ไว้ › กด Start import (ใช้เวลาประมาณ 2 นาที)'],
+    [14, 166, 'Step 6 · Domain', 'เมื่อเมนูพร้อม กด Continue เลือก generic domain และตรวจชื่อร้านใน URL'],
+    [15, 177, 'Step 7 · Online payment', 'เลือก Yes — หา Stripe ของร้านได้จาก Admin › Payments › Other providers (ต้องเห็น Stripe Connect เป็น active)'],
+    [16, 189, 'หาบัญชี Stripe', 'เปิด Stripe dashboard แล้วค้นชื่อร้าน'],
+    [17, 202, 'Stripe: ดูยอดชำระล่าสุด', 'Connected accounts › เปิดร้าน › แท็บ Payments จะเห็นยอดเงินและเวลาของรายการล่าสุด'],
+    [18, 212, 'เทียบกับ Order history', 'ก่อน connect ต้องเทียบกับประวัติออเดอร์ใน Admin เดิม: Reports › List View › Online orders'],
+    [19, 223, 'Stripe: ยอดล่าสุด', 'จดยอดล่าสุดใน Stripe — ในวิดีโอคือ 40.47, 40.47, 31.46, 47.23 และ 31.50 ดอลลาร์'],
+    [20, 237, 'Admin: Order history', 'ยอดต้องตรงกันและเรียงลำดับเดียวกัน ชั่วโมงอาจต่างกันเพราะ Stripe ใช้ time zone อื่น แต่นาทีต้องตรง — ออเดอร์ที่ missed จะขึ้นเป็น canceled ใน Stripe'],
+    [21, 252, 'ตรงกัน → Copy ID', 'ถ้าตรงกันทั้งหมด แปลว่าเป็นบัญชี Stripe ที่ถูกต้อง กด Copy ID เพื่อคัดลอก account ID'],
+    [22, 262, 'Connect Stripe', 'กลับไปที่ Step 7 เลือก Connect an existing Stripe account › วาง account ID › Find account › ตรวจรายละเอียด › Connect this account'],
+    [23, 274, 'Step 8 · Go Live', 'ทุกข้อต้องมีเครื่องหมายถูกสีเขียว แล้วกด Go Live']]],
+  ['D', 'ตรวจการตั้งค่า (เทียบกับร้านเดิมใน Admin)', [
+    [24, 281, 'Tax & Currency', 'My info › Tax and Currency เทียบกับร้านเดิมใน Admin › Taxation — ในวิดีโอ sales tax คือ 7.375%'],
+    [25, 299, 'ตั้ง Tax rate', 'ตั้ง Default rate ให้ตรงกับร้านเดิม และตั้ง Delivery fee tax เป็น 0% › Save › ยืนยันการเปลี่ยน'],
+    [26, 308, 'เวลาเปิด & Order methods', 'ตรวจเวลาเปิด–ปิด ถ้าร้านเดิมมี Pickup แต่ไม่มี Delivery ให้ไปที่ Order settings › Order Methods › ปิด Delivery › Save'],
+    [27, 324, 'Missed order emails', 'ที่ Missed orders ใส่อีเมลของร้าน เพื่อให้ร้านได้รับแจ้งเตือนเมื่อมีออเดอร์ที่พลาด'],
+    [28, 333, 'Payment methods & Tips', 'ตรวจ Payment methods และตั้ง Tips — ในวิดีโอ default tip คือ 5%'],
+    [29, 341, 'Service fee', 'ดู Service fee ในร้านเดิม (ในวิดีโอคือ 5%) แล้วตั้งให้เท่ากันที่ Fees › Save'],
+    [30, 355, 'Printed receipt', 'ที่ Printed receipt เลือกข้อมูลที่จะแสดงบนใบเสร็จ › Save'],
+    [31, 363, 'Staff credentials', 'ตั้ง Username และ Password ที่ร้านจะใช้ login แอปรับออเดอร์ › Save'],
+    [32, 373, 'Marketing & Offers', 'เปิดดู Marketing, Promo codes และ Offers ว่าไม่มีอะไรตกหล่น']]],
+  ['E', 'ทดสอบ', [
+    [33, 391, 'ทดสอบ Orders Portal & Online store', 'ทดสอบว่า login Orders Portal ได้ แล้วเปิดลิงก์ online store เพื่อตรวจเมนู']]],
+  ['F', 'สร้างเว็บไซต์', [
+    [34, 403, 'Website › Storefront', 'เลือกประเภทร้าน ตรวจ District และ Areas ใส่ 3 เมนูขายดี แล้วกด Generate เพื่อให้ระบบเขียนข้อความให้'],
+    [35, 417, 'ดูข้อมูลเพิ่มใน Admin', 'ถ้าต้องการข้อมูลเพิ่ม ให้เปิดดูร้านเดิมใน Admin อีกครั้ง'],
+    [36, 423, 'ระบบสร้างเว็บให้', 'เว็บไซต์ถูกสร้างอัตโนมัติ ใช้เวลาประมาณ 1 นาที'],
+    [37, 433, 'แก้ Layout & Publish', 'ใน Layout editor ลบ section ที่ไม่ใช้ เช่น Promo code pop-up ที่ว่าง › กด Publish website changes'],
+    [38, 445, 'Preview เว็บไซต์', 'เปิดเว็บไซต์เพื่อดูหน้าตา'],
+    [39, 451, 'Theme colours', 'Theme › Colors เปลี่ยนสีให้ตรงกับแบรนด์ร้าน › Save'],
+    [40, 465, 'อัปโหลดโลโก้', 'ที่ Logo กดอัปโหลดรูปโลโก้ › เลือกรูป › Save'],
+    [41, 477, 'Final check', 'เปิดเว็บไซต์อีกครั้ง โลโก้ สี และรูปต้องขึ้นครบ — ร้านใหม่พร้อมใช้งาน ✅']]]];
+const AM_SOON = ['Setup Table Reservation', 'Setup ระบบ Delivery ของร้านเอง', 'Setup 3rd party delivery', 'How to Live ร้านกับแอปพลิเคชัน', 'How to Connect Printer บนแอป', 'LIVE process บนโทรศัพท์'];
+const amImg = n => `img/amigo/cs_${String(n).padStart(2, '0')}.jpg`;
+const amTime = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+function amDocHtml(forPrint) {
+  return AM_SECTIONS.map(([k, t, steps]) => `<div class="amsec"><h3 class="amsech"><span>${k}</span>${esc(t)}</h3>
+    ${steps.map(([n, s, ti, d]) => `<div class="amstep"><div class="amtxt"><div class="amnum">${n}</div><div><b>${esc(ti)}</b><p>${esc(d)}</p>
+      ${forPrint ? '' : `<button class="btn s" data-amjump="${s}">▶ ดูในวิดีโอ ${amTime(s)}</button>`}</div></div>
+      <img src="${forPrint ? location.origin + '/' : ''}${amImg(n)}" alt="${esc(ti)}" ${forPrint ? '' : `data-zoom="${amImg(n)}"`} class="real" loading="lazy"></div>`).join('')}</div>`).join('');
+}
 function viewAmigo() {
+  const tab = S.amTab || 'video';
   $('#main').innerHTML = `<div class="card amigo"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🍽️ Food Amigo <small>คู่มือการใช้ระบบใหม่ · หน้าเฉพาะกิจ</small></h2></div>
     <div class="amgoal"><div class="amtag">🎯 GOAL · FOOD AMIGO</div>
       <div class="amh">1. Online Ordering System (CW)</div>
@@ -2245,8 +2305,36 @@ function viewAmigo() {
         <li>Resolve CW printer issues before scaling migration</li>
         <li>FoodAmigo Plan — pilot customers to get feedback and check features
           <div class="amkpi"><span><b>5</b> live in 🇺🇸 USA</span><span><b>2</b> in 🇦🇺 AU <small>(new sales)</small></span></div></li>
-      </ol></div>
-    <p class="muted" style="margin:14px 0 4px">กำลังเตรียมเนื้อหา — ขั้นตอนการใช้งาน วิดีโอ และลิงก์ต่างๆ จะขึ้นที่หน้านี้เร็วๆ นี้</p></div>`;
+      </ol></div></div>
+  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🏪 How to Create a New Store <small>41 ขั้นตอน · วิดีโอ 8 นาที · ตัวอย่าง: Charng Thai Restaurant (USA)</small></h2>
+      <div class="amtabs"><button class="btn s ${tab === 'video' ? 'p' : ''}" data-amtab="video">🎬 วิดีโอ</button><button class="btn s ${tab === 'doc' ? 'p' : ''}" data-amtab="doc">📄 เอกสาร (ทีละขั้นตอน)</button></div></div>
+    ${tab === 'video' ? `<video id="amvid" class="amvid" src="${AM_VIDEO}" poster="img/amigo/poster.jpg" controls preload="metadata" playsinline></video>
+      <div class="small muted" style="margin:10px 0 6px">กดชื่อขั้นตอนเพื่อกระโดดไปช่วงนั้นในวิดีโอ</div>
+      <div class="amchap">${AM_SECTIONS.map(([k, t, steps]) => `<div><div class="amchh">${k} · ${esc(t)}</div>${steps.map(([n, s, ti]) => `<button class="amch" data-amjump="${s}"><span>${amTime(s)}</span>${n}. ${esc(ti)}</button>`).join('')}</div>`).join('')}</div>`
+    : `<div class="row" style="gap:8px;margin:10px 0 4px"><a class="btn s p" href="docs/FoodAmigo_How_to_Create_a_New_Store.pdf" download>⬇️ ดาวน์โหลด PDF</a><button class="btn s" id="amprint">🖨️ พิมพ์</button><span class="small muted">กดรูปเพื่อขยาย</span></div>${amDocHtml(false)}`}</div>
+  <div class="card"><h2>🗂️ คู่มือที่กำลังเตรียม <small>จะขึ้นที่หน้านี้เมื่อพร้อม</small></h2>
+    <div class="amsoon">${AM_SOON.map(x => `<span>⏳ ${esc(x)}</span>`).join('')}</div></div>`;
+  document.querySelectorAll('[data-amtab]').forEach(b => b.onclick = () => { S.amTab = b.dataset.amtab; viewAmigo(); });
+  document.querySelectorAll('[data-amjump]').forEach(b => b.onclick = () => {
+    const t = +b.dataset.amjump; if (S.amTab === 'doc') { S.amTab = 'video'; viewAmigo(); }
+    const v = $('#amvid'); v.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const go = () => { v.currentTime = t; v.play().catch(() => { }); };
+    v.readyState >= 1 ? go() : v.addEventListener('loadedmetadata', go, { once: true }); });
+  document.querySelectorAll('[data-zoom]').forEach(im => im.onclick = () => openModal(`<img src="${esc(im.dataset.zoom)}" style="width:100%;border-radius:10px"><div class="actions"><button class="btn" onclick="document.getElementById('modal').click()">ปิด</button></div>`));
+  if ($('#amprint')) $('#amprint').onclick = () => {
+    const w = window.open('', '_blank'); if (!w) return toast('เบราว์เซอร์บล็อกหน้าต่างใหม่ — อนุญาต pop-up แล้วลองอีกครั้ง', true);
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Food Amigo — How to Create a New Store</title>
+      <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600;700&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+      <style>@page{size:A4;margin:14mm}body{font-family:"IBM Plex Sans","IBM Plex Sans Thai",sans-serif;color:#0F172A;font-size:12px}
+      h1{font-size:20px;margin:0 0 2px;color:#0F3B4C}.sub{color:#64748B;margin-bottom:14px}
+      .amsech{font-size:15px;color:#0F3B4C;border-bottom:2px solid #0F3B4C;padding-bottom:4px;margin:18px 0 10px;break-after:avoid}.amsech span{background:#0F3B4C;color:#fff;border-radius:6px;padding:1px 8px;margin-right:8px}
+      .amstep{display:grid;grid-template-columns:1fr 1.25fr;gap:12px;align-items:start;margin-bottom:12px;break-inside:avoid}
+      .amtxt{display:flex;gap:10px}.amnum{flex:none;width:26px;height:26px;border-radius:50%;background:#0F766E;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center}
+      .amtxt p{margin:4px 0 0;line-height:1.5}img{width:100%;border:1px solid #E2E8F0;border-radius:6px}</style></head>
+      <body><h1>Food Amigo — How to Create a New Store</h1><div class="sub">L4U Migration Team · 41 ขั้นตอน · ตัวอย่าง: Charng Thai Restaurant (USA)</div>${amDocHtml(true)}</body></html>`);
+    w.document.close(); const imgs = [...w.document.images];
+    Promise.all(imgs.map(i => i.complete ? 1 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => setTimeout(() => w.print(), 300));
+  };
 }
 function viewAudit() {
   const q = (S.auQ || '').toLowerCase(); const list = (S.reports || []).filter(r => !q || (r.store_name || '').toLowerCase().includes(q));
