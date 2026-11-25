@@ -1232,12 +1232,10 @@ function sheetCard() {
   return list.map((e, i) => { const st = S.emb[i] || {}; const mode = st.mode || 'view'; const open = st.open !== false;
     if (isDefaultsEmbed(e)) { const ds = embedSrc(e.u, 'view'); return defaultsCard(dctx(), e, Object.assign({}, st, { i, iframe: ds ? `<div class="sheetwrap"><iframe class="sheetframe" src="${esc(ds)}" loading="eager"></iframe><div class="sheetgut">⇕</div></div>` : '<p class="muted">ไม่มีลิงก์ Google Doc</p>' })); }
     const src = embedSrc(e.u, mode, mode === 'edit' ? st.jump : null); const isSh = /spreadsheets\/d\//.test(e.u || '');
-    return `<div class="card sheetcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${esc(e.t)} <small>แก้ไขตรงนี้ได้เลย · อัปเดต real-time กับ Google</small></h2>
-      ${src && isSh && open ? `<span class="sfind"><input data-sf="${i}" value="${esc(st.q || '')}" placeholder="🔍 ค้นหาชื่อร้านในชีต…" autocomplete="off"></span>` : ''}
+    return `<div class="card sheetcard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${esc(e.t)} <small>แก้ไขตรงนี้ได้เลย · อัปเดต real-time กับ Google${isSh ? ' · 🔍 หาร้าน: โหมด 👁️ ดูอย่างเดียว → คลิกที่ว่างนอกชีต → กด ⌘ Cmd + F' : ''}</small></h2>
       ${src ? `<span class="seg"><label><input type="radio" name="em${i}" data-em="${i}" value="edit" ${mode === 'edit' ? 'checked' : ''}><b>✏️ แก้ไข</b></label><label><input type="radio" name="em${i}" data-em="${i}" value="view" ${mode === 'view' ? 'checked' : ''}><b>👁️ ดูอย่างเดียว</b></label></span>
       <button class="btn s" data-ebig="${i}">${st.big ? '↙️ ย่อ' : '↗️ ขยาย'}</button><a class="btn s" href="${esc(e.u)}" target="_blank" rel="noopener">เปิดในแท็บใหม่</a>` : ''}
       <button class="btn s" data-etg="${i}">${open ? 'ซ่อน' : 'แสดง'}</button></div>
-      ${src && isSh && open ? `<div class="sfres" id="sfres${i}"></div>` : ''}
       ${open ? (src ? `<div class="sheetwrap ${st.big ? 'big' : ''}"><iframe class="sheetframe ${st.big ? 'big' : ''}" src="${esc(src)}" loading="eager" allow="clipboard-read; clipboard-write"></iframe><div class="sheetgut" title="เลื่อนหน้า Dashboard ตรงนี้">⇕</div></div>` : '<p class="muted">ลิงก์นี้ไม่ใช่ Google Sheets / Docs</p>') : ''}</div>`; }).join('')
     + `<div class="card gacct"><div class="row" style="align-items:center;gap:8px"><span>🔑 เปิดเอกสารด้วยบัญชี Google: <b>${esc(gAcct() || '—')}</b></span>
       <button class="btn s" id="gchg">เปลี่ยนบัญชี</button><a class="btn s p" id="glogin" href="${esc(gLoginUrl(list[0] && list[0].u))}" target="_blank" rel="noopener">ล็อกอิน Google (ครั้งแรก)</a><button class="btn s" id="grel">🔄 โหลดเอกสารใหม่</button>
