@@ -637,6 +637,14 @@ tr.blkhi td{background:#FEF9C3 !important;box-shadow:inset 0 2px 0 #F59E0B,inset
   .sheetcard h2 small{display:none}
   .sheetframe{height:70vh!important}
   .fg{grid-template-columns:1fr!important}
+  /* announcements: topic only, tap to read */
+  .annrow:not(.open) .annx,.annrow:not(.open) .annb>.small,.annrow:not(.open) .annack,.annrow:not(.open) .annact .btn:not([data-annack]){display:none}
+  .annrow{display:flex!important;flex-direction:column;gap:4px;padding:10px 12px}.annd{font-size:12px;color:#64748B}.annact{display:flex;gap:6px;flex-wrap:wrap}.annact:empty{display:none}
+  .annt{cursor:pointer;display:block;font-size:15px}.annmore{color:#94A3B8;font-weight:400}.annrow.open .annmore{display:none}
+  /* phone: hide the embedded sheet / Default Settings doc */
+  .sheetcard{display:none}
   .ac>*,.gmailbox>*,.fstep>*,.two>*{min-width:0}main img{max-width:100%;height:auto}.ac{grid-template-columns:28px 1fr}pre{white-space:pre-wrap;word-break:break-word}.flygrid,.oldgrid{grid-template-columns:1fr!important}.oldst,.oldst *{min-width:0;max-width:100%}.oldst{overflow-wrap:anywhere}.modal-box input,.modal-box select,.modal-box textarea{max-width:100%;min-width:0}
   .modal-box .actions{position:sticky;bottom:-16px;background:#fff;padding:10px 0;margin-bottom:-16px;border-top:1px solid var(--line)}
 }
+
+.annmore{display:none}@media (max-width:700px){.annmore{display:inline}.annrow.open .annmore{display:none}}

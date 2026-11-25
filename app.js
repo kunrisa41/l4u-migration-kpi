@@ -1526,7 +1526,7 @@ function annCard() {
     const done = need.filter(m => acks.some(k => k.code === m.code)), wait = need.filter(m => !acks.some(k => k.code === m.code));
     const cls = !need.length || !wait.length ? 'ann-all' : done.length ? 'ann-some' : 'ann-none';
     const mine = S.me && need.some(m => m.code === S.me.code) && !acks.some(k => k.code === S.me.code);
-    return `<div class="annrow ${cls}"><div class="annd">${fd(a.d)}${a.d === td ? ' <span class="badge b-ok">วันนี้</span>' : ''}</div><div class="annb"><b>${esc(a.t)}</b>${a.b ? `<div class="annx">${esc(a.b)}</div>` : ''}<div class="small muted">โดย ${esc(a.by || '')}</div>
+    return `<div class="annrow ${cls}"><div class="annd">${fd(a.d)}${a.d === td ? ' <span class="badge b-ok">วันนี้</span>' : ''}</div><div class="annb"><b class="annt" data-annopen="1">${esc(a.t)}<span class="annmore"> ›</span></b>${a.b ? `<div class="annx">${esc(a.b)}</div>` : ''}<div class="small muted">โดย ${esc(a.by || '')}</div>
       <div class="annack small">${acks.length ? `✅ รับทราบแล้ว: ${acks.map(k => `<b>${esc(k.name)}</b> <span class="muted">(${hm(k.at)})</span>`).join(' · ')}` : '<span class="annwait">ยังไม่มีใครรับทราบ</span>'}${wait.length ? ` <span class="annwait">· รอ: ${wait.map(m => esc(m.name)).join(', ')}</span>` : ''}</div></div>
       <div class="annact"><button class="btn s" data-anncp="${a.id}" title="คัดลอกหัวข้อ + รายละเอียด">📋 คัดลอก</button>${mine ? `<button class="btn s t" data-annack="${a.id}">👍 รับทราบ</button>` : ''}${isMgr() ? `<button class="btn s" data-anned="${a.id}">แก้ไข</button><button class="btn s" data-anndel="${a.id}">ลบ</button>` : ''}</div></div>`;
   };
@@ -1617,6 +1617,7 @@ function annModal(a) {
   };
 }
 function bindAnn() {
+  document.querySelectorAll('[data-annopen]').forEach(t => t.onclick = () => { if (window.matchMedia('(max-width:700px)').matches) t.closest('.annrow').classList.toggle('open'); });
   document.querySelectorAll('[data-anncp]').forEach(b => b.onclick = async () => {
     const a = annList().find(x => String(x.id) === b.dataset.anncp); if (!a) return;
     const txt = a.t + (a.b ? '\n' + a.b : '');
