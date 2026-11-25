@@ -1499,10 +1499,10 @@ function weekCallsCard() {
   const who = [...new Set(all.map(c => c.member_code))];
   return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">📞 บันทึกการโทร สัปดาห์นี้ <small>${fd(ws)} – ${fd(we)} · ${list.length} สาย · ได้นัด ${cnt('Appointment')} · ไม่รับสาย ${cnt('Not pickup')} · โทรกลับ ${cnt('Call back')}</small></h2>
     <select id="wcf" style="width:auto"><option value="">ทุกคน</option>${who.map(c => `<option value="${esc(c)}" ${c === f ? 'selected' : ''}>${esc(memberName(c))}</option>`).join('')}</select></div>
-    <div class="tw" style="margin-top:10px;max-height:360px"><table><thead><tr><th>วันที่</th><th>โดย</th><th>ร้าน</th><th>ผล</th><th>ผู้ติดต่อ / เบอร์</th><th>หมายเหตุ</th></tr></thead><tbody>
-    ${list.map(c => `<tr><td class="small" style="white-space:nowrap">${fd(c.call_date)}</td><td>${esc(memberName(c.member_code))}</td><td><b>${esc(c.store_name || '')}</b></td>
+    <div class="tw" style="margin-top:10px;max-height:360px"><table><thead><tr><th>วันที่</th><th>เวลาที่ลง</th><th>โดย</th><th>ร้าน</th><th>ผล</th><th>ผู้ติดต่อ / เบอร์</th><th>หมายเหตุ</th></tr></thead><tbody>
+    ${list.map(c => `<tr><td class="small" style="white-space:nowrap">${fd(c.call_date)}</td><td class="small" style="white-space:nowrap">${c.created_at ? new Date(c.created_at).toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' }) + ' น.' : ''}</td><td>${esc(memberName(c.member_code))}</td><td><b>${esc(c.store_name || '')}</b></td>
       <td>${esc(RESULTS[c.result] || c.result || '')}${c.result === 'Appointment' && c.appt_at ? `<div class="small muted">${esc(dualTime(c.appt_at, c.tz))}</div>` : ''}</td>
-      <td class="small">${esc([c.contact, c.phone].filter(Boolean).join(' · '))}</td><td class="small">${esc(c.notes || '')}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">สัปดาห์นี้ยังไม่มีบันทึกการโทร — กด 📞 บันทึกการโทรประจำวัน ด้านบน</td></tr>'}</tbody></table></div></div>`;
+      <td class="small">${esc([c.contact, c.phone].filter(Boolean).join(' · '))}</td><td class="small">${esc(c.notes || '')}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">สัปดาห์นี้ยังไม่มีบันทึกการโทร — กด 📞 บันทึกการโทรประจำวัน ด้านบน</td></tr>'}</tbody></table></div></div>`;
 }
 function annList() { try { const v = JSON.parse(content('announcements') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
 function annAcks() { try { const v = JSON.parse(content('ann_acks') || '{}'); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; } }
