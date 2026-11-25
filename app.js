@@ -1592,7 +1592,7 @@ function goalCard() {
   const daysLeft = today > end ? 0 : C.workdays(today < start ? start : today, end, hol);
   const pace = daysLeft ? left / daysLeft : null;
   const box = (l, v, t, sub, cls) => { const r = t ? Math.min(1, v / t) : 0; return `<div class="kpi ${cls || ''}"><div class="l">${l}</div><div class="v">${v} <span class="small muted">/ ${t}</span></div><div class="bar"><i style="width:${r * 100}%"></i></div><div class="s">${sub}</div></div>`; };
-  return `<div class="card goal"><div class="row" style="align-items:center"><div style="flex:1"><div class="small" style="font-weight:700;letter-spacing:.06em;color:#99F6E4">GOAL · REVISED PLAN</div>
+  return `<div class="card goal"><div class="wfhpol" title="Reminder"><span class="wfhic">⏰</span><b>WFH POLICY</b><span>Reply within<br><em>30 minutes</em><br>when asked</span></div><div class="row" style="align-items:center"><div style="flex:1"><div class="small" style="font-weight:700;letter-spacing:.06em;color:#99F6E4">GOAL · REVISED PLAN</div>
       <h2 style="margin:2px 0 0;color:#fff;font-size:19px">🎯 ${total} Go-Live ใน 2 เดือน <small style="color:#CBD5E1">${fd(start)} – ${fd(end)} · ทีม ${G.staff} คน + Manager · คนละ ${G.perStaffMin}–${G.perStaffMax} ร้าน/วัน</small></h2></div>
       <div class="small" style="color:#E2E8F0;text-align:right">${today < start ? `เริ่ม ${fd(start)} · อีก ${C.workdays(today, new Date(start.getTime() - C.DAY), hol)} วันทำการ` : pace !== null ? `ต้องได้เฉลี่ย <b style="font-size:16px;color:#fff">${n1(pace)}</b> ร้าน/วัน<br>อีก ${daysLeft} วันทำการ · เหลือ ${left} ร้าน` : 'จบโปรเจกต์แล้ว'}</div></div>
     <div class="grid" style="margin-top:12px">
