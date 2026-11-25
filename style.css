@@ -602,3 +602,41 @@ tr.blkhi td{background:#FEF9C3 !important;box-shadow:inset 0 2px 0 #F59E0B,inset
  body.amprinting .amprint .seg,body.amprinting .amprint .amjump,body.amprinting .amprint [data-amprint],body.amprinting .amprint .amtoc{display:none!important}.amimg{max-height:none}}
 
 .amshare{background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;padding:10px 12px;margin-top:10px}
+
+/* ---------- 📱 phones ---------- */
+.cdm,.daym{display:none}
+@media (max-width:700px){
+  body{font-size:15px}
+  .top{padding:12px 14px;gap:8px}.top .who{font-size:13px}
+  main{padding:10px}.card{padding:14px;border-radius:14px}
+  .card h2{font-size:17px}.card h2 small{display:block;margin-top:2px}
+  .row{flex-wrap:wrap}
+  .btn{min-height:40px}.btn.s{min-height:34px}
+  input,select,textarea{font-size:16px}  /* stops iOS zoom on focus */
+  .callbtn{text-align:left;width:100%}.callbtn .row{justify-content:stretch!important}.callbtn .btn{flex:1 1 100%}
+  .grid{grid-template-columns:1fr 1fr;gap:8px}.grid .kpi .v{font-size:24px}
+  .mgrid{grid-template-columns:1fr}
+  .modal{padding:0;align-items:flex-end}.modal-box{max-width:100%;border-radius:16px 16px 0 0;max-height:92vh;overflow:auto;padding:16px}
+  .tw{max-height:none}
+  /* calendar */
+  .calhead h2{flex:1 1 100%!important}.calhead select{flex:1}.calnav{display:flex;align-items:center;gap:6px;width:100%;justify-content:space-between}.calnav b{flex:1;text-align:center}
+  .cal{gap:3px}.ch{font-size:11px}
+  .cd{min-height:58px!important;padding:4px 3px;border-radius:8px;align-items:center;text-align:center}
+  .cd .dn{font-size:13px;margin:0}.cd .dn .small{display:none}
+  .cd .ev,.cd .cl2,.cd .cdmore{display:none}
+  .cdm{display:flex;flex-direction:column;align-items:center;gap:1px;margin-top:2px}
+  .cdmn{background:#DBEAFE;color:#1E40AF;border-radius:10px;padding:0 6px;font-weight:800;font-size:12px;line-height:18px}.cdmn small{font-size:9px;font-weight:600;margin-left:1px}
+  .cdml{font-size:11px;font-weight:700}.cdmx{background:var(--badT);color:#fff;border-radius:50%;width:15px;height:15px;font-size:10px;font-weight:800;line-height:15px}
+  .cd.off{background:#F8FAFC}.cd.sel{outline:2px solid var(--navy);outline-offset:-2px}
+  /* selected-day list as cards */
+  .daym{display:flex;flex-direction:column;gap:8px;margin-top:10px}.dayt{display:none}
+  .dmc{display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-left:4px solid #3B82F6;border-radius:12px;padding:10px 12px;font:inherit;color:inherit}
+  .dmc.st-good,.dmc.st-live{border-left-color:#10B981}.dmc.st-bad{border-left-color:#EF4444}.dmc.st-warn{border-left-color:#F59E0B}
+  .dmt{display:flex;align-items:center;gap:6px}.dms{font-weight:700;font-size:16px;margin:3px 0 2px}
+  /* sheet card: keep title readable */
+  .sheetcard h2 small{display:none}
+  .sheetframe{height:70vh!important}
+  .fg{grid-template-columns:1fr!important}
+  .ac>*,.gmailbox>*,.fstep>*,.two>*{min-width:0}main img{max-width:100%;height:auto}.ac{grid-template-columns:28px 1fr}pre{white-space:pre-wrap;word-break:break-word}.flygrid,.oldgrid{grid-template-columns:1fr!important}.oldst,.oldst *{min-width:0;max-width:100%}.oldst{overflow-wrap:anywhere}.modal-box input,.modal-box select,.modal-box textarea{max-width:100%;min-width:0}
+  .modal-box .actions{position:sticky;bottom:-16px;background:#fff;padding:10px 0;margin-bottom:-16px;border-top:1px solid var(--line)}
+}

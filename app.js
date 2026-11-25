@@ -1167,7 +1167,8 @@ function viewHome() {
     cells += `<div class="cd ${off ? 'off' : ''} ${ds === td ? 'today' : ''} ${ds === day ? 'sel' : ''} ${show ? '' : 'dim'}" data-day="${ds}"><div class="dn">${dn}${off ? ` <span class="small muted">☕ ${esc(hol ? (hol.name || 'วันหยุด') : '')}</span>` : ''}</div>
       ${dLv ? `<div class="cl2"><b>🔴 LIVE ${dLv}${!off && tgt.live ? '/' + tgt.live : ''}</b></div>` : (!off && tgt.live ? `<div class="cl2 muted">🔴 0/${tgt.live}</div>` : '')}
       ${dAp.slice(0, 4).map(a => `<button class="ev ev-${(ST[a.status] || ST.Scheduled).cls}" data-act="${a.id}" title="${esc(a.store_name)}">${(ST[a.status] || ST.Scheduled).icon} ${hhmm(a.appt_at)} ${esc(a.store_name)}</button>`).join('')}
-      ${dAp.length > 4 ? `<div class="small muted">+${dAp.length - 4} นัด</div>` : ''}</div>`;
+      ${dAp.length > 4 ? `<div class="small muted cdmore">+${dAp.length - 4} นัด</div>` : ''}
+      <div class="cdm">${dAp.length ? `<span class="cdmn">${dAp.length}<small>นัด</small></span>` : ''}${dLv ? `<span class="cdml">🔴${dLv}</span>` : ''}${dAp.some(a => a.status === 'No-show' || a.status === 'Problem') ? '<span class="cdmx">!</span>' : ''}</div></div>`;
   }
   const dayAp = appts.filter(a => apptDay(a) === day).sort((x, y) => (x.appt_at || '').localeCompare(y.appt_at || ''));
   const dayLv = lives.filter(a => a.act_date === day);
@@ -1190,14 +1191,17 @@ function viewHome() {
       ${big('❌ No-show / ⚠️ ติดปัญหา วันนี้', todayAp.filter(a => a.status === 'No-show' || a.status === 'Problem').length, 0, '', `No-show ${todayAp.filter(a => a.status === 'No-show').length} · ปัญหา ${todayAp.filter(a => a.status === 'Problem').length}`)}</div></div>
   <div class="mgrid">${team.map(mcard).join('')}</div>
   ${weekCallsCard()}
-  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">ปฏิทินนัดหมาย & LIVE <small>กดชื่อร้านเพื่อเปิดนัด · กดช่องวันเพื่อดูรายการ</small></h2>
+  <div class="card calcard"><div class="row calhead" style="align-items:center"><h2 style="flex:1;margin:0">ปฏิทินนัดหมาย & LIVE <small>กดชื่อร้านเพื่อเปิดนัด · กดช่องวันเพื่อดูรายการ</small></h2>
     <select id="calf" style="width:auto">${[['', 'ทั้งหมด'], ['open', '📅 ยังรออยู่'], ['noshow', '❌ มี No-show'], ['problem', '⚠️ มีปัญหา']].map(o => `<option value="${o[0]}" ${o[0] === (S.calF || '') ? 'selected' : ''}>${o[1]}</option>`).join('')}</select>
-    <button class="btn s" id="cp">◀</button><b>${first.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</b><button class="btn s" id="cn">▶</button><button class="btn s" id="ct">วันนี้</button></div>
+    <span class="calnav"><button class="btn s" id="cp">◀</button><b>${first.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}</b><button class="btn s" id="cn">▶</button><button class="btn s" id="ct">วันนี้</button></span></div>
     <div class="cal">${['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map(x => `<div class="ch">${x}</div>`).join('')}${cells}</div></div>
-  <div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${fd(day)} <small>นัด ${dayAp.length} · LIVE ${dayLv.length}</small></h2></div>
-    <div class="tw" style="margin-top:10px"><table><thead><tr><th>เวลา (ไทย)</th><th>ร้าน</th><th>ผู้ดูแล</th><th>สถานะ</th><th>ปัญหา / หมายเหตุ</th><th></th></tr></thead><tbody>
+  <div class="card" id="daycard"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">${fd(day)} <small>นัด ${dayAp.length} · LIVE ${dayLv.length}</small></h2></div>
+    <div class="daym">${dayAp.map(a => `<button class="dmc st-${(ST[a.status] || ST.Scheduled).cls}" data-act="${a.id}"><div class="dmt"><b>🇹🇭 ${hhmm(a.appt_at)}</b>${(a.checklist || {}).tz && a.checklist.tz !== 'Asia/Bangkok' ? ` <span class="small muted">${tzFlag(a.checklist.tz)} ${fmtHm(a.appt_at, a.checklist.tz)}</span>` : ''}<span style="flex:1"></span>${stBadge(a.status)}</div>
+      <div class="dms">${esc(a.store_name)}</div><div class="small muted">👤 ${esc(memberName(a.member_code))}${a.contact ? ' · ' + esc(a.contact) : ''}</div>${a.status === 'No-show' || a.status === 'Problem' ? `<div class="small" style="color:var(--badT)">${esc([a.issue_category, a.issue_detail].filter(Boolean).join(' — '))}</div>` : ''}</button>`).join('') || '<div class="muted small" style="padding:8px 0">ไม่มีนัดในวันนี้</div>'}
+      ${dayLv.map(a => `<button class="dmc st-live" data-act="${a.id}"><div class="dmt"><b>🔴 LIVE</b><span style="flex:1"></span><span class="small">${liveTxt(a)}</span></div><div class="dms">${esc(a.store_name)}</div><div class="small muted">👤 ${esc(memberName(a.member_code))}</div></button>`).join('')}</div>
+    <div class="tw dayt" style="margin-top:10px"><table><thead><tr><th>เวลา (ไทย)</th><th>ร้าน</th><th>ผู้ดูแล</th><th>สถานะ</th><th>ปัญหา / หมายเหตุ</th><th></th></tr></thead><tbody>
     ${dayAp.map(apRow).join('') || '<tr><td colspan="6" class="muted">ไม่มีนัดในวันนี้</td></tr>'}</tbody></table></div>
-    ${dayLv.length ? `<div class="sec">LIVE ที่บันทึกวันนี้</div><div class="tw"><table><tbody>${dayLv.map(lvRow).join('')}</tbody></table></div>` : ''}</div>
+    ${dayLv.length ? `<div class="sec dayt">LIVE ที่บันทึกวันนี้</div><div class="tw dayt"><table><tbody>${dayLv.map(lvRow).join('')}</tbody></table></div>` : ''}</div>
   ${sheetCard()}
   ${recorderCard(true)}
   ${recLog()}
@@ -1208,7 +1212,8 @@ function viewHome() {
   $('#calf').onchange = e => { S.calF = e.target.value; render(); };
   const shift = n => { const d = new Date(cy, cm - 1 + n, 1); S.calMonth = C.iso(d).slice(0, 7); render(); };
   $('#cp').onclick = () => shift(-1); $('#cn').onclick = () => shift(1); $('#ct').onclick = () => { S.calMonth = null; S.selDate = null; render(); };
-  document.querySelectorAll('[data-day]').forEach(b => b.onclick = e => { if (e.target.closest('[data-act]')) return; S.selDate = b.dataset.day; render(); });
+  document.querySelectorAll('[data-day]').forEach(b => b.onclick = e => { if (e.target.closest('[data-act]')) return; S.selDate = b.dataset.day; const y = window.scrollY; render(); window.scrollTo(0, y);
+    if (window.matchMedia('(max-width:700px)').matches) { const dc = $('#daycard'); if (dc) dc.scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
   bindActButtons(); bindRecorder(); bindSheet(); bindRecLog(); bindAnn(); loadStar(); if ($('#wcf')) $('#wcf').onchange = e => { S.wcF = e.target.value; render(); };
   $('#hcall').onclick = () => { S.dailyDate = C.iso(C.today()); callModal(null); };
   document.querySelectorAll('[data-fudone]').forEach(b => b.onclick = async () => {
