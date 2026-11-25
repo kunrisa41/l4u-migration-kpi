@@ -310,10 +310,10 @@ function toolsEditor() {
 
 // ---------------- shell ----------------
 const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['tools', '🧰 Tools'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
-  ['blockers', 'ปัญหา & Followup'], ['howto', '🎬 How-to'], ['perf', 'Team Performance'], ['audit', 'Audit Reports']];
+  ['blockers', 'ปัญหา & Followup'], ['howto', '🎬 How-to'], ['perf', 'Team Performance'], ['audit', 'Audit Reports'], ['amigo', '🍽️ Food Amigo']];
 const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['tracker', 'รายชื่อร้าน'], ['settings', 'KPI Settings'], ['team', 'Team & Logins'], ['chlog', '📜 Log การแก้ไข'], ['gcal', '🔔 Calendar & Chat']];
 const VIEWS = { run: () => viewRun(), howto: () => viewHowto(), tools: () => viewTools(), home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
-  perf: () => viewPerf(), audit: () => viewAudit(), feedback: () => viewFeedback(), gcal: () => viewGcal(), chlog: () => viewChlog(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
+  perf: () => viewPerf(), audit: () => viewAudit(), amigo: () => viewAmigo(), feedback: () => viewFeedback(), gcal: () => viewGcal(), chlog: () => viewChlog(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
 function render() {
   S.charts.forEach(c => c.destroy()); S.charts = [];
   document.documentElement.classList.remove('noscroll');
@@ -2191,6 +2191,11 @@ async function viewGcal() {
 }
 
 // --- Audit Reports (PDF archive) ---
+/* 🍽️ Food Amigo — stand-alone training page for the new system (not linked to other data) */
+function viewAmigo() {
+  $('#main').innerHTML = `<div class="card amigo"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🍽️ Food Amigo <small>คู่มือการใช้ระบบใหม่ · หน้าเฉพาะกิจ</small></h2></div>
+    <p class="muted" style="margin:14px 0 4px">กำลังเตรียมเนื้อหา — ขั้นตอนการใช้งาน วิดีโอ และลิงก์ต่างๆ จะขึ้นที่หน้านี้เร็วๆ นี้</p></div>`;
+}
 function viewAudit() {
   const q = (S.auQ || '').toLowerCase(); const list = (S.reports || []).filter(r => !q || (r.store_name || '').toLowerCase().includes(q));
   const runOf = r => (S.runs || []).find(x => x.run_key && x.run_key === r.run_key);
