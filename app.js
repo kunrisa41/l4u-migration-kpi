@@ -1518,7 +1518,7 @@ function annCard() {
     const mine = S.me && need.some(m => m.code === S.me.code) && !acks.some(k => k.code === S.me.code);
     return `<div class="annrow ${cls}"><div class="annd">${fd(a.d)}${a.d === td ? ' <span class="badge b-ok">วันนี้</span>' : ''}</div><div class="annb"><b>${esc(a.t)}</b>${a.b ? `<div class="annx">${esc(a.b)}</div>` : ''}<div class="small muted">โดย ${esc(a.by || '')}</div>
       <div class="annack small">${acks.length ? `✅ รับทราบแล้ว: ${acks.map(k => `<b>${esc(k.name)}</b> <span class="muted">(${hm(k.at)})</span>`).join(' · ')}` : '<span class="annwait">ยังไม่มีใครรับทราบ</span>'}${wait.length ? ` <span class="annwait">· รอ: ${wait.map(m => esc(m.name)).join(', ')}</span>` : ''}</div></div>
-      <div class="annact">${mine ? `<button class="btn s t" data-annack="${a.id}">👍 รับทราบ</button>` : ''}${isMgr() ? `<button class="btn s" data-anned="${a.id}">แก้ไข</button><button class="btn s" data-anndel="${a.id}">ลบ</button>` : ''}</div></div>`;
+      <div class="annact"><button class="btn s" data-anncp="${a.id}" title="คัดลอกหัวข้อ + รายละเอียด">📋 คัดลอก</button>${mine ? `<button class="btn s t" data-annack="${a.id}">👍 รับทราบ</button>` : ''}${isMgr() ? `<button class="btn s" data-anned="${a.id}">แก้ไข</button><button class="btn s" data-anndel="${a.id}">ลบ</button>` : ''}</div></div>`;
   };
   return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">📢 ประกาศ & อัปเดต <small>${L.length} รายการ · ใหม่สุดอยู่บน · กด 👍 รับทราบ · <span class="annkey ann-none">ยังไม่มีใครกด</span> <span class="annkey ann-some">กดบางคน</span> <span class="annkey ann-all">ครบแล้ว</span></small></h2>${isMgr() ? '<button class="btn s p" id="annnew">+ ประกาศใหม่</button>' : ''}</div>
     <div class="annbox">${L.map(row).join('') || '<div class="muted small" style="padding:10px">ยังไม่มีประกาศ</div>'}</div></div>`;
@@ -1566,6 +1566,12 @@ function annModal(a) {
   };
 }
 function bindAnn() {
+  document.querySelectorAll('[data-anncp]').forEach(b => b.onclick = async () => {
+    const a = annList().find(x => String(x.id) === b.dataset.anncp); if (!a) return;
+    const txt = a.t + (a.b ? '\n' + a.b : '');
+    try { await navigator.clipboard.writeText(txt); }
+    catch { const t = document.createElement('textarea'); t.value = txt; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+    toast('คัดลอกแล้ว 📋 วางที่ไหนก็ได้ด้วย ⌘ Cmd + V'); });
   document.querySelectorAll('[data-annack]').forEach(b => b.onclick = async () => { b.disabled = true; const id = b.dataset.annack;
     const ok = await save(sb.rpc('ann_ack', { p_id: id, p_code: S.me.code, p_name: S.me.name }), 'รับทราบแล้ว 👍'); if (!ok) return;
     const a = annList().find(x => String(x.id) === id), acks = annAcks()[id] || []; if (!a) return;
