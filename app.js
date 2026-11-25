@@ -1293,8 +1293,8 @@ function sfShow(i) {
       : `<span class="muted small">ไม่เจอ "${esc((S.emb[i] || {}).q)}" ในชีตนี้</span>`;
     box.querySelectorAll('[data-sfj]').forEach(b => b.onclick = () => sfJump(+b.dataset.sfj, +b.dataset.row, +b.dataset.nc));
   }).catch(() => {
-    box.innerHTML = `<span class="small">อ่านข้อมูลชีตจากตรงนี้ไม่ได้ → ใช้วิธีนี้แทน: กด <button class="btn s" data-sfedit="${i}">✏️ สลับเป็นโหมดแก้ไข</button> แล้ว <b>คลิก 1 ครั้งในชีต</b> แล้วกด <b>⌘ Cmd + F</b> (Windows: Ctrl + F) ช่องค้นหาของ Google Sheets จะขึ้นมุมขวาบนของชีต</span>`;
-    const b = box.querySelector('[data-sfedit]'); if (b) b.onclick = () => { S.emb[i] = Object.assign({}, S.emb[i], { mode: 'edit' }); render(); };
+    box.innerHTML = `<span class="small">💡 ช่องนี้ยังอ่านชีตไม่ได้ (ชีตเป็นแบบส่วนตัว) · วิธีที่ง่ายสุดตอนนี้: ${(S.emb[i] || {}).mode === 'edit' ? `กด <button class="btn s" data-sfview="${i}">👁️ ดูอย่างเดียว</button> แล้ว` : ''}<b>คลิกที่ว่างนอกชีต</b> (เช่น ตรงหัวข้อชีตงาน) แล้วกด <b>⌘ Cmd + F</b> พิมพ์ชื่อร้าน · เบราว์เซอร์จะไฮไลต์และเลื่อนไปที่ร้านในชีตให้เอง</span>`;
+    const b = box.querySelector('[data-sfview]'); if (b) b.onclick = () => { S.emb[i] = Object.assign({}, S.emb[i], { mode: 'view', jump: null }); render(); };
   });
 }
 function bindSheet() {
