@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Food Amigo · คู่มือการใช้ระบบ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>.pubtop{background:#0F3B4C;color:#fff;padding:18px 24px}.pubtop .b{font-size:12px;font-weight:700;letter-spacing:.08em;color:#99F6E4}.pubtop h1{margin:4px 0 0;font-size:22px}
+.pubwrap{max-width:1100px;margin:0 auto;padding:16px}.pubmsg{padding:40px 16px;text-align:center;color:#475569}</style>
+</head>
+<body>
+<div class="pubtop"><div class="b">LOCAL FOR YOU</div><h1>🍽️ Food Amigo — คู่มือการใช้ระบบ</h1></div>
+<div class="pubwrap"><div id="g"><div class="pubmsg">กำลังโหลด…</div></div></div>
+<script type="module">
+import { mountGuides } from './amigo.js';
+const FN = 'https://fpmlikgwjijgylszeiba.supabase.co/functions/v1/amigo-share';
+const token = (location.hash.match(/[#&]t=([0-9a-f]{20,64})/) || [])[1];
+const el = document.getElementById('g');
+if (!token) el.innerHTML = '<div class="pubmsg">ลิงก์ไม่ถูกต้อง — ขอลิงก์ใหม่จากทีม Local For You</div>';
+else {
+  const getUrls = async paths => { const r = await fetch(FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, paths }) });
+    if (r.status === 403) { el.innerHTML = '<div class="pubmsg">ลิงก์นี้หมดอายุหรือถูกยกเลิกแล้ว — ขอลิงก์ใหม่จากทีม Local For You</div>'; return {}; }
+    return (await r.json()).urls || {}; };
+  // check the link first, then show the guides
+  getUrls([]).then(() => { if (!el.querySelector('.pubmsg') || el.textContent.includes('กำลังโหลด')) mountGuides(el, getUrls, {}); });
+}
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import * as C from './calc.js';
 import { defaultsCard, bindDefaults } from './defaults.js';
-import { AMIGO_GUIDES, AMIGO_SOON } from './amigo.js';
+import { mountGuides } from './amigo.js';
 
 const SB_URL = 'https://fpmlikgwjijgylszeiba.supabase.co';
 const SB_KEY = 'sb_publishable_G7d7dT7BRpkATd7I1GfBrw_NC3A4B-7';
@@ -2239,18 +2239,8 @@ async function viewGcal() {
 /* 🍽️ Food Amigo — stand-alone training page for the new system (not linked to other data) */
 function viewAmigo() {
   S.amg = S.amg || {};
-  const guide = g => { const mode = S.amg[g.id] || 'video';
-    const step = st => `<div class="amstep" id="amst-${g.id}-${st.n}"><div class="amnum">${st.n}</div><div class="ambody"><div class="amt">${esc(st.t)}</div><div class="amd">${esc(st.d)}</div>
-      <div class="amen">${esc(st.en)} — ${esc(st.ed)}</div>
-      <div class="amimgw"><img class="amimg" data-amimg="${esc(st.img)}" alt="" loading="lazy"><button class="btn s amjump" data-amjump="${g.id}" data-at="${st.at}">▶ ดูตรงนี้ในวิดีโอ (${Math.floor(st.at / 60)}:${String(st.at % 60).padStart(2, '0')})</button></div></div></div>`;
-    const doc = g.sections.map(sec => `<h3 class="amsec">${esc(sec.t)} <small>ขั้นที่ ${sec.from}–${sec.to}</small></h3>${g.steps.filter(x => x.n >= sec.from && x.n <= sec.to).map(step).join('')}`).join('');
-    return `<div class="card amguide" id="amg-${g.id}"><div class="row" style="align-items:center;gap:10px;flex-wrap:wrap"><h2 style="flex:1;margin:0">📘 ${esc(g.title)} <small>${esc(g.sub)} · ${g.steps.length} ขั้นตอน · วิดีโอ ${g.mins} นาที</small></h2>
-      <div class="seg"><button class="${mode === 'video' ? 'on' : ''}" data-amode="${g.id}" data-v="video">🎬 วิดีโอ</button><button class="${mode === 'doc' ? 'on' : ''}" data-amode="${g.id}" data-v="doc">📄 เอกสาร</button></div>
-      ${mode === 'doc' ? `<button class="btn s" data-amprint="${g.id}">🖨️ พิมพ์ / PDF</button>` : ''}</div>
-      ${mode === 'video' ? `<video class="amvid" id="amv-${g.id}" data-amvid="${esc(g.video)}" controls preload="metadata" playsinline></video>
-        <div class="small muted" style="margin-top:6px">ในวิดีโอมีคำอธิบายภาษาอังกฤษทุกขั้น · ถ้าอยากอ่านทีละขั้นเป็นภาษาไทยพร้อมรูป กด 📄 เอกสาร</div>`
-        : `<div class="amtoc">${g.sections.map(sec => `<a href="#" data-amto="${g.id}-${sec.from}">${esc(sec.t)}</a>`).join('')}</div>${doc}`}</div>`; };
-  $('#main').innerHTML = `<div class="card amigo"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🍽️ Food Amigo <small>คู่มือการใช้ระบบใหม่ · หน้าเฉพาะกิจ</small></h2></div>
+  $('#main').innerHTML = `<div class="card amigo"><div class="row" style="align-items:center;gap:8px"><h2 style="flex:1;margin:0">🍽️ Food Amigo <small>คู่มือการใช้ระบบใหม่ · หน้าเฉพาะกิจ</small></h2>
+      ${S.me && S.me.is_manager ? '<button class="btn s" id="amshare">🔗 ลิงก์แชร์ (ไม่ต้องล็อกอิน)</button>' : ''}</div><div id="amsharebox"></div>
     <div class="amgoal"><div class="amtag">🎯 GOAL · FOOD AMIGO</div>
       <div class="amh">1. Online Ordering System (CW)</div>
       <div class="amsub">Testing &amp; Alternative Providers</div>
@@ -2258,29 +2248,27 @@ function viewAmigo() {
         <li>Resolve CW printer issues before scaling migration</li>
         <li>FoodAmigo Plan — pilot customers to get feedback and check features
           <div class="amkpi"><span><b>5</b> live in 🇺🇸 USA</span><span><b>2</b> in 🇦🇺 AU <small>(new sales)</small></span></div></li>
-      </ol></div></div>
-    ${AMIGO_GUIDES.map(guide).join('')}
-    <div class="card"><h2>🗂️ คู่มือที่กำลังเตรียม <small>จะเพิ่มในหน้านี้เร็วๆ นี้</small></h2><div class="amsoon">${AMIGO_SOON.map(t => `<span>⏳ ${esc(t)}</span>`).join('')}</div></div>`;
-  amigoMedia();
-  document.querySelectorAll('[data-amode]').forEach(b => b.onclick = () => { S.amg[b.dataset.amode] = b.dataset.v; const y = window.scrollY; viewAmigo(); window.scrollTo(0, y); });
-  document.querySelectorAll('[data-amto]').forEach(a => a.onclick = e => { e.preventDefault(); const el = document.getElementById('amst-' + a.dataset.amto); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
-  document.querySelectorAll('[data-amjump]').forEach(b => b.onclick = () => { const id = b.dataset.amjump, at = +b.dataset.at; S.amg[id] = 'video'; viewAmigo();
-    const v = document.getElementById('amv-' + id); if (!v) return; v.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    const go = () => { v.currentTime = at; v.play().catch(() => { }); }; if (v.readyState >= 1) go(); else v.addEventListener('loadedmetadata', go, { once: true }); });
-  document.querySelectorAll('[data-amprint]').forEach(b => b.onclick = () => { document.body.classList.add('amprinting'); document.getElementById('amg-' + b.dataset.amprint).classList.add('amprint');
-    const done = () => { document.body.classList.remove('amprinting'); document.querySelectorAll('.amprint').forEach(x => x.classList.remove('amprint')); };
-    window.addEventListener('afterprint', done, { once: true });
-    Promise.all([...document.querySelectorAll('.amprint img')].map(i => i.complete ? 1 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => window.print()); });
+      </ol></div></div><div id="amguides"></div>`;
+  mountGuides($('#amguides'), amigoUrls, S.amg);
+  if ($('#amshare')) $('#amshare').onclick = () => amShareBox(false);
 }
 // signed URLs for the private guide files (cached ~50 min)
-async function amigoMedia() {
-  const els = [...document.querySelectorAll('[data-amimg],[data-amvid]')]; if (!els.length) return;
+async function amigoUrls(paths) {
   S.amgUrl = S.amgUrl || {}; const fresh = p => S.amgUrl[p] && S.amgUrl[p].t > Date.now() - 50 * 60000;
-  const need = [...new Set(els.map(e => e.dataset.amimg || e.dataset.amvid))].filter(p => !fresh(p));
+  const need = paths.filter(p => !fresh(p));
   if (need.length) { try { const { data } = await sb.storage.from('guides').createSignedUrls(need, 3600);
     (data || []).forEach(d => { if (d.signedUrl) S.amgUrl[d.path] = { u: d.signedUrl, t: Date.now() }; }); } catch { } }
-  els.forEach(e => { const p = e.dataset.amimg || e.dataset.amvid, u = S.amgUrl[p] && S.amgUrl[p].u; if (!u) return;
-    if (e.tagName === 'IMG') { e.src = u; e.onclick = () => window.open(u, '_blank'); } else if (!e.src) e.src = u; });
+  const o = {}; paths.forEach(p => { if (S.amgUrl[p]) o[p] = S.amgUrl[p].u; }); return o;
+}
+async function amShareBox(rotate) {
+  const box = $('#amsharebox'); if (!box) return;
+  if (rotate && !confirm('สร้างลิงก์ใหม่? ลิงก์เดิมที่ส่งไปแล้วจะเปิดไม่ได้อีก')) return;
+  const { data, error } = await sb.rpc(rotate ? 'amigo_share_rotate' : 'amigo_share_get'); if (error || !data) { toast('สร้างลิงก์ไม่ได้'); return; }
+  const url = location.origin + '/amigo.html#t=' + data;
+  box.innerHTML = `<div class="amshare"><div class="small" style="font-weight:700">🔗 ลิงก์สำหรับคนนอกทีม — เปิดดูคู่มือได้โดยไม่ต้องล็อกอิน (ไม่มีกล่อง Goal และข้อมูลอื่นของแอป)</div>
+    <div class="row" style="gap:8px;margin-top:6px"><input id="amurl" readonly value="${esc(url)}" style="flex:1"><button class="btn s" id="amcopy">📋 คัดลอก</button><a class="btn s" href="${esc(url)}" target="_blank" rel="noopener">เปิดดู</a><button class="btn s" id="amrot" title="ลิงก์เดิมจะใช้ไม่ได้">🔄 สร้างลิงก์ใหม่</button></div></div>`;
+  $('#amcopy').onclick = async () => { try { await navigator.clipboard.writeText(url); } catch { $('#amurl').select(); document.execCommand('copy'); } toast('คัดลอกลิงก์แล้ว 📋'); };
+  $('#amrot').onclick = () => amShareBox(true);
 }
 function viewAudit() {
   const q = (S.auQ || '').toLowerCase(); const list = (S.reports || []).filter(r => !q || (r.store_name || '').toLowerCase().includes(q));

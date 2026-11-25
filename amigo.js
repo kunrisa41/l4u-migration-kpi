@@ -402,3 +402,36 @@ export const AMIGO_GUIDES = [
 }
 ];
 export const AMIGO_SOON = ['Setup Table Reservation', "Setup shop's own delivery", 'Setup 3rd party delivery', 'How to LIVE shop with the application', 'How to connect printer on app', 'LIVE process on phone', 'How to connect domain and LIVE website'];
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// Renders every guide (🎬 video / 📄 document) + the "coming soon" list into `el`.
+// getUrls(paths) -> Promise<{path: signedUrl}>  (private bucket, so URLs come from the caller)
+export function mountGuides(el, getUrls, st = {}) {
+  const draw = () => {
+    const guide = g => { const mode = st[g.id] || 'video';
+      const step = s => `<div class="amstep" id="amst-${g.id}-${s.n}"><div class="amnum">${s.n}</div><div class="ambody"><div class="amt">${esc(s.t)}</div><div class="amd">${esc(s.d)}</div>
+        <div class="amen">${esc(s.en)} — ${esc(s.ed)}</div>
+        <div class="amimgw"><img class="amimg" data-amimg="${esc(s.img)}" alt="" loading="lazy"><button class="btn s amjump" data-amjump="${g.id}" data-at="${s.at}">▶ ดูตรงนี้ในวิดีโอ (${Math.floor(s.at / 60)}:${String(s.at % 60).padStart(2, '0')})</button></div></div></div>`;
+      const doc = g.sections.map(sec => `<h3 class="amsec">${esc(sec.t)} <small>ขั้นที่ ${sec.from}–${sec.to}</small></h3>${g.steps.filter(x => x.n >= sec.from && x.n <= sec.to).map(step).join('')}`).join('');
+      return `<div class="card amguide" id="amg-${g.id}"><div class="row" style="align-items:center;gap:10px;flex-wrap:wrap"><h2 style="flex:1;margin:0">📘 ${esc(g.title)} <small>${esc(g.sub)} · ${g.steps.length} ขั้นตอน · วิดีโอ ${g.mins} นาที</small></h2>
+        <div class="seg"><button class="${mode === 'video' ? 'on' : ''}" data-amode="${g.id}" data-v="video">🎬 วิดีโอ</button><button class="${mode === 'doc' ? 'on' : ''}" data-amode="${g.id}" data-v="doc">📄 เอกสาร</button></div>
+        ${mode === 'doc' ? `<button class="btn s" data-amprint="${g.id}">🖨️ พิมพ์ / PDF</button>` : ''}</div>
+        ${mode === 'video' ? `<video class="amvid" id="amv-${g.id}" data-amvid="${esc(g.video)}" controls preload="metadata" playsinline></video>
+          <div class="small muted" style="margin-top:6px">ในวิดีโอมีคำอธิบายภาษาอังกฤษทุกขั้น · ถ้าอยากอ่านทีละขั้นเป็นภาษาไทยพร้อมรูป กด 📄 เอกสาร</div>`
+          : `<div class="amtoc">${g.sections.map(sec => `<a href="#" data-amto="${g.id}-${sec.from}">${esc(sec.t)}</a>`).join('')}</div>${doc}`}</div>`; };
+    el.innerHTML = AMIGO_GUIDES.map(guide).join('') +
+      `<div class="card"><h2>🗂️ คู่มือที่กำลังเตรียม <small>จะเพิ่มในหน้านี้เร็วๆ นี้</small></h2><div class="amsoon">${AMIGO_SOON.map(t => `<span>⏳ ${esc(t)}</span>`).join('')}</div></div>`;
+    const els = [...el.querySelectorAll('[data-amimg],[data-amvid]')];
+    getUrls([...new Set(els.map(e => e.dataset.amimg || e.dataset.amvid))]).then(U => els.forEach(e => { const u = U[e.dataset.amimg || e.dataset.amvid]; if (!u) return;
+      if (e.tagName === 'IMG') { e.src = u; e.onclick = () => window.open(u, '_blank'); } else e.src = u; })).catch(() => { });
+    el.querySelectorAll('[data-amode]').forEach(b => b.onclick = () => { st[b.dataset.amode] = b.dataset.v; const y = window.scrollY; draw(); window.scrollTo(0, y); });
+    el.querySelectorAll('[data-amto]').forEach(a => a.onclick = e => { e.preventDefault(); const t = document.getElementById('amst-' + a.dataset.amto); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    el.querySelectorAll('[data-amjump]').forEach(b => b.onclick = () => { const id = b.dataset.amjump, at = +b.dataset.at; st[id] = 'video'; draw();
+      const v = document.getElementById('amv-' + id); if (!v) return; v.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const go = () => { v.currentTime = at; v.play().catch(() => { }); }; if (v.readyState >= 1) go(); else v.addEventListener('loadedmetadata', go, { once: true }); });
+    el.querySelectorAll('[data-amprint]').forEach(b => b.onclick = () => { document.body.classList.add('amprinting'); document.getElementById('amg-' + b.dataset.amprint).classList.add('amprint');
+      window.addEventListener('afterprint', () => { document.body.classList.remove('amprinting'); document.querySelectorAll('.amprint').forEach(x => x.classList.remove('amprint')); }, { once: true });
+      Promise.all([...document.querySelectorAll('.amprint img')].map(i => { i.loading = 'eager'; return i.complete && i.naturalWidth ? 1 : new Promise(r => { i.onload = i.onerror = r; setTimeout(r, 8000); }); })).then(() => window.print()); });
+  };
+  draw();
+}
