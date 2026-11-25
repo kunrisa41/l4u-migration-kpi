@@ -1527,12 +1527,38 @@ function annCard() {
   return `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">📢 ประกาศ & อัปเดต <small>${L.length} รายการ · ใหม่สุดอยู่บน · กด 👍 รับทราบ · <span class="annkey ann-none">ยังไม่มีใครกด</span> <span class="annkey ann-some">กดบางคน</span> <span class="annkey ann-all">ครบแล้ว</span></small></h2>${isMgr() ? '<button class="btn s p" id="annnew">+ ประกาศใหม่</button>' : ''}</div>
     <div class="annbox">${L.map(row).join('') || '<div class="muted small" style="padding:10px">ยังไม่มีประกาศ</div>'}</div></div>`;
 }
+/* 🏆 Hall of Fame — every week's Star (saved each Friday 16:00) + all-time ranking, on Team Performance */
+async function loadHof() {
+  const box = $('#hof'); if (!box) return;
+  if (!S.hof || Date.now() - (S.hofAt || 0) > 60000) {
+    const { data, error } = await sb.from('star_history').select('*').order('week_start', { ascending: false });
+    if (error) { box.innerHTML = ''; return; } S.hof = data || []; S.hofAt = Date.now();
+  }
+  const b2 = $('#hof'); if (!b2) return; b2.innerHTML = hofCard(); if (S.scrollHof) { S.scrollHof = false; b2.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+}
+function hofCard() {
+  const H = S.hof || [];
+  const pic = (code, name, big) => { const m = S.members.find(x => x.code === code) || { name };
+    const ini = (m.name || name || '?').replace(/\(.*\)/, '').trim().slice(0, 1).toUpperCase();
+    return m.photo_url ? `<img class="hofpic${big ? ' big' : ''}" src="${esc(m.photo_url)}" alt="">` : `<div class="hofpic hofini${big ? ' big' : ''}">${esc(ini)}</div>`; };
+  const cnt = {}; H.forEach(h => { cnt[h.code] = cnt[h.code] || { code: h.code, name: (S.members.find(x => x.code === h.code) || {}).name || h.name, n: 0, last: h.week_start }; cnt[h.code].n++; });
+  const rank = Object.values(cnt).sort((a, b) => b.n - a.n || (b.last || '').localeCompare(a.last || ''));
+  const medal = ['🥇', '🥈', '🥉'];
+  const top = rank[0];
+  const lead = top ? `<div class="hoftop">${pic(top.code, top.name, true)}<div><div class="small muted">👑 ALL-TIME STAR</div><div class="hofname">${esc(top.name)}</div><div>🏆 เป็น Star <b>${top.n}</b> สัปดาห์ จากทั้งหมด ${H.length} สัปดาห์</div></div></div>` : '';
+  const board = rank.map((r, i) => `<div class="hofrow">${medal[i] || `<span class="hofn">${i + 1}</span>`} ${pic(r.code, r.name)}<b>${esc(r.name)}</b><span class="hofbar"><i style="width:${Math.round(100 * r.n / (top ? top.n : 1))}%"></i></span><span class="hofc">🏆×${r.n}</span></div>`).join('');
+  const hist = H.map(h => `<tr><td class="small" style="white-space:nowrap">${fd(h.week_start)} – ${fd(h.week_end)}</td><td><span class="hofwho">${pic(h.code, h.name)}<b>${esc((S.members.find(x => x.code === h.code) || {}).name || h.name)}</b></span></td><td class="small">${(h.reasons || '').split('\n').filter(Boolean).map(esc).join('<br>')}</td></tr>`).join('');
+  return `<div class="card hofcard"><h2>🏆 Hall of Fame <small>Star of the week ทุกสัปดาห์ · บันทึกอัตโนมัติทุกศุกร์ 16:00</small></h2>
+    ${H.length ? `<div class="hofgrid"><div>${lead}<div class="hofboard">${board}</div></div>
+      <div class="tw" style="max-height:340px"><table><thead><tr><th>สัปดาห์</th><th>Star</th><th>ผลงานที่ชื่นชม</th></tr></thead><tbody>${hist}</tbody></table></div></div>`
+      : '<p class="muted small" style="margin:8px 0 0">ยังไม่มีประวัติ — Star สัปดาห์นี้จะถูกบันทึกเป็นสัปดาห์แรกในวันศุกร์ 16:00</p>'}</div>`;
+}
 /* 🏆 Star of the week (calculated in the database; posted to Google Chat every Friday 16:00) */
 function starCard() {
   const j0 = S.star; if (!j0) return '';
   const j = j0.star ? j0 : (j0.prev || j0), s = j.star, last = !j0.star && !!j0.prev;
   const wk = `${fd(j.week_start)} – ${fd(j.week_end)}`;
-  const head = `<div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🏆 Star of the week <small>${last ? 'สัปดาห์ที่แล้ว · ' : ''}${wk} · ส่งเข้า Google Chat ทุกศุกร์ 16:00</small></h2>${isMgr() && s && !last ? '<button class="btn s p" id="starpost">📣 ส่งชื่นชมเข้าแชทตอนนี้</button>' : ''}</div>`;
+  const head = `<div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🏆 Star of the week <small>${last ? 'สัปดาห์ที่แล้ว · ' : ''}${wk} · ส่งเข้า Google Chat ทุกศุกร์ 16:00 · <a href="#" id="tohof">ดู Hall of Fame →</a></small></h2>${isMgr() && s && !last ? '<button class="btn s p" id="starpost">📣 ส่งชื่นชมเข้าแชทตอนนี้</button>' : ''}</div>`;
   if (!s) return `<div class="card starcard">${head}<div class="muted small" style="margin-top:8px;text-align:center">ยังไม่มีผลงานที่บันทึก — จะขึ้นชื่อ Star อัตโนมัติเมื่อมี LIVE / นัด / Pre-Live</div></div>`;
   const m = S.members.find(x => x.code === s.code) || { name: s.name, role: '' };
   const ini = (m.name || '?').replace(/\(.*\)/, '').trim().slice(0, 1).toUpperCase();
@@ -1546,6 +1572,7 @@ async function loadStar() {
   S.star = data; S.starAt = Date.now(); const box = $('#starbox'); if (box) { box.innerHTML = starCard(); bindStar(); }
 }
 function bindStar() {
+  if ($('#tohof')) $('#tohof').onclick = e => { e.preventDefault(); S.tab = 'perf'; S.scrollHof = true; render(); };
   if ($('#starpost')) $('#starpost').onclick = async () => { if (!confirm('ส่งข้อความชื่นชม Star of the week เข้า Google Chat ตอนนี้?')) return;
     const { error } = await sb.rpc('weekly_star_post'); toast(error ? error.message : 'ส่งเข้า Google Chat แล้ว 🏆', !!error); };
 }
@@ -2058,6 +2085,7 @@ function viewPerf() {
   const inP = d => !mo || (d || '').startsWith(mo);
   $('#main').innerHTML = `<div class="card"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">Team Performance <small>จากนัดหมายและ LIVE ที่บันทึก</small></h2>
     <div><select id="pm" style="width:auto"><option value="">All time</option>${months.map(m => `<option ${m === mo ? 'selected' : ''}>${m}</option>`).join('')}</select></div></div></div>
+  <div id="hof"></div>
   <div class="mgrid">${S.members.filter(m => m.active).map(m => { const t = dailyT(m);
     const ap = (S.acts || []).filter(a => a.kind === 'appointment' && a.member_code === m.code && inP(apptDay(a)));
     const lv = (S.acts || []).filter(a => a.kind === 'live' && a.member_code === m.code && inP(a.act_date)).length;
@@ -2069,6 +2097,7 @@ function viewPerf() {
       ${k('🔴 LIVE', lv, 'ร้านที่เปิดแล้ว')}${k('📅 นัดทั้งหมด', ap.length, `รอ ${n('Scheduled') + n('Rescheduled')}`)}${k('❌ No-show', n('No-show'), done ? 'อัตรา ' + pct(n('No-show') / done) : '')}
       ${k('⚠️ ติดปัญหา', n('Problem'), 'LIVE ไม่ได้')}${k('✅ Pre-Live', pl.length, `ครบ 100%: ${pl.filter(p => p.done >= PL_REQ).length}`)}</div></div>`; }).join('')}</div>`;
   $('#pm').onchange = e => { S.perfMonth = e.target.value; render(); };
+  loadHof();
   const box = document.createElement('div'); box.id = 'dailybox'; $('#main').appendChild(box); viewDaily();
   const hb = document.createElement('div'); hb.id = 'callhist'; $('#main').appendChild(hb); loadCallHist();
 }
