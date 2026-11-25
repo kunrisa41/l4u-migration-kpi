@@ -700,6 +700,9 @@ function viewDaily() {
     toast('ส่งเข้า Google Chat แล้ว ✅'); await loadAll(); render();
   });
 }
+// เบอร์ที่ขึ้นต้นด้วยรหัสประเทศ (61 AU, 64 NZ, 1 US, 44 UK, 66 TH) แต่ไม่มี + → เติม + ให้
+function fmtPhone(v) { const t = String(v || '').trim(); if (!t || t.startsWith('+')) return t; const d = t.replace(/[\s-]/g, '');
+  return /^(61|64|44|66)\d{8,10}$|^1\d{10}$/.test(d) ? '+' + t : t; }
 function callModal(c) {
   const isNew = !c; c = c || { member_code: S.me.code, call_date: S.dailyDate, result: 'Not pickup', tz: S.lastTz || 'Australia/Sydney' };
   openModal(`<h3>${isNew ? '📞 เพิ่มร้านที่โทร' : 'แก้ไข · ' + esc(c.store_name)}</h3>${restList()}<div class="fg">
@@ -711,7 +714,7 @@ function callModal(c) {
       <div><label>เขตเวลาของร้าน</label><select id="c_tz">${TZS.map(t => `<option value="${t[0]}" ${t[0] === (c.tz || 'Australia/Sydney') ? 'selected' : ''}>${t[1]}</option>`).join('')}</select></div>
       <div><label>วันเวลานัด (เวลาของร้าน) *</label><input id="c_at" type="datetime-local" value="${c.appt_at ? utcToZonedInput(c.appt_at, c.tz || 'Australia/Sydney') : ''}"></div>
       <div><label>= เวลาไทย</label><div id="c_th" class="thai">–</div></div></div>
-    <div class="fg"><div><label>เบอร์โทร</label><input id="c_p" value="${esc(c.phone || '')}" placeholder="61424932822"></div><div><label>ชื่อผู้ติดต่อ</label><input id="c_c" value="${esc(c.contact || '')}" placeholder="K.แป๋ว"></div></div>
+    <div class="fg"><div><label>เบอร์โทร</label><input id="c_p" value="${esc(c.phone || '')}" placeholder="+61424932822"></div><div><label>ชื่อผู้ติดต่อ</label><input id="c_c" value="${esc(c.contact || '')}" placeholder="K.แป๋ว"></div></div>
     <label>หมายเหตุ</label><input id="c_n" value="${esc(c.notes || '')}">
     <p class="small muted">เลือก "📅 Appointment" ระบบจะสร้างนัดในปฏิทินหน้า Dashboard และส่งเข้า Google Calendar ให้อัตโนมัติ (ไม่ต้องกด Add Appointment ซ้ำ)</p>
     <div class="actions">${!isNew ? '<button class="btn r s" id="del" style="margin-right:auto">ลบ</button>' : ''}<button class="btn" id="cx">ยกเลิก</button><button class="btn p" id="sv">บันทึก</button></div>`);
@@ -722,7 +725,7 @@ function callModal(c) {
   if ($('#del')) $('#del').onclick = async () => { if (!confirm('ลบรายการนี้?' + (c.activity_id ? ' (นัดที่สร้างไว้จะยังอยู่ในปฏิทิน ลบได้ที่หน้า Dashboard)' : ''))) return; closeModal(); await save(sb.from('call_log').delete().eq('id', c.id), 'ลบแล้ว'); };
   $('#sv').onclick = async () => {
     const rec = { member_code: $('#c_m').value, store_name: $('#c_s').value.trim(), call_date: $('#c_d').value, result: (document.querySelector('[name="c_r"]:checked') || {}).value,
-      phone: $('#c_p').value.trim() || null, contact: $('#c_c').value.trim() || null, notes: $('#c_n').value.trim() || null, tz: null, appt_at: null };
+      phone: fmtPhone($('#c_p').value) || null, contact: $('#c_c').value.trim() || null, notes: $('#c_n').value.trim() || null, tz: null, appt_at: null };
     if (!rec.store_name || !rec.result) return toast('กรุณาใส่ชื่อร้านและผลการโทร', true);
     if (rec.result === 'Appointment') { const v = $('#c_at').value; if (!v) return toast('กรุณาใส่วันเวลานัด', true); rec.tz = $('#c_tz').value; rec.appt_at = zonedToUtc(v, rec.tz).toISOString(); S.lastTz = rec.tz; }
     $('#sv').disabled = true;
