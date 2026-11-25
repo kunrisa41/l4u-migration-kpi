@@ -121,7 +121,7 @@ async function save(promise, ok) {
 function renderLogin(msg) {
   $('#app').innerHTML = `<div class="login">
     <div class="brand muted small" style="font-weight:700;letter-spacing:.08em">LOCAL FOR YOU</div>
-    <h1>Restaurant Migration Tracker</h1><p class="muted small">Migration team workspace + KPI · Dec 2026 – Jan 2027</p>
+    <h1>Restaurant Migration Tracker</h1><p class="muted small">Migration team workspace + KPI · Dec 2026 – Feb 2027</p>
     ${msg ? `<div class="note">${esc(msg)}</div>` : ''}
     <label>E-mail</label><input id="em" type="email" autocomplete="username">
     <label>Password</label><input id="pw" type="password" autocomplete="current-password">
@@ -1646,7 +1646,8 @@ function goalCard() {
       <div class="small" style="color:#E2E8F0;text-align:right">${today < start ? `เริ่ม ${fd(start)} · อีก ${C.workdays(today, new Date(start.getTime() - C.DAY), hol)} วันทำการ` : pace !== null ? `ต้องได้เฉลี่ย <b style="font-size:16px;color:#fff">${n1(pace)}</b> ร้าน/วัน<br>อีก ${daysLeft} วันทำการ · เหลือ ${left} ร้าน` : 'จบโปรเจกต์แล้ว'}</div></div>
     <div class="grid" style="margin-top:12px">
       ${box('ทั้งโปรเจกต์', done, total, pct(done / total) + ' ของเป้า', 'k-live')}
-      ${box('เดือนนี้ (' + ms.toLocaleDateString('th-TH', { month: 'short' }) + ')', n(ms, me), G.monthly, 'เป้า ' + G.monthly + ' / เดือน')}
+      ${(() => { const a = ms < start ? start : ms, b = me > end ? end : me, all = C.workdays(start, end, hol) || 1, wdM = a <= b ? C.workdays(a, b, hol) : 0, mt = Math.round(total * wdM / all);
+        return box('เดือนนี้ (' + ms.toLocaleDateString('th-TH', { month: 'short' }) + ')', n(ms, me), mt, `เป้า ${mt} · ${wdM} วันทำการในช่วงโปรเจกต์`); })()}
       ${box('สัปดาห์นี้' + (wk ? ' (' + esc(wk.label) + ')' : ''), wkDone, wk ? wk.live : G.weekMin, `ปกติ ${G.weekMin}–${G.weekMax} / สัปดาห์${wk && wk.live < G.weekMin ? ' · สัปดาห์นี้วันทำการน้อย' : ''}`)}
       ${box('วันนี้ (ทั้งทีม)', tdDone, G.dayMin, `เป้า ${G.dayMin}–${G.dayMax} / วัน${isOff(today) ? ' · วันหยุด' : ''}`)}</div>
     <p class="small" style="color:#CBD5E1;margin:8px 0 0">นับเฉพาะ LIVE ที่เช็กครบ 4 ข้อ (Yes / N/A) · เป้าสัปดาห์ตามวันทำการจริง (หักวันหยุด Christmas, Boxing Day, New Year, Australia Day)</p></div>`;
