@@ -2194,6 +2194,14 @@ async function viewGcal() {
 /* 🍽️ Food Amigo — stand-alone training page for the new system (not linked to other data) */
 function viewAmigo() {
   $('#main').innerHTML = `<div class="card amigo"><div class="row" style="align-items:center"><h2 style="flex:1;margin:0">🍽️ Food Amigo <small>คู่มือการใช้ระบบใหม่ · หน้าเฉพาะกิจ</small></h2></div>
+    <div class="amgoal"><div class="amtag">🎯 GOAL · FOOD AMIGO</div>
+      <div class="amh">1. Online Ordering System (CW)</div>
+      <div class="amsub">Testing &amp; Alternative Providers</div>
+      <ol class="amlist">
+        <li>Resolve CW printer issues before scaling migration</li>
+        <li>FoodAmigo Plan — pilot customers to get feedback and check features
+          <div class="amkpi"><span><b>5</b> live in 🇺🇸 USA</span><span><b>2</b> in 🇦🇺 AU <small>(new sales)</small></span></div></li>
+      </ol></div>
     <p class="muted" style="margin:14px 0 4px">กำลังเตรียมเนื้อหา — ขั้นตอนการใช้งาน วิดีโอ และลิงก์ต่างๆ จะขึ้นที่หน้านี้เร็วๆ นี้</p></div>`;
 }
 function viewAudit() {

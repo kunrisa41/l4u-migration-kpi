@@ -565,3 +565,9 @@ tr.blkhi td{background:#FEF9C3 !important;box-shadow:inset 0 2px 0 #F59E0B,inset
 /* Star of the week — green theme */
 .starcard{border-color:#34D399;background:linear-gradient(180deg,#ECFDF5,#fff 60%)}.starhero{background:#D1FAE5}
 .starpic{border-color:#34D399}.starini{color:#047857;background:#D1FAE5}tr.starrow td{background:#ECFDF5}
+
+.amgoal{margin-top:12px;background:#0F3B4C;color:#fff;border-radius:14px;padding:18px 22px}
+.amtag{font-size:12px;font-weight:700;letter-spacing:.08em;color:#99F6E4}.amh{font-size:19px;font-weight:700;margin-top:4px}
+.amsub{font-size:14px;color:#CBD5E1;margin-top:2px}.amlist{margin:10px 0 0;padding-left:22px;font-size:15px;line-height:1.6}.amlist li{margin:4px 0}
+.amkpi{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}.amkpi span{background:rgba(255,255,255,.96);color:#0F172A;border-radius:10px;padding:8px 14px;font-size:14px}
+.amkpi b{font-size:22px;color:#0F766E;margin-right:4px}.amkpi small{color:#64748B}
