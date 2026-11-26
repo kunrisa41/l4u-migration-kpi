@@ -311,10 +311,10 @@ function toolsEditor() {
 
 // ---------------- shell ----------------
 const STAFF_TABS = [['home', 'Dashboard & Calendar'], ['tools', '🧰 Tools'], ['prelive', 'Pre-Live Checklist'], ['flow', 'LIVE Process Flow'],
-  ['blockers', 'ปัญหา & Followup'], ['howto', '🎬 How-to'], ['perf', 'Team Performance'], ['audit', 'Audit Reports'], ['amigo', '🍽️ Food Amigo']];
+  ['blockers', 'ปัญหา & Followup'], ['howto', '🎬 How-to'], ['perf', 'Team Performance'], ['audit', 'Audit Reports'], ['amigo', '🍽️ Food Amigo'], ['health', '🌱 Health Check']];
 const KPI_TABS = [['dash', 'KPI Dashboard'], ['weekly', 'Weekly KPI'], ['indiv', 'Individual KPI'], ['tracker', 'รายชื่อร้าน'], ['settings', 'KPI Settings'], ['team', 'Team & Logins'], ['chlog', '📜 Log การแก้ไข'], ['gcal', '🔔 Calendar & Chat']];
 const VIEWS = { run: () => viewRun(), howto: () => viewHowto(), tools: () => viewTools(), home: () => viewHome(), tracker: () => viewTracker(), prelive: () => viewPrelive(), flow: () => viewFlow(), blockers: () => viewBlockers(), daily: () => viewDaily(),
-  perf: () => viewPerf(), audit: () => viewAudit(), amigo: () => viewAmigo(), feedback: () => viewFeedback(), gcal: () => viewGcal(), chlog: () => viewChlog(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
+  perf: () => viewPerf(), audit: () => viewAudit(), amigo: () => viewAmigo(), health: () => viewHealth(), feedback: () => viewFeedback(), gcal: () => viewGcal(), chlog: () => viewChlog(), dash: () => viewDash(), weekly: () => viewWeekly(), indiv: () => viewIndiv(), settings: () => viewSettings(), team: () => viewTeam() };
 function render() {
   S.charts.forEach(c => c.destroy()); S.charts = [];
   document.documentElement.classList.remove('noscroll');
@@ -2242,6 +2242,47 @@ async function viewGcal() {
 }
 
 // --- Audit Reports (PDF archive) ---
+/* 🌱 Monthly anonymous Team Health Check (posted to chat every 25th; answers have no name attached) */
+const HQ = [['q1', '😊', 'เดือนนี้โดยรวมรู้สึกยังไงกับงาน', 'แย่มาก', 'ดีมาก', 'ตัวเอง / สุขภาพใจ'], ['q2', '🔋', 'ระดับพลังงานตอนนี้', 'หมดแรง', 'มีไฟ'],
+  ['q3', '⚖️', 'ปริมาณงานพอดีไหม', 'หนักเกินไปมาก', 'พอดี'], ['q4', '🏠', 'แยกเวลางานกับเวลาส่วนตัวได้ดี (WFH)', 'ไม่ได้เลย', 'ได้ดีมาก'],
+  ['q5', '🤝', 'ทีมช่วยเหลือกันเวลามีปัญหา', 'ไม่เลย', 'มากที่สุด', 'ในทีม'], ['q6', '💬', 'กล้าพูด กล้าถาม หรือบอกว่าพลาดได้โดยไม่กลัว', 'ไม่เลย', 'มากที่สุด'],
+  ['q7', '🎯', 'รู้ชัดว่าเป้าหมายและงานสำคัญของเดือนนี้คืออะไร', 'ไม่ชัดเลย', 'ชัดมาก'],
+  ['q8', '🔗', 'ประสานงานกับทีมอื่น (Sales / Marketing / Support / IT) ราบรื่น ได้ข้อมูลทันเวลา', 'ไม่เลย', 'มากที่สุด', 'ระหว่างทีม']];
+const HT = [['q9', '🌟', 'เดือนนี้อยากขอบคุณใคร หรือเรื่องอะไรที่ทำได้ดี'], ['q10', '🚧', 'อะไรที่ทำให้ทำงานยาก หรือติดขัดอยู่'], ['q11', '💡', 'ถ้าเปลี่ยนได้ 1 อย่างเดือนหน้า อยากเปลี่ยนอะไร']];
+async function viewHealth() {
+  const main = $('#main'); main.innerHTML = '<div class="card"><p class="muted">กำลังโหลด…</p></div>';
+  const { data: st, error } = await sb.rpc('health_status'); if (error || !st) { main.innerHTML = '<div class="card">โหลดไม่ได้</div>'; return; }
+  const mon = new Date(st.period + '-01T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const form = `<form id="hform">${HQ.map(([k, e, t, lo, hi, sec]) => `${sec ? `<div class="hsec">${sec}</div>` : ''}<div class="hq"><div class="hqt">${e} ${esc(t)}</div>
+      <div class="hsc">${[1, 2, 3, 4, 5].map(v => `<label><input type="radio" name="${k}" value="${v}" required><span>${v}</span></label>`).join('')}</div><div class="hlab"><span>1 = ${esc(lo)}</span><span>5 = ${esc(hi)}</span></div></div>`).join('')}
+    <div class="hsec">เขียนเพิ่ม (ไม่บังคับ)</div>${HT.map(([k, e, t]) => `<div class="hq"><div class="hqt">${e} ${esc(t)}</div><textarea name="${k}" rows="2" maxlength="2000"></textarea></div>`).join('')}
+    <div class="hq"><label class="htalk"><input type="checkbox" name="talk"> 🙋 อยากคุยตัวต่อตัวกับหัวหน้า <span class="small muted">(ข้อนี้หัวหน้าจะเห็นชื่อ — คำตอบข้ออื่นยังไม่ระบุชื่อ)</span></label></div>
+    <button class="btn" type="submit" style="width:100%;margin-top:8px">ส่งคำตอบ (ไม่ระบุชื่อ)</button></form>`;
+  main.innerHTML = `<div class="card hcard"><h2>🌱 Team Health Check — ${esc(mon)} <small>ตอบเดือนละครั้ง · 2–3 นาที · ตอบแล้ว ${st.answered}/${st.team} คน</small></h2>
+    <div class="hlock">🔒 <b>ไม่ระบุชื่อ</b> — ระบบไม่เก็บว่าใครตอบอะไร หัวหน้าเห็นแค่ค่าเฉลี่ยของทีม และข้อความเขียนแบบสลับลำดับ</div>
+    ${st.done ? '<div class="hthanks">💚 ขอบคุณที่ตอบแล้วสำหรับเดือนนี้ — เจอกันใหม่วันที่ 25 เดือนหน้า</div>' : form}</div><div id="hsum"></div>`;
+  const f = $('#hform'); if (f) f.onsubmit = async e => { e.preventDefault(); const fd = new FormData(f); const sc = {}, tx = {};
+    HQ.forEach(([k]) => sc[k] = +fd.get(k)); HT.forEach(([k]) => tx[k] = fd.get(k) || '');
+    const b = f.querySelector('button[type=submit]'); b.disabled = true;
+    const { error } = await sb.rpc('health_submit', { p_scores: sc, p_texts: tx, p_talk: !!fd.get('talk') });
+    if (error) { toast('ส่งไม่ได้: ' + error.message); b.disabled = false; return; } toast('ส่งแล้ว ขอบคุณมาก 💚'); viewHealth(); };
+  if (S.me && S.me.is_manager) healthSummary();
+}
+async function healthSummary() {
+  const { data: h, error } = await sb.rpc('health_summary'); const box = $('#hsum'); if (!box || error || !h) return;
+  const M = h.months || []; const cur = M.find(m => m.period === h.period), prev = M.find(m => m.period < h.period);
+  const col = v => v == null ? '' : v >= 4 ? 'hgood' : v >= 3 ? 'hmid' : 'hbad';
+  const arrow = (a, b) => a == null || b == null ? '' : a > b ? ` <span class="hup">↑ ${(a - b).toFixed(1)}</span>` : a < b ? ` <span class="hdn">↓ ${(b - a).toFixed(1)}</span>` : ' <span class="muted">=</span>';
+  const ml = p => new Date(p + '-01T00:00:00').toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+  const rows = HQ.map(([k, e, t]) => { const c = cur && cur.avg[k], pv = prev && prev.avg[k];
+    return `<tr><td>${e} ${esc(t)}</td><td class="num"><span class="hv ${col(c)}">${c ?? '–'}</span>${arrow(c, pv)}</td>${M.slice(0, 6).filter(m => m.period !== h.period).map(m => `<td class="num small ${col(m.avg[k])}">${m.avg[k]}</td>`).join('')}</tr>`; }).join('');
+  const texts = HT.map(([k, e, t]) => { const L = (h.texts || []).filter(x => x.q === k); return L.length ? `<div class="hsec">${e} ${esc(t)}</div>${L.map(x => `<div class="htx">“${esc(x.t)}”</div>`).join('')}` : ''; }).join('');
+  box.innerHTML = `<div class="card"><h2>📊 ผลรวมของทีม <small>เห็นเฉพาะ Manager · ตอบแล้ว ${h.answered}/${h.team} คน</small></h2>
+    ${(h.talk || []).length ? `<div class="htalkbox">🙋 อยากคุยตัวต่อตัว: <b>${h.talk.map(esc).join(', ')}</b></div>` : ''}
+    ${cur ? `<div class="tw"><table class="rtab"><thead><tr><th>คำถาม</th><th class="num">${ml(h.period)}</th>${M.slice(0, 6).filter(m => m.period !== h.period).map(m => `<th class="num">${ml(m.period)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="small muted" style="margin-top:6px">คะแนนเฉลี่ย 1–5 · 🟢 4 ขึ้นไป · 🟡 3–3.9 · 🔴 ต่ำกว่า 3 · ลูกศรเทียบกับเดือนก่อน</div>` : '<p class="muted">เดือนนี้ยังไม่มีคำตอบ</p>'}
+    ${texts ? `<div style="margin-top:10px">${texts}</div><div class="small muted">ข้อความสลับลำดับทุกครั้งที่เปิด เพื่อไม่ให้เดาได้ว่าใครเขียน</div>` : ''}</div>`;
+}
 /* 🍽️ Food Amigo — stand-alone training page for the new system (not linked to other data) */
 function viewAmigo() {
   S.amg = S.amg || {};
