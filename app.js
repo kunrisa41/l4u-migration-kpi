@@ -2248,18 +2248,18 @@ const HQ = [['q1', '😊', 'เดือนนี้โดยรวมรู้�
   ['q5', '🤝', 'ทีมช่วยเหลือกันเวลามีปัญหา', 'ไม่เลย', 'มากที่สุด', 'ในทีม'], ['q6', '💬', 'กล้าพูด กล้าถาม หรือบอกว่าพลาดได้โดยไม่กลัว', 'ไม่เลย', 'มากที่สุด'],
   ['q7', '🎯', 'รู้ชัดว่าเป้าหมายและงานสำคัญของเดือนนี้คืออะไร', 'ไม่ชัดเลย', 'ชัดมาก'],
   ['q8', '🔗', 'ประสานงานกับทีมอื่น (Sales / Marketing / Support / IT) ราบรื่น ได้ข้อมูลทันเวลา', 'ไม่เลย', 'มากที่สุด', 'ระหว่างทีม']];
-const HT = [['q9', '🌟', 'เดือนนี้อยากขอบคุณใคร หรือเรื่องอะไรที่ทำได้ดี'], ['q10', '🚧', 'อะไรที่ทำให้ทำงานยาก หรือติดขัดอยู่'], ['q11', '💡', 'ถ้าเปลี่ยนได้ 1 อย่างเดือนหน้า อยากเปลี่ยนอะไร']];
+const HT = [['q9', '🌟', 'เดือนนี้อยากขอบคุณใคร หรือเรื่องอะไรที่ทำได้ดี'], ['q10', '🚧', 'อะไรที่ทำให้ทำงานยาก หรือติดขัดอยู่'], ['q11', '💡', 'ถ้าเปลี่ยนได้ 1 อย่างเดือนหน้า อยากเปลี่ยนอะไร'], ['q12', '📝', 'อยากบอกอะไรหัวหน้า เขียนได้เลย — ไม่ต้องคุยกัน และไม่ระบุชื่อ']];
 async function viewHealth() {
   const main = $('#main'); main.innerHTML = '<div class="card"><p class="muted">กำลังโหลด…</p></div>';
   const { data: st, error } = await sb.rpc('health_status'); if (error || !st) { main.innerHTML = '<div class="card">โหลดไม่ได้</div>'; return; }
   const mon = new Date(st.period + '-01T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
   const form = `<form id="hform">${HQ.map(([k, e, t, lo, hi, sec]) => `${sec ? `<div class="hsec">${sec}</div>` : ''}<div class="hq"><div class="hqt">${e} ${esc(t)}</div>
       <div class="hsc">${[1, 2, 3, 4, 5].map(v => `<label><input type="radio" name="${k}" value="${v}" required><span>${v}</span></label>`).join('')}</div><div class="hlab"><span>1 = ${esc(lo)}</span><span>5 = ${esc(hi)}</span></div></div>`).join('')}
-    <div class="hsec">เขียนเพิ่ม (ไม่บังคับ)</div>${HT.map(([k, e, t]) => `<div class="hq"><div class="hqt">${e} ${esc(t)}</div><textarea name="${k}" rows="2" maxlength="2000"></textarea></div>`).join('')}
+    <div class="hsec">เขียนเพิ่ม (ไม่บังคับ)</div>${HT.map(([k, e, t]) => `<div class="hq"><div class="hqt">${e} ${esc(t)}</div><textarea name="${k}" rows="${k === 'q12' ? 4 : 2}" maxlength="2000"${k === 'q12' ? ' placeholder="เรื่องงาน เรื่องทีม เรื่องที่ไม่สบายใจ หรือข้อเสนอแนะ — เขียนได้ทุกเรื่อง"' : ''}></textarea></div>`).join('')}
     <div class="hq"><label class="htalk"><input type="checkbox" name="talk"> 🙋 อยากคุยตัวต่อตัวกับหัวหน้า <span class="small muted">(ข้อนี้หัวหน้าจะเห็นชื่อ — คำตอบข้ออื่นยังไม่ระบุชื่อ)</span></label></div>
     <button class="btn" type="submit" style="width:100%;margin-top:8px">ส่งคำตอบ (ไม่ระบุชื่อ)</button></form>`;
   main.innerHTML = `<div class="card hcard"><h2>🌱 Team Health Check — ${esc(mon)} <small>ตอบเดือนละครั้ง · 2–3 นาที · ตอบแล้ว ${st.answered}/${st.team} คน</small></h2>
-    <div class="hlock">🔒 <b>ไม่ระบุชื่อ</b> — ระบบไม่เก็บว่าใครตอบอะไร หัวหน้าเห็นแค่ค่าเฉลี่ยของทีม และข้อความเขียนแบบสลับลำดับ</div>
+    <div class="hlock">🔒 <b>ไม่ระบุชื่อ</b> — ระบบไม่เก็บว่าใครตอบอะไร คำตอบทั้งหมดเห็นได้คนเดียวคือ Manager (Aom) ซึ่งเห็นแค่ค่าเฉลี่ยของทีม และข้อความเขียนแบบสลับลำดับ</div>
     ${st.done ? '<div class="hthanks">💚 ขอบคุณที่ตอบแล้วสำหรับเดือนนี้ — เจอกันใหม่วันที่ 25 เดือนหน้า</div>' : form}</div><div id="hsum"></div>`;
   const f = $('#hform'); if (f) f.onsubmit = async e => { e.preventDefault(); const fd = new FormData(f); const sc = {}, tx = {};
     HQ.forEach(([k]) => sc[k] = +fd.get(k)); HT.forEach(([k]) => tx[k] = fd.get(k) || '');
